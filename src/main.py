@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 # depending on the dimensions of the input, and some other parameters, modules can be created?
 #make own sequential wrapper which can take in some dimension, 
 # these can then be turned into real sequentials, and when parallel merely a list of these can easily be combined
+#investigate heirarchical knowledge base with not taking, will allow for improved context size
 
 #course 1
 #make dag of modules
@@ -19,6 +20,9 @@ from abc import ABC, abstractmethod
 
 #course 3
 #course 2 but create more sophisticated wrappers, that hold relevant information, like input shape, parents, children
+
+#course 4
+#make external notation for modules, then create compiler that can turn this into a list of modules
 
 print("Testing model_make.py")
 test_tensor = torch.rand(1, 1, 28, 28)
