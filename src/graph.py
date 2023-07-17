@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from abc import ABC, abstractmethod
+from functools import reduce
 import math
 
 #items to track
@@ -9,6 +10,12 @@ import math
 # parent count
 # shape
 # build
+
+#one possible method for graph, is use tree, where branches return to parent node, 
+# reduces list of children with input, where each branches output is merged with the previouses output and fed into next
+#or tree node contains eval branches, then a successor? evals are trees to, each only gets the raw input, the successor gets the merged outputs from them
+#multiple outputs simple, just use a list merge and return exactly like the graph, but how to input multiple sources is trickier
+#trees contain branching children, that are merged, then fed into the returning child which is the designated return
 
 #inorder to make skip connection, create addition module
 #will have to override forward method, dont want parents to concat
@@ -27,6 +34,7 @@ import math
 class ModuleNode(nn.Module):
 	CONCAT = 'concat'
 	ADD = 'add'
+	LIST = 'list'
 	def __init__(self):
 		super().__init__()
 		self.module = None
@@ -36,7 +44,9 @@ class ModuleNode(nn.Module):
 		self.children = []
 		self.parents = []
 		self.inputs = []
-		self.merge_method = 'concat'
+		self.merge_method = ModuleNode.CONCAT
+		self.merge_function = None
+		self.built = False
 	def add_child(self, child):
 		self.children.append(child)
 		child.add_parent(self)
@@ -45,6 +55,15 @@ class ModuleNode(nn.Module):
 		self.parents.append(parent)
 	def get_shape(self):
 		return self.shape	
+	def get_merge_function(self):
+		if self.merge_method == ModuleNode.CONCAT:
+			return lambda x: torch.cat(x, dim=1)
+		elif self.merge_method == ModuleNode.ADD:
+			return lambda x: sum(x)
+		elif self.merge_method == ModuleNode.LIST:
+			return lambda x: x 
+		else:
+			return None
 	@staticmethod
 	def dim_change(x, diff=1):
 		return x.view([-1] + list(x.shape)[1+diff:]) if diff >= 0 else x.view([1] * -diff + list(x.shape))
@@ -57,11 +76,16 @@ class ModuleNode(nn.Module):
 	@staticmethod
 	def dim_squish_channel(x, diff=1):
 		return x.view([1] * diff + [-1] + list(x.shape)[2:]) if diff > 0 else x
+	def dim_to_input(self, x):
+		return x.view(self.shape_in)
 	@abstractmethod
 	def module_constructor(self):
 		pass
 	@abstractmethod
 	def dimension_inference(self):
+		pass
+	@abstractmethod
+	def dimensionality():
 		pass
 	def build(self, module_constructor, x):
 		self.inputs.append(x)
@@ -77,21 +101,13 @@ class ModuleNode(nn.Module):
 		for child in self.children:
 			child.reset_inputs()
 	def forward(self, x):
+		if not self.built:
+			return None
 		if self.parents == [] and self.children == []:
-			#for backwards compatibility with regular modules
 			return self.module(x)
-		self.inputs.append(x)
+		self.inputs.append(self.dim_to_input(x))
 		if len(self.inputs) >= len(self.parents):
-			y = []
-			y = self.inputs	
-			#for input in self.inputs:
-				#takes care of flatten or bringing to higher dimension
-			#	y.append(input.view([input.shape[0], -1, self.shape_in[2:]]))
-			if self.merge_method == ModuleNode.CONCAT:
-				x = torch.cat(y, dim=1)
-			elif self.merge_method == ModuleNode.ADD:
-				x = sum(y) 
-			x = self.module(x)
+			x = self.module(self.merge_function(self.inputs))
 			if self.children == []:
 				return x
 			y = None
@@ -108,28 +124,6 @@ class TestDenseNode(ModuleNode):
 	def build(self, x):
 		super().build(x)	
 
-one_d = torch.tensor(range(0, 8))
-two_d = one_d.view(-1, 2)
-three_d = one_d.view(2, 2, 2)
-#options:
-#when convert between channels, shuffle all dims up
-#make for easier depthwise convolution creation, using 3d convs
-#consider making convs output something with nonly 1 in first dim
-#may use higher dimensional convs for all?
-#if wanting 1x1 then use Dx1x1 with padding valid
-def dim_test_down(x):
-	return x.view([-1] + list(x.shape)[2:])
-def dim_test_up(x):
-	return x.view([1] + list(x.shape))
-def dim_test_squish(x):
-	return x.view([1, -1] + list(x.shape)[2:])
-
-
-print(three_d)
-print(dim_test_up(three_d))
-print(dim_test_down(three_d))
-print(dim_test_squish(three_d))
-exit()
 
 test1 = TestDenseNode(10)
 test2 = TestDenseNode(10)
