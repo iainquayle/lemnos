@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from abc import ABC, abstractmethod
-from functools import reduce
-import math
 
 #items to track
 # children
