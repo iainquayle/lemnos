@@ -50,3 +50,5 @@ class Node(nn.Module):
 		self.inputs = []
 		for child in self.children:
 			child.reset_inputs()
+	def check_validity(self):
+		pass

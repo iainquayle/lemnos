@@ -12,18 +12,18 @@ class Tree(nn.Module):
 	pass
 
 class Node(nn.Module):
-	def __init__(self,  function=identity, activation=identity, batch_norm=identity, features_shape=[1], merge_method=MergeMethod.SINGLE, sub_branches=[identity], return_branch=identity):
+	def __init__(self,  function=identity, activation=identity, batch_norm=identity, features_shape=[1], merge_method=MergeMethod.SINGLE, split_branches=[identity], return_branch=identity):
 		super().__init__()
 		self.function = function 
 		self.activation = activation 
 		self.batch_norm = batch_norm 
 		self.features_shape = torch.Size(features_shape) 
-		self.sub_branches = sub_branches 
-		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(sub_branches) > 1 else merge_method.get_function()
+		self.split_branches = split_branches 
+		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(split_branches) > 1 else merge_method.get_function()
 		self.return_branch = return_branch 
 	def forward(self, x):
 		x = self.mould_features(self.activation(self.batch_norm(self.function(x))))
-		return self.return_branch(self.merge_function(list(map(lambda module: module(x), self.sub_branches))))
+		return self.return_branch(self.merge_function(list(map(lambda module: module(x), self.split_branches))))
 	def mould_features(self, x):
 		return mould_features(x, self.features_shape) 
 	@staticmethod
