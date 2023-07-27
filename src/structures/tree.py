@@ -48,13 +48,19 @@ class Node(nn.Module):
 			return_branch = Node.new(shape_out, mould_features(function(shape_tensor), [new_features]))
 		return Node(function=function, activation=activation, batch_norm=batch_norm, features_shape=features_shape, 
 			return_branch=return_branch)
+	@staticmethod
+	def get_branch_function(has_residual: bool, has_concat: bool, returns_list: bool):
+		if returns_list:
+			return lambda x, split_branches, return_branch: list(map(lambda module: module(x), split_branches))
+		elif has_concat and has_residual:
+			return lambda x, split_branches, return_branch: return_branch(x + torch.cat(list(map(lambda module: module(x), split_branches))))
+		elif has_concat:
+			return lambda x, split_branches, return_branch: return_branch(torch.cat(list(map(lambda module: module(x), split_branches))))
+		elif has_residual:
+			return lambda x, split_branches, return_branch: return_branch(x + split_branches[0](x))
+		elif not has_concat and not has_residual and not returns_list:
+			return lambda x, split_branches, return_branch: return_branch(x)
+		else:
+			print("error in get_branch_function")
+			exit(1)
 	
-class Rules:
-	CONV2D = 'conv2d'
-	pass
-
-
-print("start")			
-tens = torch.rand((2, 10), dtype=torch.float32)
-test = Node.new([5], tens)
-print(test(tens))
