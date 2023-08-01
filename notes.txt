@@ -1,0 +1,1 @@
+REMEBER: get a working first version. later versions can compile to flattened code and then be used in optimizers like torch compile or perhaps even triton

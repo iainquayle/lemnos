@@ -6,6 +6,11 @@ from math import prod
 from enum import Enum
 
 identity = lambda x: x
+class Indentity(nn.Module):
+	def __init__(self) -> None:
+		super().__init__()
+	def forward(x):
+		return x
 class MergeMethod(Enum):
 	CONCAT = 'concat'
 	ADD = 'add'
