@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from kontrol.transitions import Transition, ConvTransition 
 
-from structures.commons import identity, Indentity, MergeMethod, mould_features
+from structures.commons import identity, Identity, MergeMethod, mould_features
 
 from copy import copy, deepcopy
 from math import prod
@@ -18,13 +18,13 @@ class Tree(nn.Module):
 
 class Node(nn.Module):
 	def __init__(self,  
-	      module_function: nn.Module =identity, 
+	      module_function: nn.Module =Identity, 
 			activation: nn.Module | Callable[[List[Tensor] | Tensor], List[Tensor] | Tensor] =identity, 
-			batch_norm: nn.Module =identity, 
+			batch_norm: nn.Module =Identity(), 
 			features_shape: List[int] | Size =[1], 
 			merge_method: MergeMethod =MergeMethod.SINGLE, 
-			split_branches: List[nn.Module] =[identity], 
-			return_branch: nn.Module =identity):
+			split_branches: List[nn.Module] =[Identity], 
+			return_branch: nn.Module =Identity):
 		super().__init__()
 		self.module_function = module_function 
 		self.activation = activation 
@@ -43,21 +43,18 @@ class Node(nn.Module):
 		function = transistion.get_function(index, shape_out, shape_tensor)
 		#split = Node.new()
 		return None	
-	#probably will never use this one specifically, though the general idea is maybe good
-	#takes away too much flexibility, for example, when wanting a module with a res that branches but merges prior to the residual
+	#not sure whether to use this, may take too much explicitness out for minimal gain
+	#also harder to make tree walker when loosing explicitness
 	@staticmethod
-	def get_branch_function(has_residual: bool, has_concat: bool, returns_list: bool):
-		if returns_list:
+	def get_branch_function(merge_method: MergeMethod):
+		if merge_method == MergeMethod.CONCAT:
+			return lambda x, split_branches, return_branch: return_branch(torch.cat(list(map(lambda module: module(x), split_branches)), dim=1))
+		elif merge_method == MergeMethod.ADD:
+			return lambda x, split_branches, return_branch: return_branch(sum(list(map(lambda module: module(x), split_branches))))
+		elif merge_method == MergeMethod.SINGLE:
+			return lambda x, split_branches, return_branch: return_branch(split_branches[0](x))
+		elif merge_method == MergeMethod.LIST:
 			return lambda x, split_branches, return_branch: list(map(lambda module: module(x), split_branches))
-		elif has_concat and has_residual:
-			return lambda x, split_branches, return_branch: return_branch(x + torch.cat(list(map(lambda module: module(x), split_branches))))
-		elif has_concat:
-			return lambda x, split_branches, return_branch: return_branch(torch.cat(list(map(lambda module: module(x), split_branches))))
-		elif has_residual:
-			return lambda x, split_branches, return_branch: return_branch(x + split_branches[0](x))
-		elif not has_concat and not has_residual and not returns_list:
-			return lambda x, split_branches, return_branch: return_branch(x)
 		else:
-			print("error in get_branch_function")
-			exit(1)
+			return None
 	
