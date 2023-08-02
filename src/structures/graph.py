@@ -36,6 +36,7 @@ class Node(Module):
 		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(children) > 1 else merge_method.get_function() 
 		self.merge_method = merge_method
 	def forward(self, x: Tensor) -> Tensor | None:
+		print("here")
 		self.inputs.append(self.mould_input(x))
 		if len(self.inputs) >= len(self.parents):
 			x = self.mould_output(self.activation(self.batch_norm(self.function(self.merge_function(self.inputs)))))
