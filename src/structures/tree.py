@@ -18,13 +18,13 @@ class Tree(nn.Module):
 
 class Node(nn.Module):
 	def __init__(self,  
-	      module_function: nn.Module =Identity, 
+	      module_function: nn.Module =Identity(), 
 			activation: nn.Module | Callable[[List[Tensor] | Tensor], List[Tensor] | Tensor] =identity, 
 			batch_norm: nn.Module =Identity(), 
 			features_shape: List[int] | Size =[1], 
 			merge_method: MergeMethod =MergeMethod.SINGLE, 
-			split_branches: List[nn.Module] =[Identity], 
-			return_branch: nn.Module =Identity):
+			split_branches: List[nn.Module] =[Identity()], 
+			return_branch: nn.Module =Identity()):
 		super().__init__()
 		self.module_function = module_function 
 		self.activation = activation 

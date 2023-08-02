@@ -1,4 +1,7 @@
 from kontrol.transitions import Transition, ConvTransition
-from structures.tree import Tree, Node
+from structures.graph import Node
 
-Node.new([1], [1], Transition())
+print("Hello World!")
+mod1 = Node()
+mod2 = Node()
+mod3 = Node()

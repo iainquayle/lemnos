@@ -1,22 +1,26 @@
 import torch
+from torch import Tensor, Size
+from torch.nn import Module
 import torch.nn as nn
 import torch.nn.functional as F
+
+from typing import Callable, List, Any
 from copy import copy, deepcopy
 from math import prod
 from enum import Enum
 
 identity = lambda x: x
-class Identity(nn.Module):
+class Identity(Module):
 	def __init__(self) -> None:
 		super().__init__()
-	def forward(x):
+	def forward(self, x: Tensor) -> Tensor:
 		return x
 class MergeMethod(Enum):
 	CONCAT = 'concat'
 	ADD = 'add'
 	SINGLE = 'single'
 	LIST = 'list'
-	def get_function(self):
+	def get_function(self) -> Callable[[List[Tensor]], Tensor | List[Tensor]]:
 		if self == MergeMethod.CONCAT:
 			return lambda x: torch.cat(x, dim=1)
 		elif self == MergeMethod.ADD:
