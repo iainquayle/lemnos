@@ -1,6 +1,6 @@
 import torch
-from torch import Tensor, Size
-from torch.nn import Module
+from torch import Tensor, Size 
+from torch.nn import Module, ModuleList
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -16,61 +16,56 @@ class Graph(Module):
 class Node(Module):
 	def __init__(self, 
 	      function: Module =Identity(),
-			activation: Module =Identity(), 
+			activation: Module =nn.ReLU(), 
 			batch_norm: Module =Identity(), 
-			#TODO: consider removing shapout
-			shape_out: List[int] | Size =[1], 
 			shape_in: List[int] | Size =[1], 
 			merge_method: MergeMethod =MergeMethod.SINGLE, 
-			children: List[Module] =[Identity()], 
-			parents: List[Module] =[Identity()]) -> None:
+			node_children: ModuleList =ModuleList([Identity()]), 
+			node_parents: ModuleList =ModuleList([Identity()]),
+			transition: Transition =Transition()) -> None:
 		super().__init__()
-		self.function = function 
-		self.activation = activation	 
-		self.batch_norm = batch_norm 
-		self.shape_out = shape_out 
-		self.shape_in = shape_in 
-		self.children = children 
-		self.parents = parents 
-		self.inputs = [] 
-		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(children) > 1 else merge_method.get_function() 
-		self.merge_method = merge_method
+		self.function: Module = function 
+		self.activation: Module = activation	 
+		self.batch_norm: Module = batch_norm 
+		self.shape_in: Size | List[int] = shape_in 
+		self.node_children: ModuleList = node_children 
+		self.node_parents: ModuleList = node_parents 
+		self.inputs: List[Tensor] = [] 
+		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(node_children) > 1 else merge_method.get_function() 
+		self.merge_method: MergeMethod = merge_method
+		self.transition: Transition = transition 
 	def forward(self, x: Tensor) -> Tensor | None:
-		print("here")
 		self.inputs.append(self.mould_input(x))
-		if len(self.inputs) >= len(self.parents):
-			x = self.mould_output(self.activation(self.batch_norm(self.function(self.merge_function(self.inputs)))))
+		if len(self.inputs) >= len(self.node_parents):
+			x = self.activation(self.batch_norm(self.function(self.merge_function(self.inputs))))
 			y = None
-			for child in self.children:
+			for child in self.node_children:
 				y = child(x)
 			self.inputs = []
 			return y
 		else:
 			return None
+	@staticmethod
+	def new(transition_graph: Transition, index: int) -> Module:
+			
+		pass
 	def compile_to_flat_module(self) -> Module:
 		pass   
 	def mould_input(self, x: Tensor):
 		return mould_features(x, self.shape_in) 
-	def mould_output(self, x: Tensor):
-		return mould_features(x, self.shape_out) 
 	def add_child(self, child):
-		self.children.append(child)
-		child.parents.append(self)
+		self.node_children.append(child)
+		child.node_parents.append(self)
 		return self
 	def add_parent(self, parent):
-		self.parents.append(parent)
-		parent.children.append(self)
+		self.node_parents.append(parent)
+		parent.node_children.append(self)
 		return self
 	def reset_inputs(self):
 		self.inputs = []
-		for child in self.children:
+		for child in self.node_children:
 			child.reset_inputs()
 	def check_validity(self):
 		pass
 	
 
-#TODO: make sure that back pass works with the non immediate return of the forward pass
-
-mod1 = Node()
-mod2 = Node()
-mod3 = Node()
