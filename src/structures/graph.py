@@ -51,17 +51,17 @@ class Node(Module):
 		pass
 	def compile_to_flat_module(self) -> Module:
 		pass   
-	def mould_input(self, x: Tensor):
+	def mould_input(self, x: Tensor) -> Tensor:
 		return mould_features(x, self.shape_in) 
-	def add_child(self, child):
+	def add_child(self, child) -> None:
 		self.node_children.append(child)
 		child.node_parents.append(self)
 		return self
-	def add_parent(self, parent):
+	def add_parent(self, parent) -> None:
 		self.node_parents.append(parent)
 		parent.node_children.append(self)
 		return self
-	def reset_inputs(self):
+	def reset_inputs(self) -> None:
 		self.inputs = []
 		for child in self.node_children:
 			child.reset_inputs()

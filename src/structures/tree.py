@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor, Size
 import torch.nn as nn
+from torch.nn import Module, ModuleList
 import torch.nn.functional as F
 
 from kontrol.transitions import Transition, ConvTransition 
@@ -18,13 +19,14 @@ class Tree(nn.Module):
 
 class Node(nn.Module):
 	def __init__(self,  
-	      module_function: nn.Module =Identity(), 
-			activation: nn.Module | Callable[[List[Tensor] | Tensor], List[Tensor] | Tensor] =identity, 
-			batch_norm: nn.Module =Identity(), 
+	      module_function: Module =Identity(), 
+			activation: Module | Callable[[List[Tensor] | Tensor], List[Tensor] | Tensor] =identity, 
+			batch_norm: Module =Identity(), 
 			features_shape: List[int] | Size =[1], 
 			merge_method: MergeMethod =MergeMethod.SINGLE, 
-			split_branches: List[nn.Module] =[Identity()], 
-			return_branch: nn.Module =Identity()):
+			split_branches: ModuleList =ModuleList([Identity()]), 
+			return_branch: Module =Identity(),
+			transition: Transition | None = None):
 		super().__init__()
 		self.module_function = module_function 
 		self.activation = activation 
@@ -33,6 +35,7 @@ class Node(nn.Module):
 		self.split_branches = split_branches 
 		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(split_branches) > 1 else merge_method.get_function()
 		self.return_branch = return_branch 
+		self.transition = transition
 	def forward(self, x):
 		x = self.mould_features(self.activation(self.batch_norm(self.module_function(x))))
 		return self.return_branch(self.merge_function(list(map(lambda module: module(x), self.split_branches))))
