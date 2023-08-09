@@ -8,6 +8,7 @@ from kontrol.transitions import Transition, ConvTransition
 from structures.commons import identity, Identity, MergeMethod, get_features_shape, mould_features
 
 from typing import Callable, List, Any 
+from typing_extensions import Self
 from copy import copy, deepcopy
 from math import prod
 
@@ -46,8 +47,11 @@ class Node(Module):
 		else:
 			return None
 	@staticmethod
-	def new(transition_graph: Transition, index: int) -> Module:
-			
+	def new(transition_graph: Transition, index: int) -> Self:
+		group = transition_graph.next_state_groups[index]
+		for state, required in group.items():
+			if state in transition_graph.visits:
+				pass
 		pass
 	def compile_to_flat_module(self) -> Module:
 		pass   
