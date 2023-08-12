@@ -19,7 +19,7 @@ class Tree(nn.Module):
 
 class Node(nn.Module):
 	def __init__(self,  
-	      module_function: Module =Identity(), 
+	      function: Module =Identity(), 
 			activation: Module | Callable[[List[Tensor] | Tensor], List[Tensor] | Tensor] =identity, 
 			batch_norm: Module =Identity(), 
 			features_shape: List[int] | Size =[1], 
@@ -28,7 +28,7 @@ class Node(nn.Module):
 			return_branch: Module =Identity(),
 			transition: Transition | None = None):
 		super().__init__()
-		self.module_function = module_function 
+		self.function = function 
 		self.activation = activation 
 		self.batch_norm = batch_norm 
 		self.features_shape = Size(features_shape) 
@@ -37,7 +37,7 @@ class Node(nn.Module):
 		self.return_branch = return_branch 
 		self.transition = transition
 	def forward(self, x):
-		x = self.mould_features(self.activation(self.batch_norm(self.module_function(x))))
+		x = self.mould_features(self.activation(self.batch_norm(self.function(x))))
 		return self.return_branch(self.merge_function(list(map(lambda module: module(x), self.split_branches))))
 	def mould_features(self, x):
 		return mould_features(x, self.features_shape) 
@@ -45,9 +45,10 @@ class Node(nn.Module):
 	def new(index: int, shape_out: List[int] | Size, shape_tensor: List[int] | Size, transistion: Transition):
 		function = transistion.get_function(index, shape_out, shape_tensor)
 		#split = Node.new()
-		return None	
+		pass
 	#not sure whether to use this, may take too much explicitness out for minimal gain
 	#also harder to make tree walker when loosing explicitness
+	
 	@staticmethod
 	def get_branch_function(merge_method: MergeMethod):
 		if merge_method == MergeMethod.CONCAT:

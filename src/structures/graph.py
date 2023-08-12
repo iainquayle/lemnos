@@ -50,9 +50,16 @@ class Node(Module):
 	def new(transition_graph: Transition, index: int) -> Self:
 		group = transition_graph.next_state_groups[index]
 		for state, required in group.items():
+			pass
 			if state in transition_graph.visits:
 				pass
 		pass
+	def create_function(self) -> None:
+		x = self.merge_function(self.inputs)
+		self.inputs = []
+		pass
+	def push_shape_tensor(self, x: Tensor) -> None:
+		self.inputs.append(self.mould_input(x))
 	def compile_to_flat_module(self) -> Module:
 		pass   
 	def mould_input(self, x: Tensor) -> Tensor:
