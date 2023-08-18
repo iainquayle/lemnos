@@ -4,6 +4,7 @@ from structures.commons import Identity, MergeMethod
 from abc import ABC, abstractmethod
 from typing import List, Set, Dict, Any, Tuple
 from typing_extensions import Self
+import gc
 from copy import copy
 
 class Bound:
@@ -24,18 +25,25 @@ class TransitionGroup:
 		return f"TG {self.transitions} {self.joining_transition}"
 	def __repr__(self) -> str:
 		return str(self)
-class SplitStack:
-	def __init__(self, stack =list()) -> None:
-		self.stack: List[Dict[TransitionGroup, Set[Transition]]] = stack 
-	def merge(self, other: Self) -> None:
-		#it can be achieved using a list as versus a tree becuase:
-		#since any split from the same group will always have the same interior, merging stacks is as simple as merging the two visable items
-		#only the surviving one needs to keep the rest of its stack since they are the exact same from the two now merged stacks
-		for split in other.stack:
-			pass
-		pass
-	def __copy__(self) -> Self:
-		return SplitStack([]) 
+class SplitTreeNode:
+	def __init__(self) -> None:
+		self.splits: Dict[TransitionGroup, Tuple[Set[Transition], Self | None]] = dict() 
+	def merge(self, other):
+		merge_stack = [(x, y) for x, y in other.items()]
+		while len(merge_stack) > 0:
+			other_group, (other_transitions, other_next_node) = merge_stack.pop()
+			if other_group in self.splits:
+				transitions, next_node = self.splits[other_group]
+				self.splits[other_group] = (transitions | other_transitions, next_node)	
+			else:
+				self.splits[other_group] = (other_transitions, other_next_node)	
+	def add(self, group, transition, next_node =None):
+		self.splits[group] = ({transition}, next_node)	
+	def __copy__(self) -> Any:
+		new_node = SplitTreeNode()
+		for group, (transitions, next_node) in self.splits.items():
+			new_node.add(group, copy(transitions), copy(next_node))
+		return new_node 
 class Transition:
 	count = 0
 	def __init__(self, 
@@ -101,6 +109,7 @@ class Transition:
 			for group in self.next_state_groups:
 				for state in group.transitions:
 					state.analyse_splits(visits | {self})
+		gc.collect()
 	@abstractmethod
 	def get_function(self, index: int, shape_tensor: List[int] | Size) -> Module:
 		pass
