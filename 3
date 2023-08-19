@@ -31,27 +31,21 @@ class SplitTreeNode:
 		self.splits: Dict[TransitionGroup, Tuple[Set[Transition], Self | None]] = dict() 
 		self.id = str(SplitTreeNode.count)
 		SplitTreeNode.count += 1
-	def merge(self, other) -> Self:
-		#for other_group, (other_transitions, other_next_node) in other.splits.items():
+	def merge(self, other):
 		merge_stack = [(x, y) for x, y in other.splits.items()]
 		while len(merge_stack) > 0:
 			other_group, (other_transitions, other_next_node) = merge_stack.pop()
-			#TODO: whats the best solution for deletion and recurssive merging
-			#also the self need to be checked for nodes to delete, so only looping on other is not sufficient when a graph has two entry points
-			#this means merge stack wont work
-			#can do iterative until no changes made, or can do recurssive merge on new self and new list of previously wrapped nodes now to be joined
 			if other_group in self.splits:
 				transitions, next_node = self.splits[other_group]
 				self.splits[other_group] = (transitions | other_transitions, next_node)	
 			else:
 				self.splits[other_group] = (other_transitions, other_next_node)	
-		return self
 	def add(self, group, transition, next_node =None):
-		self.splits[group] = ({transition}, copy(next_node))	
+		self.splits[group] = ({transition}, next_node)	
 	def __copy__(self) -> Any:
 		new_node = SplitTreeNode()
 		for group, (transitions, next_node) in self.splits.items():
-			new_node.splits[group] = (copy(transitions), copy(next_node))
+			new_node.add(group, copy(transitions), copy(next_node))
 		return new_node 
 	def __str__(self) -> str:
 		return f"STN{self.id} {self.splits}"	
