@@ -2,10 +2,17 @@ from torch import Tensor, Size
 from torch.nn import Module, ModuleList
 from structures.commons import Identity, MergeMethod
 from abc import ABC, abstractmethod
-from typing import List, Set, Dict, Any, Tuple
+from typing import List, Optional, Set, Dict, Any, Tuple
 from typing_extensions import Self
+from collections import namedtuple
 import gc
 from copy import copy
+
+#TODO: maybe for priorty graph analyses, walk the graph width wise using the wrapping done in the prior system
+#have a set of nodes to further, each pushes into a new set.
+#once a join is found, next priority number is given to the splits associated with that join if they dont hace one assigned
+#eventually a join will be found, even if one branch is way over iterated, then somehow those can be cleaned
+#maybe if a split has already been seen then dont explore further to make sure memory usage doesnt go crazy
 
 class Bound:
 	def __init__(self, lower: int | float =1, upper: int | float =1) -> None:
@@ -18,11 +25,15 @@ class Bound:
 	def inside(self, i: int | float) -> bool:
 		return i >= self.lower and i <= self.upper	
 class TransitionGroup:
-	def __init__(self, transitions: Dict[Any, bool] =dict(), joining_transition: Any | None =None) -> None:
-		self.transitions: Dict[Any, bool] = transitions	
-		self.joining_transition: Any | None = joining_transition 
+	def __init__(self, transitions: Dict[Any, bool] =dict())  -> None:
+		TransitionData = namedtuple('TransitionData', ['optional', 'stack'])
+		self.transitions: Dict[Any, TransitionData] = {transition: TransitionData(optional, list()) for transition, optional in transitions.items()}
+		self.joining_transitions: Set[Transition] =  set()
+	def clear_joins(self):
+		self.individual_joining_transitions = dict()
+		self.joining_transitions = set()
 	def __str__(self) -> str:
-		return f"TG {self.transitions} {self.joining_transition}"
+		return f"TG {self.transitions} {self.joining_transitions}"
 	def __repr__(self) -> str:
 		return str(self)
 class SplitTreeNode:
@@ -33,6 +44,7 @@ class SplitTreeNode:
 		SplitTreeNode.count += 1
 	def merge(self, other) -> Self:
 		#for other_group, (other_transitions, other_next_node) in other.splits.items():
+		#TODO: can this not just be cast from a list
 		merge_stack = [(x, y) for x, y in other.splits.items()]
 		while len(merge_stack) > 0:
 			other_group, (other_transitions, other_next_node) = merge_stack.pop()
