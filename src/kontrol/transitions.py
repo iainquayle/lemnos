@@ -2,7 +2,7 @@ from torch import Tensor, Size
 from torch.nn import Module, ModuleList
 from structures.commons import Identity, MergeMethod
 from abc import ABC, abstractmethod
-from typing import List, Optional, Set, Dict, Any, Tuple
+from typing import List, Optional, Set, Dict, Any, Tuple, NamedTuple
 from typing_extensions import Self
 from collections import namedtuple
 import gc
@@ -13,6 +13,7 @@ from copy import copy
 #once a join is found, next priority number is given to the splits associated with that join if they dont hace one assigned
 #eventually a join will be found, even if one branch is way over iterated, then somehow those can be cleaned
 #maybe if a split has already been seen then dont explore further to make sure memory usage doesnt go crazy
+#but the shortest path to the join should be the first one, so that a residual connection is the first to
 
 class Bound:
 	def __init__(self, lower: int | float =1, upper: int | float =1) -> None:
@@ -25,50 +26,64 @@ class Bound:
 	def inside(self, i: int | float) -> bool:
 		return i >= self.lower and i <= self.upper	
 class TransitionGroup:
+	class TransitionData(NamedTuple):
+		optional: bool
+		stack: List[Any]
 	def __init__(self, transitions: Dict[Any, bool] =dict())  -> None:
-		TransitionData = namedtuple('TransitionData', ['optional', 'stack'])
-		self.transitions: Dict[Any, TransitionData] = {transition: TransitionData(optional, list()) for transition, optional in transitions.items()}
+		self.transitions: Dict[Any, TransitionGroup.TransitionData] = {transition: TransitionGroup.TransitionData(optional, list()) for transition, optional in transitions.items()}
 		self.joining_transitions: Set[Transition] =  set()
 	def clear_joins(self):
-		self.individual_joining_transitions = dict()
+		for transition in self.transitions:
+			self.transitions[transition] = TransitionGroup.TransitionData(self.transitions[transition].optional, list())
 		self.joining_transitions = set()
 	def __str__(self) -> str:
-		return f"TG {self.transitions} {self.joining_transitions}"
+		return f"TG{self.transitions} {self.joining_transitions}"
 	def __repr__(self) -> str:
 		return str(self)
+#new node is made for each split, each new node will wrap what the splitter had prior
+#deletion in this case should be the responsibility of the transition object,
+#as it should delet its own node if the node is complete?
+#perhaps when merging nodes, it just flattens all it can,
+#then the transition object will delete all it can?
+#
+#transition will pull down new splits and wrap them
+#there can be multiple splits
+#unless all transitions always hold on to a node, no matter what, it just may be that the node is empty in the end 
+#in which case deleteing nodes during the merge process is indeed the correct way to go
+#
 class SplitTreeNode:
+	class TransitionGroupData(NamedTuple):
+		transitions: Set[Any]
+		next_node: Self | None 
 	count = 0
 	def __init__(self) -> None:
-		self.splits: Dict[TransitionGroup, Tuple[Set[Transition], Self | None]] = dict() 
+		self.splits: Dict[TransitionGroup, SplitTreeNode.TransitionGroupData] = dict() 
 		self.id = str(SplitTreeNode.count)
 		SplitTreeNode.count += 1
-	def merge(self, other) -> Self:
-		#for other_group, (other_transitions, other_next_node) in other.splits.items():
-		#TODO: can this not just be cast from a list
-		merge_stack = [(x, y) for x, y in other.splits.items()]
+	def merge(self, other, merging_transition) -> Self:
+		merge_stack = list(other.splits.items()) + list(self.splits.items())
+		remaining_groups = dict()
 		while len(merge_stack) > 0:
-			other_group, (other_transitions, other_next_node) = merge_stack.pop()
-			#TODO: whats the best solution for deletion and recurssive merging
-			#also the self need to be checked for nodes to delete, so only looping on other is not sufficient when a graph has two entry points
-			#this means merge stack wont work
-			#can do iterative until no changes made, or can do recurssive merge on new self and new list of previously wrapped nodes now to be joined
-			if other_group in self.splits:
-				transitions, next_node = self.splits[other_group]
-				self.splits[other_group] = (transitions | other_transitions, next_node)	
-			else:
-				self.splits[other_group] = (other_transitions, other_next_node)	
+			group, group_data = merge_stack.pop()
+			new_data = SplitTreeNode.TransitionGroupData(
+				remaining_groups[group].transitions | group_data.transitions if group in remaining_groups else group_data.transitions,
+				group_data.next_node)
+			if set(group.transitions) == set(new_data.transitions):
+				
+				pass
 		return self
 	def add(self, group, transition, next_node =None):
-		self.splits[group] = ({transition}, copy(next_node))	
+		self.splits[group] = SplitTreeNode.TransitionGroupData({transition}, copy(next_node))	
 	def __copy__(self) -> Any:
 		new_node = SplitTreeNode()
 		for group, (transitions, next_node) in self.splits.items():
-			new_node.splits[group] = (copy(transitions), copy(next_node))
+			new_node.splits[group] = SplitTreeNode.TransitionGroupData(copy(transitions), copy(next_node))
 		return new_node 
 	def __str__(self) -> str:
 		return f"STN{self.id} {self.splits}"	
 	def __repr__(self) -> str:
 		return str(self)	
+#rename transition to state? or node?
 class Transition:
 	count = 0
 	def __init__(self, 
