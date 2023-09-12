@@ -8,13 +8,6 @@ from collections import namedtuple
 import gc
 from copy import copy
 
-#TODO: maybe for priorty graph analyses, walk the graph width wise using the wrapping done in the prior system
-#have a set of nodes to further, each pushes into a new set.
-#once a join is found, next priority number is given to the splits associated with that join if they dont hace one assigned
-#eventually a join will be found, even if one branch is way over iterated, then somehow those can be cleaned
-#maybe if a split has already been seen then dont explore further to make sure memory usage doesnt go crazy
-#but the shortest path to the join should be the first one, so that a residual connection is the first to
-
 class Bound:
 	def __init__(self, lower: int | float =1, upper: int | float =1) -> None:
 		if upper < lower:
@@ -27,14 +20,18 @@ class Bound:
 		return i >= self.lower and i <= self.upper	
 class TransitionGroup:
 	class TransitionData(NamedTuple):
-		optional: bool
-		stack: List[Any]
+		optional: bool = False
+		joining_transitions: Set[Any] = set()
+		def __str__(self) -> str:
+			return f"({self.optional} {self.joining_transitions})"
+		def __repr__(self) -> str:
+			return str(self)
 	def __init__(self, transitions: Dict[Any, bool] =dict())  -> None:
-		self.transitions: Dict[Any, TransitionGroup.TransitionData] = {transition: TransitionGroup.TransitionData(optional, list()) for transition, optional in transitions.items()}
-		self.joining_transitions: Set[Transition] =  set()
+		self.transitions: Dict[LayerConstraints, TransitionGroup.TransitionData] = {transition: TransitionGroup.TransitionData(optional, set()) for transition, optional in transitions.items()}
+		self.joining_transitions: Set[LayerConstraints] =  set()
 	def clear_joins(self):
 		for transition in self.transitions:
-			self.transitions[transition] = TransitionGroup.TransitionData(self.transitions[transition].optional, list())
+			self.transitions[transition] = TransitionGroup.TransitionData(self.transitions[transition].optional, set())
 		self.joining_transitions = set()
 	def __str__(self) -> str:
 		return f"TG{self.transitions} {self.joining_transitions}"
@@ -55,6 +52,10 @@ class SplitTreeNode:
 	class TransitionGroupData(NamedTuple):
 		transitions: Set[Any]
 		next_node: Self | None 
+		def __str__(self) -> str:
+			return f"({self.transitions} {self.next_node})"
+		def __repr__(self) -> str:
+			return str(self)
 	count = 0
 	def __init__(self) -> None:
 		self.splits: Dict[TransitionGroup, SplitTreeNode.TransitionGroupData] = dict() 
@@ -65,12 +66,23 @@ class SplitTreeNode:
 		remaining_groups = dict()
 		while len(merge_stack) > 0:
 			group, group_data = merge_stack.pop()
-			new_data = SplitTreeNode.TransitionGroupData(
-				remaining_groups[group].transitions | group_data.transitions if group in remaining_groups else group_data.transitions,
-				group_data.next_node)
-			if set(group.transitions) == set(new_data.transitions):
-				
-				pass
+			new_data = None
+			if group in remaining_groups:
+				new_data = SplitTreeNode.TransitionGroupData(
+					remaining_groups[group].transitions | group_data.transitions,
+					group_data.next_node)	
+				group.joining_transitions.add(merging_transition)
+				for transition in new_data.transitions:
+					transition.joining_transitions.add(merging_transition)
+			else:
+				new_data = SplitTreeNode.TransitionGroupData(
+					group_data.transitions,
+					group_data.next_node)	
+			if new_data.transitions == group.transitions:
+				group.joining_transitions.add(merging_transition)
+				for transition in new_data.transitions:
+					transition.joining_transitions.add(merging_transition)
+				merge_stack += list(group_data.next_node.splits.items())
 		return self
 	def add(self, group, transition, next_node =None):
 		self.splits[group] = SplitTreeNode.TransitionGroupData({transition}, copy(next_node))	
@@ -84,7 +96,7 @@ class SplitTreeNode:
 	def __repr__(self) -> str:
 		return str(self)	
 #rename transition to state? or node?
-class Transition:
+class LayerConstraints:
 	count = 0
 	def __init__(self, 
 	      shape_bounds: List[Bound] =[Bound()], 
@@ -99,9 +111,9 @@ class Transition:
 		self.merge_method = merge_method
 		self.use_batch_norm = use_batch_norm 
 		self.parents = dict()
-		self.split_groups: Dict[TransitionGroup, Set[Transition]] = dict()
-		self.id = Transition.count
-		Transition.count += 1
+		self.split_groups: Dict[TransitionGroup, Set[Self]] = dict()
+		self.id = LayerConstraints.count
+		LayerConstraints.count += 1
 	def add_next_state_group(self, group: TransitionGroup) -> None:
 		self.next_state_groups.append(copy(group))
 		self.analyse_splits()
@@ -161,7 +173,7 @@ class Transition:
 		return str(self)
 
 #TODO: consider making this purely an injectable piece
-class ConvTransition(Transition):
+class ConvTransition(LayerConstraints):
 	def __init__(self,  next_states=[], min_shape=[1], shape_coefficient_bounds=[1], max_concats=0, max_residuals=0) -> None:
 		pass
 	def get_function(self, index: int, mould_shape: List[int] | Size, shape_tensor: List[int] | Size):

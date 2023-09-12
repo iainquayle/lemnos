@@ -1,1 +1,21 @@
 REMEBER: get a working first version. later versions can compile to flattened code and then be used in optimizers like torch compile or perhaps even triton
+
+
+two major types of repetition:
+	sequential/tail
+	fractal
+
+make nodes that are purely dag, will throw if they see themselves
+then have explicit repetition modules
+the two forms may be able to just be rolled into one
+
+other option is that groups can split? these split ends can be picked up later 
+it still may be that case that it will be better to create wrapper modules.
+while this idea would indeed work to atleast to some extent, it would require coordination across transition groups which would be error prone becuase of users 
+
+defintely should start with a more rigid structure style,
+the search space for an unrestricted model is too complex 
+
+
+during build, nodes are looked for to be attached to?
+if a node had already been attached to the other, then no other nodes of the same type can attach to that one?
