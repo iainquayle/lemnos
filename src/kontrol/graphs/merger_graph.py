@@ -151,7 +151,7 @@ class LayerConstraints:
 		groups_to_delete = set()
 		for split_group, transitions in self.split_groups.items():
 			if set(split_group.transitions) == transitions:
-				split_group.joining_transition = self
+				#split_group.joining_transition = self
 				groups_to_delete.add(split_group)
 			if split_group in self.next_state_groups:
 				groups_to_delete.add(split_group)

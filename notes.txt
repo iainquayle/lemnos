@@ -1,5 +1,14 @@
 REMEBER: get a working first version. later versions can compile to flattened code and then be used in optimizers like torch compile or perhaps even triton
 
+nodes of the same type can be set into stack open for or looking for mergers
+it still really requires that there be a priority assigned, this will tell when a node can be explored further and popped off the stack 
+for the example of the crossing connections, either the priority needs to be maliable at buildtime and keep increasing, orr it could be that the build ne vs join existing is the fix
+	suppose the skip connection is told to join, while the main path is told to create new, the skip will be forced to wait
+	for the honey comb, we could for the moment manually enter the priorities, then work on a version that does it automatically
+	this would atleast give all functionality now while building for the future
+
+
+
 
 two major types of repetition:
 	sequential/tail

@@ -4,8 +4,7 @@ from torch.nn import Module, ModuleList
 import torch.nn as nn
 import torch.nn.functional as F
 
-from kontrol.transitions import Transition, ConvTransition
-from structures.commons import identity, Identity, MergeMethod, get_features_shape, mould_features
+from src.structures.commons import identity, Identity, MergeMethod, get_features_shape, mould_features
 
 from typing import Callable, List, Any 
 from typing_extensions import Self
@@ -22,8 +21,7 @@ class Node(Module):
 			shape_in: List[int] | Size =[1], 
 			merge_method: MergeMethod =MergeMethod.SINGLE, 
 			node_children: ModuleList =ModuleList([Identity()]), 
-			node_parents: ModuleList =ModuleList([Identity()]),
-			transition: Transition =Transition()) -> None:
+			node_parents: ModuleList =ModuleList([])) -> None:
 		super().__init__()
 		self.function: Module = function 
 		self.activation: Module = activation	 
@@ -34,7 +32,7 @@ class Node(Module):
 		self.inputs: List[Tensor] = [] 
 		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(node_children) > 1 else merge_method.get_function() 
 		self.merge_method: MergeMethod = merge_method
-		self.transition: Transition = transition 
+		#self.transition: Transition = transition 
 	def forward(self, x: Tensor) -> Tensor | None:
 		self.inputs.append(self.mould_input(x))
 		if len(self.inputs) >= len(self.node_parents):
@@ -47,35 +45,28 @@ class Node(Module):
 		else:
 			return None
 	@staticmethod
-	def new(transition_graph: Transition, index: int) -> Self:
-		group = transition_graph.next_state_groups[index]
-		for state, required in group.items():
-			pass
-			if state in transition_graph.visits:
-				pass
-		pass
-	def create_function(self) -> None:
-		x = self.merge_function(self.inputs)
-		self.inputs = []
+	def new(transition_graph, index: int):
 		pass
 	def push_shape_tensor(self, x: Tensor) -> None:
 		self.inputs.append(self.mould_input(x))
 	def compile_to_flat_module(self) -> Module:
-		pass   
+		return Identity()
 	def mould_input(self, x: Tensor) -> Tensor:
 		return mould_features(x, self.shape_in) 
-	def add_child(self, child) -> None:
-		self.node_children.append(child)
-		child.node_parents.append(self)
+	def set_node_children(self, node_children: List[Module] | ModuleList) -> Self:
+		self.node_children = ModuleList(node_children)
+		for child in node_children:
+			Node(child).node_parents.append(self)
 		return self
-	def add_parent(self, parent) -> None:
-		self.node_parents.append(parent)
-		parent.node_children.append(self)
+	def add_node_child(self, node_child) -> Self:
+		self.node_children.append(node_child)
+		node_child.node_parents.append(self)
 		return self
 	def reset_inputs(self) -> None:
-		self.inputs = []
-		for child in self.node_children:
-			child.reset_inputs()
+		#self.inputs = []
+		#for child in self.node_children:
+		#	child.reset_inputs()
+		pass
 	def check_validity(self):
 		pass
 	

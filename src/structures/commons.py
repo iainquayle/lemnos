@@ -15,6 +15,7 @@ class Identity(Module):
 		super().__init__()
 	def forward(self, x: Tensor) -> Tensor:
 		return x
+    
 class MergeMethod(Enum):
 	CONCAT = 'concat'
 	ADD = 'add'
@@ -24,7 +25,7 @@ class MergeMethod(Enum):
 		if self == MergeMethod.CONCAT:
 			return lambda x: torch.cat(x, dim=1)
 		elif self == MergeMethod.ADD:
-			return lambda x: sum(x)
+			return lambda x: Tensor(sum(x))
 		elif self == MergeMethod.SINGLE:
 			return lambda x: x[0]
 		elif self == MergeMethod.LIST:
@@ -40,9 +41,7 @@ def get_batch_norm(shape):
 		return nn.BatchNorm2d(shape.numel())
 def mould_features(x, shape):
     return x.view([x.shape[0]] + list(shape))
-@staticmethod
 def change_shape_dimension(shape, diff=1):
 	return [-1] + list(shape)[1+diff:] if diff >= 0 else [1] * -diff + list(shape)
-@staticmethod
 def squish_shape(shape, diff=1):
 	return [1] * diff + [-1] + list(shape)[2:] 

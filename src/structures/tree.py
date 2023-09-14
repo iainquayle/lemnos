@@ -4,9 +4,7 @@ import torch.nn as nn
 from torch.nn import Module, ModuleList
 import torch.nn.functional as F
 
-from kontrol.transitions import Transition, ConvTransition 
-
-from structures.commons import identity, Identity, MergeMethod, mould_features
+from src.structures.commons import identity, Identity, MergeMethod, mould_features
 
 from copy import copy, deepcopy
 from math import prod
@@ -25,8 +23,7 @@ class Node(nn.Module):
 			features_shape: List[int] | Size =[1], 
 			merge_method: MergeMethod =MergeMethod.SINGLE, 
 			split_branches: ModuleList =ModuleList([Identity()]), 
-			return_branch: Module =Identity(),
-			transition: Transition | None = None):
+			return_branch: Module =Identity()):
 		super().__init__()
 		self.function = function 
 		self.activation = activation 
@@ -35,17 +32,16 @@ class Node(nn.Module):
 		self.split_branches = split_branches 
 		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(split_branches) > 1 else merge_method.get_function()
 		self.return_branch = return_branch 
-		self.transition = transition
 	def forward(self, x):
 		x = self.mould_features(self.activation(self.batch_norm(self.function(x))))
 		return self.return_branch(self.merge_function(list(map(lambda module: module(x), self.split_branches))))
 	def mould_features(self, x):
 		return mould_features(x, self.features_shape) 
-	@staticmethod
-	def new(index: int, shape_out: List[int] | Size, shape_tensor: List[int] | Size, transistion: Transition):
-		function = transistion.get_function(index, shape_out, shape_tensor)
+	#@staticmethod
+	#def new(index: int, shape_out: List[int] | Size, shape_tensor: List[int] | Size, transistion: Transition):
+	#	function = transistion.get_function(index, shape_out, shape_tensor)
 		#split = Node.new()
-		pass
+	#	pass
 	#not sure whether to use this, may take too much explicitness out for minimal gain
 	#also harder to make tree walker when loosing explicitness
 	
