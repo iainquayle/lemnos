@@ -1,7 +1,7 @@
 import unittest
 
-from src.structures.graph import Node
-from src.structures.commons import MergeMethod
+from src.model_structures.graph import Node
+from src.model_structures.commons import MergeMethod
 import torch.nn as nn
 import torch.optim as optim
 import torch
@@ -14,11 +14,11 @@ class TestGraph(unittest.TestCase):
 
 
 	def test_net_function(self):
-		n1 = Node(function=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
-		n2 = Node(function=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
-		n3 = Node(function=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
-		n4 = Node(function=nn.Linear(4, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.CONCAT)
-		n5 = Node(function=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.ADD)
+		n1 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
+		n2 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
+		n3 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
+		n4 = Node(transform=nn.Linear(4, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.CONCAT)
+		n5 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.ADD)
 
 		n1.node_children = nn.ModuleList([n2, n3, n5]) 
 		n2.node_children = nn.ModuleList([n4]) 
