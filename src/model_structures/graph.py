@@ -52,12 +52,14 @@ class Node(Module):
 		else:
 			return None
 	@staticmethod
-	def from_build_graph(build_graph: BuildNode, shape_in: Size, shape_out: Size, index: int =0) -> Node:
-		nodes: Dict[BuildNode, List[Tuple[Node, Set[BuildNode]]]] = {} 
-			
+	def from_build_graph(build_graph: BuildNode, shapes_in: List[Size], shape_outs: List[Size], index: int =0) -> Node:
 		#steps:
 		#query build_graph for next transition group
 		#enumerate nodes, place them in set, 
+		nodes: Dict[BuildNode, List[Tuple[Node, Set[BuildNode]]]] = {} 
+			
+		while False:
+			pass
 		return Node() 
 	def push_shape_tensor(self, x: Tensor) -> None:
 		self.inputs.append(self.mould_input(x))

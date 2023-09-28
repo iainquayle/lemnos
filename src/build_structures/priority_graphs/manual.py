@@ -3,8 +3,10 @@ from dataclasses import dataclass
 
 from torch import Tensor, Size
 from torch.nn import Module, ModuleList
+
 from src.model_structures.commons import Identity, MergeMethod
 from src.build_structures.module_info import ModuleInfo
+from src.build_structures.commons import Bound, Index
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Set, Dict, NamedTuple
@@ -23,8 +25,14 @@ from copy import copy
 # macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
 # a certain transition group should be attempted first?
 # this would likely be taken care of by the above since a transition would only be relevant once another had been chosen enough times?
+
+#during build, when looking at a branch, first check if it will merge up with anything, if so, take it
+#if not, check whether it should be taken based on bounds and history
+#history will be set, such that if a transition keeps being taken, it will accumualte, if another is taken, it will be reset
+
+
 class BuildNode:
-	def __init__(self, module_info: ModuleInfo =ModuleInfo(), ):
+	def __init__(self, module_info: ModuleInfo =ModuleInfo()):
 		self.transitions: List[TransitionGroup] = []
 	def add_next_state_group(self, group: TransitionGroup) -> None:
 		self.transitions.append(copy(group))
@@ -39,7 +47,7 @@ class TransitionData:
 	priority: int = 0
 
 class TransitionGroup:
-	def __init__(self, transitions: Dict[BuildNode, TransitionData] =dict())  -> None:
+	def __init__(self, transitions: Dict[BuildNode, TransitionData] =dict(), repetition_bounds: Bound =Bound())  -> None:
 		self.transitions: Dict[BuildNode, TransitionData] = copy(transitions)
 	def __str__(self) -> str:
 		return f"TG{self.transitions}"
