@@ -31,6 +31,14 @@ from copy import copy
 #history will be set, such that if a transition keeps being taken, it will accumualte, if another is taken, it will be reset
 
 
+#building:
+#	chose node on priority
+#	exapnd all
+#		attempt to join, else make new
+#			join based on stack
+#			join based on whether type has already been attached
+#		give node priority based on transition, even if node was created before with different priority
+
 class BuildNode:
 	def __init__(self, module_info: ModuleInfo =ModuleInfo()):
 		self.transitions: List[TransitionGroup] = []

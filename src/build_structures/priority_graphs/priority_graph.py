@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from torch import Tensor, Size
 from torch.nn import Module, ModuleList
-from structures.commons import Identity, MergeMethod
+from model_structures.commons import Identity, MergeMethod
 from abc import ABC, abstractmethod
 from typing import List, Optional, Set, Dict, Any, Tuple, NamedTuple
 from typing_extensions import Self
@@ -14,41 +14,29 @@ from copy import copy
 #in the case of u net, the priority of the opposing side would need to always be greater, they can be stacked which solves some issues
 #in the case of overlappying transitions, the lower the node, the priority needs to go up 
 
-#commonality between these two things, is that of course the nodes later in the graph will have a higher priority
-#it may indeed be that transitions themselves need to be weighted instead of nodes themselves
-
-#TODO: maybe for priorty graph analyses, walk the graph width wise using the wrapping done in the prior system
-#have a set of nodes to further, each pushes into a new set.
-#once a join is found, next priority number is given to the splits associated with that join if they dont hace one assigned
-#eventually a join will be found, even if one branch is way over iterated, then somehow those can be cleaned
-#maybe if a split has already been seen then dont explore further to make sure memory usage doesnt go crazy
-#but the shortest path to the join should be the first one, so that a residual connection is the first to
-
 #when building based on priority, how will it be decided when a node cant be joined onto again?
 #simply by whether it has created any children yet
-
-#even if this is done depth wise, it should be that the largest priority is grabbed from the parents?
-#would this work for circular graphs?
 
 #when a node is first reached, it pulls down, which sets the priority that will be passed on to subsequent nodes
 
 #while this will give the overall build priority, for the tree, it will still need to move ahead and find which node is the merge node
 #the graph should work fine, simply build in order
 
-
-#how  wo we model something like U-net?
-
-
-#maybe a more explicit strucuure in terms of what is happening in a graph or tree is required?
+#building:
+#	chose node on priority
+#	exapnd all
+#		attempt to join, else make new
+#			join based on stack
+#			join based on whether type has already been attached
+#		give node priority based on transition, even if node was created before with different priority
 
 
 class TransitionGroup:
 	class TransitionData(NamedTuple):
 		optional: bool = False
 		#may not need this, could set up such that so long as a transition hasnt already happened from another, then it can join
-		join_existing: bool = False	
 		def __str__(self) -> str:
-			return f"({self.optional} {self.join_existing})"
+			return f"({self.optional})"
 		def __repr__(self) -> str:
 			return str(self)
 	def __init__(self, transitions: Dict[State, bool] =dict())  -> None:
@@ -57,19 +45,6 @@ class TransitionGroup:
 		return f"TG{self.transitions}"
 	def __repr__(self) -> str:
 		return str(self)
-#nodes will split, when rejoining, give node the max of the nodes it is joining from?
-#after a join, the priority does not need to keep going up, exactly when this is is tricky
-#it will need to be able to deal with itseld and not just keep adding more to itself
-#it does not need to add to priority every time
-# using tree
-# explore graph, only add to priority when joining a split at a node
-# when joining add 1 to the max priority found in the previous nodes
-# node in question is zeroed to begin
-# if no joining happening at a node, then that node gets priority 0 
-
-#it may be possible to make this less like the merge graph
-
-#rather than using the groups to wrap, use the nodes themselves
 
 class TransitionTreeNode:
 	class TransitionGroupData(NamedTuple):
