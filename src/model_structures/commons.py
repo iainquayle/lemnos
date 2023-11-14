@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from typing import Callable, List, Any
 from copy import copy, deepcopy
-from math import prod
+#from math import prod
 from enum import Enum
 
 identity = lambda x: x
@@ -31,7 +31,7 @@ class MergeMethod(Enum):
 		elif self == MergeMethod.LIST:
 			return identity 
 		else:
-			return None
+			return identity 
 def get_features_shape(x):
 	return x.shape[1:]
 def get_batch_norm(shape):
