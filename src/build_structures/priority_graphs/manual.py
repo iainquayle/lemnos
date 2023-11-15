@@ -30,6 +30,10 @@ from copy import copy
 #			join based on whether type has already been attached
 #		give node priority based on transition, even if node was created before with different priority
 
+class Graph:
+	def __init__(self) -> None:
+		self.start_states: List[State] = []
+
 class State:
 	def __init__(self, module_info: ModuleInfo =ModuleInfo()):
 		self.transitions: List[TransitionGroup] = []
@@ -49,6 +53,7 @@ class TransitionData:
 class TransitionGroup:
 	def __init__(self, transitions: List[TransitionData], repetition_bounds: Bound =Bound())  -> None:
 		self.transitions: List[TransitionData] = copy(transitions)
+		self.repetition_bounds: Bound = repetition_bounds
 	def set_transitions(self, transitions: List[TransitionData]) -> None:
 		state_set: Set[State] = set()
 		for transition in transitions:
@@ -60,8 +65,3 @@ class TransitionGroup:
 		return f"TG{self.transitions}"
 	def __repr__(self) -> str:
 		return str(self)
-
-class Builder:
-	def __init__(self, starting_states: List[State]) -> None:
-		pass 
-	#def build(self) -> List[Node]:

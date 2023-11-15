@@ -13,10 +13,6 @@ from collections import namedtuple
 import gc
 from copy import copy
 
-
-
-#TODO: consider making an optional argument for the base, takes itself and updates the dict
-#thus automatically dealing with super init
 class ModuleInfo:
 	def __init__(self,
 	      shape_bounds: List[Bound] =[Bound()], 
