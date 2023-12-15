@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from torch import Tensor, Size
 from torch.nn import Module, ModuleList
 
-from src.model_structures.tree import Node, Tree
+#from src.model_structures.tree import Node, Tree
 
 from src.model_structures.commons import Identity, MergeMethod
-from src.build_structures.module_info import ModuleInfo
+from src.build_structures.node_parameters import NodeParameters 
 from src.build_structures.commons import Bound, Index
 
 from abc import ABC, abstractmethod
@@ -32,11 +32,12 @@ from copy import copy
 
 class Graph:
 	def __init__(self) -> None:
-		self.start_states: List[State] = []
+		self.start_states: List[NodePattern] = []
 
-class State:
-	def __init__(self, module_info: ModuleInfo =ModuleInfo()):
+class NodePattern:
+	def __init__(self, node_parameters: NodeParameters = NodeParameters()):
 		self.transitions: List[TransitionGroup] = []
+		self.node_parameters: NodeParameters = node_parameters 
 	def add_next_state_group(self, group: TransitionGroup) -> None:
 		self.transitions.append(copy(group))
 	@abstractmethod	
@@ -45,21 +46,22 @@ class State:
 		pass
 
 @dataclass
-class TransitionData:
-	state: State
+class Transiton:
+	next_pattern: NodePattern
 	optional: bool = False
 	priority: int = 0
+	MAX_PRIORITY: int = 512 
 
 class TransitionGroup:
-	def __init__(self, transitions: List[TransitionData], repetition_bounds: Bound =Bound())  -> None:
-		self.transitions: List[TransitionData] = copy(transitions)
+	def __init__(self, transitions: List[Transiton], repetition_bounds: Bound =Bound())  -> None:
+		self.transitions: List[Transiton] = copy(transitions)
 		self.repetition_bounds: Bound = repetition_bounds
-	def set_transitions(self, transitions: List[TransitionData]) -> None:
-		state_set: Set[State] = set()
+	def set_transitions(self, transitions: List[Transiton]) -> None:
+		pattern_set: Set[NodePattern] = set()
 		for transition in transitions:
-			if transition.state in state_set:
+			if transition.next_pattern in pattern_set:
 				raise ValueError("Duplicate state in transition group")
-			state_set.add(transition.state)
+			pattern_set.add(transition.next_pattern)
 		self.transitions = transitions
 	def __str__(self) -> str:
 		return f"TG{self.transitions}"

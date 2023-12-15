@@ -6,14 +6,12 @@ from torch.nn import Module, ModuleList
 import torch.nn as nn
 
 from src.model_structures.commons import identity, Identity, MergeMethod, get_features_shape, mould_features
-from src.build_structures.priority_graphs.manual import State, Graph as BuildGraph
-from src.build_structures.module_info import ModuleInfo 
+from src.build_structures.priority_graphs.manual import NodePattern, Transiton, Graph as BuildGraph 
 
-from typing import Callable, Dict, List, Any, Set, Tuple 
+from typing import Dict, List, Set
 from typing_extensions import Self
 from copy import copy 
 from dataclasses import dataclass
-from functools import reduce
 
 class Graph(Module):
 	pass
@@ -27,7 +25,7 @@ class Node(Module):
 			merge_method: MergeMethod = MergeMethod.SINGLE, 
 			node_children: List[Node] = list(),
 			node_parents: List[Node] = list(),
-			build_node: State = State()
+			node_pattern: NodePattern = NodePattern()
 			) -> None:
 		super().__init__()
 		self.transform: Module = transform 
@@ -39,7 +37,7 @@ class Node(Module):
 		self.inputs: List[Tensor] = [] 
 		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(node_children) > 1 else merge_method.get_function() 
 		self.merge_method: MergeMethod = merge_method
-		self.build_node: State = build_node 
+		self.node_pattern: NodePattern = node_pattern 
 	def forward(self, x: Tensor) -> Tensor | None:
 		self.inputs.append(self.mould_input(x))
 		if len(self.inputs) >= len(self.node_parents):
@@ -71,23 +69,41 @@ class Node(Module):
 		#for child in self.node_children:
 		#	child.reset_inputs()
 		pass
+
+
 	@dataclass
 	class StackData:
-		node: Node #techincally this is all that is needed, wont need the set since it holds all parents? still convenient
-		parents: Set[State]
+		node: Node 
+		parents: Set[NodePattern]
 		priority: int
-		
+	class Stack:
+		def __init__(self, node: Node) -> None:
+			self.stack: List[Node.StackData] = [Node.StackData(node, set(), 0)]
+		def push(self, data: Node.StackData) -> None:
+			self.stack.append(data)
+		def pop(self) -> Node.StackData:
+			return self.stack.pop()
+		def peek(self) -> Node.StackData:
+			return self.stack[-1]
+		def __len__(self) -> int:
+			return len(self.stack)
 	@staticmethod
 	def from_build_graph(build_graph: BuildGraph, shapes_in: List[Size], shape_outs: List[Size], index: int =0) -> Node:
-		#steps:
-		#query build_graph for next transition group
-		#enumerate nodes, place them in set, 
-		#TODO: this should probably use a dataclass instead of tuple
-		nodes: Dict[State, List[Node.StackData]] = {} 
+		#general alg:
+		#	pick the node with the lowest priority in the list, this will always be the top of the stack 
+		#	transition out of it, use group based on constraints
+		#	if there is a matching node in the stack, that hasnt been parented by the same type yet, parent it
+		nodes: Dict[NodePattern, Node.Stack] = {} 
 		for state in build_graph.start_states:
-			nodes[state] = [Node.StackData(Node(), set(), 0)]
-		#min_priority = reduce(lambda a, b: a if a.priority < b.priority else b, nodes.values())
-		while False:
-			pass
+			nodes[state] = Node.Stack(Node())
+		MAX_ITERATIONS = 1024 
+		iterations = 0
+		while len(nodes) > 0 and iterations < MAX_ITERATIONS:
+			min_priority = Transiton.MAX_PRIORITY 
+			min_node = None
+			for state, stack in nodes.items():
+				if stack.peek().priority < min_priority:
+					min_priority = stack.peek().priority
+			iterations += 1
 		return Node() 
 

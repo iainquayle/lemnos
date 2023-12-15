@@ -6,14 +6,10 @@ from torch.nn import Conv2d, Module, ModuleList
 from src.model_structures.commons import Identity, MergeMethod
 from src.build_structures.commons import Bound, Index
 
-from abc import ABC, abstractmethod 
+from abc import ABC as Abstract, abstractmethod 
 from typing import List, Set, Dict, NamedTuple, Tuple
-from typing_extensions import Self
-from collections import namedtuple
-import gc
-from copy import copy
 
-class ModuleInfo:
+class NodeParameters:
 	def __init__(self,
 	      shape_bounds: List[Bound] =[Bound()], 
 			size_coefficient_bounds: Bound =Bound(),
@@ -31,15 +27,15 @@ class ModuleInfo:
 	def get_function(self, shape_in: Size, index: Index) -> Module:
 		return eval(self.get_function_string(shape_in, index))
 	
-class IdentityInfo(ModuleInfo):
+class IdentityInfo(NodeParameters):
 	def __init__(self) -> None:
 		super().__init__()
-	def get_function_string(self) -> str:
-		return "Identity()"
+#	def get_function_string(self) -> str:
+#		return "Identity()"
 
-class BasicConvInfo(ModuleInfo):
+class BasicConvInfo(NodeParameters):
 	def __init__(self,
-		node_info: ModuleInfo =ModuleInfo(),
+		node_info: NodeParameters = NodeParameters(),
 		dimension: int =1,
 		kernel_size: Tuple | int = 1, 
 		stride: Tuple | int = 1, 
@@ -56,12 +52,12 @@ class BasicConvInfo(ModuleInfo):
 		self.stride = stride
 		self.dilation = dilation
 		self.padding = padding
-	def get_function_string(self, shape_in: Size, index: Index) -> str:
-		out_channels = self.size_coefficient_bounds.from_ratio(index.as_ratio()) * shape_in[1]
-		return f"Conv{self.dimension}d(in_channels={shape_in[1]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
+#	def get_function_string(self, shape_in: Size, index: Index) -> str:
+#		out_channels = self.size_coefficient_bounds.from_ratio(index.as_ratio()) * shape_in[1]
+#		return f"Conv{self.dimension}d(in_channels={shape_in[1]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
     
-class DepthwiseConvInfo(ModuleInfo):
+class DepthwiseConvInfo(NodeParameters):
 	pass
 
-class DepthwiseSharedConvInfo(ModuleInfo):
+class DepthwiseSharedConvInfo(NodeParameters):
 	pass
