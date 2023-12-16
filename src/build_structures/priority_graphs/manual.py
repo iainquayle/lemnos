@@ -17,18 +17,6 @@ from copy import copy
 
 #TODO: items that need to be added:
 # macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
-# a certain transition group should be attempted first?
-# this would likely be taken care of by the above since a transition would only be relevant once another had been chosen enough times?
-
-#history will be set, such that if a transition keeps being taken, it will accumualte, if another is taken, it will be reset
-
-#building:
-#	chose node on priority
-#	exapnd all
-#		attempt to join, else make new
-#			join based on stack
-#			join based on whether type has already been attached
-#		give node priority based on transition, even if node was created before with different priority
 
 class Graph:
 	def __init__(self) -> None:
@@ -42,7 +30,7 @@ class NodePattern:
 		self.transitions.append(copy(group))
 	@abstractmethod	
 	def analyze(self) -> None:
-		#will be implemented by auto if ever
+		#paceholder for possible auto priority assignment
 		pass
 
 @dataclass

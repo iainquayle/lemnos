@@ -35,14 +35,14 @@ class Node(Module):
 		self.node_children: ModuleList = ModuleList(node_children) 
 		self.node_parents: ModuleList = ModuleList(node_parents) 
 		self.inputs: List[Tensor] = [] 
-		self.merge_function = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(node_children) > 1 else merge_method.get_function() 
+		self.merge = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(node_children) > 1 else merge_method.get_function() 
 		self.merge_method: MergeMethod = merge_method
 		self.node_pattern: NodePattern = node_pattern 
 		self.output_shape: Size = Size([])
 	def forward(self, x: Tensor) -> Tensor | None:
-		self.inputs.append(mould_features(x, self.mould_shape))
+		self.inputs.append(self.mould(x))
 		if len(self.inputs) >= len(self.node_parents):
-			x = self.activation(self.batch_norm(self.transform(self.merge_function(self.inputs))))
+			x = self.activation(self.batch_norm(self.transform(self.merge(self.inputs))))
 			y = x 
 			for child in self.node_children:
 				y = child(x)
@@ -50,6 +50,8 @@ class Node(Module):
 			return y
 		else:
 			return None
+	def mould(self, x: Tensor) -> Tensor:
+		return mould_features(x, self.mould_shape)
 	def compile_flat_module_forward(self, source: str, registers: Dict[str, int]) -> str:
 		#will need to make some meta objects to keep track of the registers, and whether all childten have been satsified
 		return "" 
@@ -62,15 +64,25 @@ class Node(Module):
 		self.node_children.append(node_child)
 		node_child.node_parents.append(self)
 		return self
+	#process for node creation:
+	#	init
+	#		give pattern, first parent, activation, and merge method
+	#			consider leaving all of these until the build, so that nothing is missed
+	#			could even not init a node until then, and just track the parents
+	#	build(duirng expand)
+	#		build shape based on parents and pattern
+	#			abviously needs to take into accound parents, however, the exact conversion constraints in the pattern may need to be flushed out
+	#		from shape, build transform and batch norm
 	@staticmethod
-	def init_node(pattern: NodePattern) -> Node:
-		node = Node(
-			node_pattern=pattern)
-		return node 
-	def build(self) -> None:
+	def build(node_pattern: NodePattern, node_data: Node.StackData, index: int) -> None:
+		node = Node(node_pattern=node_pattern,
+				activation=node_pattern.node_parameters.get_activation(index),
+				merge_method=node_pattern.node_parameters.merge_method)
+		#OOPS: need to put node back in the stack, it is how the true parents are tracked rather than just the patterns
 		output_shape_tensor = None
-		for parent in self.node_parents:
-			output_shape_tensor = self(Tensor.new_zeros(get_features_shape(parent.output_shape)))
+		for node_parent in node_data.parents:
+			output_shape_tensor = self(Tensor.new_zeros(get_features_shape(node_parent.output_shape)))
+			pass
 		self.zero_grad()
 		if output_shape_tensor is None:
 			raise Exception("wtf")
@@ -79,12 +91,11 @@ class Node(Module):
 
 	@dataclass
 	class StackData:
-		node: Node 
 		parents: Set[NodePattern]
 		priority: int
 	class Stack:
 		def __init__(self, node: Node) -> None:
-			self.stack: List[Node.StackData] = [Node.StackData(node, set(), 0)]
+			self.stack: List[Node.StackData] = [Node.StackData(set(), 0)]
 		def push(self, data: Node.StackData) -> None:
 			self.stack.append(data)
 		def pop(self) -> Node.StackData:
@@ -138,7 +149,6 @@ class Node(Module):
 							if transition.next_pattern not in nodes[transition.next_pattern].stack[i].parents:
 								nodes[transition.next_pattern].stack[i].parents.add(transition.next_pattern)
 								nodes[transition.next_pattern].stack[i].priority = transition.priority
-								node_data.node.add_node_child(nodes[transition.next_pattern].stack[i].node)
 								found = True
 							i -= 1
 					else:
