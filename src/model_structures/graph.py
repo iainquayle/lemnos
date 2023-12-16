@@ -74,13 +74,15 @@ class Node(Module):
 	#			abviously needs to take into accound parents, however, the exact conversion constraints in the pattern may need to be flushed out
 	#		from shape, build transform and batch norm
 	@staticmethod
-	def build(node_pattern: NodePattern, node_data: Node.StackData, index: int) -> None:
+	def init(node_pattern: NodePattern, node_parent: Node, index: int) -> Node:
 		node = Node(node_pattern=node_pattern,
 				activation=node_pattern.node_parameters.get_activation(index),
 				merge_method=node_pattern.node_parameters.merge_method)
-		#OOPS: need to put node back in the stack, it is how the true parents are tracked rather than just the patterns
+		node_parent.add_node_child(node)
+		return node
+	def build(self, node_data: Node.StackData, index: int) -> None:
 		output_shape_tensor = None
-		for node_parent in node_data.parents:
+		for node_parent in self.parents:
 			output_shape_tensor = self(Tensor.new_zeros(get_features_shape(node_parent.output_shape)))
 			pass
 		self.zero_grad()
@@ -89,13 +91,15 @@ class Node(Module):
 		else:
 			self.output_shape = Size(output_shape_tensor.shape)
 
+	#TODO: find better name for this
 	@dataclass
 	class StackData:
+		node: Node
 		parents: Set[NodePattern]
 		priority: int
 	class Stack:
 		def __init__(self, node: Node) -> None:
-			self.stack: List[Node.StackData] = [Node.StackData(set(), 0)]
+			self.stack: List[Node.StackData] = [Node.StackData(node, set(), 0)]
 		def push(self, data: Node.StackData) -> None:
 			self.stack.append(data)
 		def pop(self) -> Node.StackData:
@@ -140,7 +144,7 @@ class Node(Module):
 			if min_node_pattern is None:
 				raise Exception("broken wtf")
 			else:
-				node_data = nodes[min_node_pattern].pop()
+				stack_data = nodes[min_node_pattern].pop()
 				for transition in min_node_pattern.transitions[0].transitions:
 					if transition.next_pattern in nodes:
 						i = len(nodes[transition.next_pattern])
@@ -149,10 +153,11 @@ class Node(Module):
 							if transition.next_pattern not in nodes[transition.next_pattern].stack[i].parents:
 								nodes[transition.next_pattern].stack[i].parents.add(transition.next_pattern)
 								nodes[transition.next_pattern].stack[i].priority = transition.priority
+								stack_data.node.add_node_child(nodes[transition.next_pattern].stack[i].node)
 								found = True
 							i -= 1
 					else:
-						nodes[transition.next_pattern] = Node.Stack(Node())
+						nodes[transition.next_pattern] = Node.Stack(Node.init(transition.next_pattern, stack_data.node, index))
 			iterations += 1
 		return Node() 
 
