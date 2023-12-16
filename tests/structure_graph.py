@@ -14,11 +14,11 @@ class TestGraph(unittest.TestCase):
 
 
 	def test_net_function(self):
-		n1 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
-		n2 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
-		n3 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
-		n4 = Node(transform=nn.Linear(4, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.CONCAT)
-		n5 = Node(transform=nn.Linear(2, 2), shape_in=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.ADD)
+		n1 = Node(transform=nn.Linear(2, 2), mould_shape=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
+		n2 = Node(transform=nn.Linear(2, 2), mould_shape=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
+		n3 = Node(transform=nn.Linear(2, 2), mould_shape=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.SINGLE)
+		n4 = Node(transform=nn.Linear(4, 2), mould_shape=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.CONCAT)
+		n5 = Node(transform=nn.Linear(2, 2), mould_shape=[2], activation=nn.Sigmoid(), merge_method=MergeMethod.ADD)
 
 		n1.node_children = nn.ModuleList([n2, n3, n5]) 
 		n2.node_children = nn.ModuleList([n4]) 

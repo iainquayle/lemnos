@@ -32,13 +32,13 @@ from copy import copy
 
 class Graph:
 	def __init__(self) -> None:
-		self.start_states: List[NodePattern] = []
+		self.start_patterns: List[NodePattern] = []
 
 class NodePattern:
 	def __init__(self, node_parameters: NodeParameters = NodeParameters()):
 		self.transitions: List[TransitionGroup] = []
 		self.node_parameters: NodeParameters = node_parameters 
-	def add_next_state_group(self, group: TransitionGroup) -> None:
+	def add_transition_group(self, group: TransitionGroup) -> None:
 		self.transitions.append(copy(group))
 	@abstractmethod	
 	def analyze(self) -> None:
