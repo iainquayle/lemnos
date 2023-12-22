@@ -38,7 +38,7 @@ class Node(Module):
 		self.merge = MergeMethod.CONCAT.get_function() if merge_method == MergeMethod.SINGLE and len(node_children) > 1 else merge_method.get_function() 
 		self.merge_method: MergeMethod = merge_method
 		self.node_pattern: NodePattern = node_pattern 
-		self.output_shape: Size = Size([])
+		self.output_shape: Size = Size()
 	def forward(self, x: Tensor) -> Tensor | None:
 		self.inputs.append(self.mould(x))
 		if len(self.inputs) >= len(self.node_parents):
@@ -74,32 +74,28 @@ class Node(Module):
 	#			abviously needs to take into accound parents, however, the exact conversion constraints in the pattern may need to be flushed out
 	#		from shape, build transform and batch norm
 	@staticmethod
-	def init(node_pattern: NodePattern, node_parent: Node, index: int) -> Node:
+	def build(node_pattern: NodePattern, node_data: Node.StackData, index: int) -> None:
 		node = Node(node_pattern=node_pattern,
 				activation=node_pattern.node_parameters.get_activation(index),
 				merge_method=node_pattern.node_parameters.merge_method)
-		node_parent.add_node_child(node)
-		return node
-	def build(self, node_data: Node.StackData, index: int) -> None:
-		output_shape_tensor = None
-		for node_parent in self.parents:
-			output_shape_tensor = self(Tensor.new_zeros(get_features_shape(node_parent.output_shape)))
-			pass
-		self.zero_grad()
-		if output_shape_tensor is None:
-			raise Exception("wtf")
+		output_shape_tensors = list() 
+		for _, node_parent in node_data.parents.items():
+			node_parent.add_node_child(node)
+			output_shape_tensors.append(node.forward(torch.zeros(node_parent.output_shape)))
+		if isinstance((output_shape_tensor := node.merge(output_shape_tensors)), Tensor):
+			node.output_shape = output_shape_tensor.shape
 		else:
-			self.output_shape = Size(output_shape_tensor.shape)
+			raise Exception("output shape list not handled yet, figure out whether this needs to change")
+		node.zero_grad()
 
 	#TODO: find better name for this
 	@dataclass
 	class StackData:
-		node: Node
-		parents: Set[NodePattern]
+		parents: Dict[NodePattern, Node]
 		priority: int
 	class Stack:
-		def __init__(self, node: Node) -> None:
-			self.stack: List[Node.StackData] = [Node.StackData(node, set(), 0)]
+		def __init__(self) -> None:
+			self.stack: List[Node.StackData] = [Node.StackData(dict(), 0)]
 		def push(self, data: Node.StackData) -> None:
 			self.stack.append(data)
 		def pop(self) -> Node.StackData:
@@ -108,17 +104,8 @@ class Node(Module):
 			return self.stack[-1]
 		def __len__(self) -> int:
 			return len(self.stack)
-	#figure out:
-	#	how to mutate the graph
-	#	two plauseable options:
-	#		make the indexing of the graphs some what continuous, and somehow make larger changes based on index similarity
-	#			likely not the greatest
-	#		choose some arbitrary point in the graph to cut, and rebuild
-	#			to do so however, would require a deconstruction of the original graph so that nodes that require a certain child can get it
-	#			deconstruction would need to start on nodes that have no children, work backwards, anything on the stacks that dont have parents may be removed
-	#			all of the remaining nodes in the stack would be the seed for the new graph
 	@staticmethod
-	def from_build_graph(build_graph: BuildGraph, shapes_in: List[Size], shape_outs: List[Size], index: int =0) -> Node:
+	def from_build_graph(build_graph: BuildGraph, shapes_in: List[Size], shape_outs: List[Size], index: int =0) -> List[Node]:
 		#general alg:
 		#	pick the node with the lowest priority in the list, this will always be the top of the stack 
 		#	transition out of it, use group based on constraints
@@ -126,12 +113,17 @@ class Node(Module):
 		#todo
 		#	build nodes from parameters
 		#	make decision on transition group based on current model structure
+		#	change structure to allow for partial deconstruction
+		#		either need to track the priority that each parent contributes to the node, or just recompute it each time  
+		#		tracking likely cleaner, as in order to recompute, it would need to deduce the transition group 
+		#		as such, parents could either be turned into a dict, or a list of tuples
 		input_nodes: List[Node] = []
 		nodes: Dict[NodePattern, Node.Stack] = {} 
+		#TODO: this will need to be done in some custom init method, since it does not have the parents to give it shape
 		for pattern in build_graph.start_patterns:
 			node = Node()
 			input_nodes.append(node)
-			nodes[pattern] = Node.Stack(node)
+			nodes[pattern] = Node.Stack()
 		MAX_ITERATIONS = 1024 
 		iterations = 0
 		while len(nodes) > 0 and iterations < MAX_ITERATIONS:
@@ -147,17 +139,29 @@ class Node(Module):
 				stack_data = nodes[min_node_pattern].pop()
 				for transition in min_node_pattern.transitions[0].transitions:
 					if transition.next_pattern in nodes:
+						#TODO: change this to not a compound check
 						i = len(nodes[transition.next_pattern])
 						found = False
 						while i > 0 and not found:
 							if transition.next_pattern not in nodes[transition.next_pattern].stack[i].parents:
-								nodes[transition.next_pattern].stack[i].parents.add(transition.next_pattern)
+								nodes[transition.next_pattern].stack[i].parents[transition.next_pattern] = Node()
 								nodes[transition.next_pattern].stack[i].priority = transition.priority
-								stack_data.node.add_node_child(nodes[transition.next_pattern].stack[i].node)
 								found = True
 							i -= 1
 					else:
-						nodes[transition.next_pattern] = Node.Stack(Node.init(transition.next_pattern, stack_data.node, index))
+						nodes[transition.next_pattern] = Node.Stack()
 			iterations += 1
-		return Node() 
+		return input_nodes 
+	#is a join on existing/create new a better system than priority?
+	#priority has the issue of what happens when a node that is supposed to join doesnt find any exisitng nodes, and creates a new
 
+
+	#figure out:
+	#	how to mutate the graph
+	#	two plauseable options:
+	#		make the indexing of the graphs some what continuous, and somehow make larger changes based on index similarity
+	#			likely not the greatest
+	#		choose some arbitrary point in the graph to cut, and rebuild
+	#			to do so however, would require a deconstruction of the original graph so that nodes that require a certain child can get it
+	#			deconstruction would need to start on nodes that have no children, work backwards, anything on the stacks that dont have parents may be removed
+	#			all of the remaining nodes in the stack would be the seed for the new graph
