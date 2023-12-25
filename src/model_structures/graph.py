@@ -16,6 +16,25 @@ from dataclasses import dataclass
 class Graph(Module):
 	pass
 
+#need to be able to track how a model was built, so that it can be mutated
+#two structural options:
+#	track the transitions taken to get to each child
+#		would require a new data structure to store, since children need to be registered
+#			as well, parents would still need to be stored, for initialization
+#				maybe not, if it was decided to make the stack data store the parents, and initialize the module sizes from that
+#				then it would only require number of parents to run
+#		may require that the graph be rebuilt, which could be handy for mutation, but also more janky 
+#			may allow different transitions to be taken at differnt times in the reconstruction
+#			which may be good for mutation, but also difficult to make work with the rules
+#			as well, if strict partial reconstruction was required, tracking how far to reconstruct would be annoying to track
+#	track the transitions taken by each parent
+#		could merely change the current parent structure, they shouldnt need to be regestered
+#		graph will require deconstruction to be mutated, which could be less flexible but easier
+#			tracking how far to deconstruct easy, just use the indexes of the nodes
+#main differences:
+#	making a new children structure would actually be useful for future, since they wont need registration if flattened
+#	having a parent structure is safer than a parent count, since it can be audited
+
 class Node(Module):
 	def __init__(self, 
 			transform: Module = Identity(),
@@ -24,10 +43,11 @@ class Node(Module):
 			mould_shape: List[int] | Size = [], 
 			merge_method: MergeMethod = MergeMethod.SINGLE, 
 			node_children: List[Self] = list(),
-			node_parents: List[Self] = list(),
+			node_parents: List[Self] = list(), 
 			node_pattern: NodePattern = NodePattern()
 			) -> None:
 		super().__init__()
+		self.index: int = 0
 		self.transform: Module = transform 
 		self.activation: Module = activation	 
 		self.batch_norm: Module = batch_norm 

@@ -33,12 +33,12 @@ class NodePattern:
 		#paceholder for possible auto priority assignment
 		pass
 
+MAX_PRIORITY: int = 512 
 @dataclass
 class Transiton:
 	next_pattern: NodePattern
 	optional: bool = False
 	priority: int = 0
-	MAX_PRIORITY: int = 512 
 
 class TransitionGroup:
 	def __init__(self, transitions: List[Transiton], repetition_bounds: Bound =Bound())  -> None:
