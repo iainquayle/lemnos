@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from torch import Tensor, Size, _dim_arange
+import torch
+from torch import Size 
 import torch.nn as nn
 from torch.nn import Conv2d, Module, ModuleList
 
@@ -8,9 +9,9 @@ from src.model_structures.commons import Identity, MergeMethod
 from src.build_structures.commons import Bound, Index
 
 from abc import ABC as Abstract, abstractmethod 
-from typing import List, Set, Dict, NamedTuple, Tuple
+from typing import List, Set, Dict, Tuple
 
-class NodeParameters:
+class NodeParameters():
 	def __init__(self,
 			shape_bounds: List[Bound] = [Bound()], 
 			size_coefficient_bounds: Bound = Bound(),
@@ -26,8 +27,12 @@ class NodeParameters:
 		pass
 	def get_transform(self, shape_in: Size, index: Index) -> Module:
 		return eval(self.get_transform_string(shape_in, index))
-	def get_activation(self, index: int) -> Module:
-		return self.activation_functions[index % len(self.activation_functions)]
+	def get_activation(self, index: Index) -> Module:
+		return self.activation_functions[index.get_index(len(self.activation_functions))]
+	#make overrides for each
+	def get_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
+		temp_tranform = self.get_transform(shape_in, index)
+		return temp_tranform(torch.zeros(shape_in)).shape
 	def get_batch_norm(self, features: int) -> Module:
 		return Identity()
 	
@@ -58,6 +63,7 @@ class BasicConvInfo(NodeParameters):
 		self.dilation = dilation
 		self.padding = padding
 	def get_transform_string(self, shape_in: Size, index: Index = Index()) -> str:
+		#TODO: move away from using ratio
 		out_channels = self.size_coefficient_bounds.from_ratio(index.as_ratio()) * shape_in[1]
 		return f"Conv{self.dimension}d(in_channels={shape_in[1]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
 	def get_batch_norm(self, features: int) -> Module:

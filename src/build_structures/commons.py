@@ -13,6 +13,8 @@ class Bound:
 		return (self.upper + self.lower) / 2
 	def inside(self, i: int | float) -> bool:
 		return i >= self.lower and i <= self.upper	
+	def from_index(self, index: Index) -> int | float:
+		return self.lower + index.get_index((int)(self.difference()))
 	def from_ratio(self, ratio: float) -> float:
 		return self.lower + ratio * self.difference()
 class Index:
@@ -21,5 +23,7 @@ class Index:
 		self.set_index(index)
 	def set_index(self, index: int) -> None:
 		self.index = index % Index.MAX_INDEX
+	def get_index(self, max_index: int) -> int:
+		return self.index % max_index
 	def as_ratio(self) -> float:
 		return self.index / Index.MAX_INDEX
