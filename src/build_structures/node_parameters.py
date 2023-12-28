@@ -3,13 +3,28 @@ from __future__ import annotations
 import torch
 from torch import Size 
 import torch.nn as nn
-from torch.nn import Conv2d, Module, Identity
+from torch.nn import Module, Identity
 
 from src.build_structures.commons import Bound, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
-class NodeParameters():
+#TODO:
+#	make more unified solution for shape creation
+#	will need to take into account:
+#		sibling shapes
+#		coefficients
+#		shape bounds
+#		dimensionality conversions
+#NOTE: may need to change the assumtuption of always using dim 1, in the case of using higher dim convolutions for lower dim spaces
+#	ie, dim 1 will always be 1, dim 2 will be effectivley channels
+#	two options:
+#		have an explicit dim join param
+#		always join on 1, but have a secondary mould
+#		another maybe option, is auto view all inputs as 2d, join on 1, then use a mould
+#			should work, is still efficient, and maintains simplicity, maybe
+
+class BaseParameters():
 	def __init__(self,
 			shape_bounds: List[Bound] = [Bound()], 
 			size_coefficient_bounds: Bound = Bound(),
@@ -19,11 +34,10 @@ class NodeParameters():
 		self.size_coefficient_bounds = size_coefficient_bounds
 		self.merge_method = merge_method
 	@abstractmethod
-	def get_transform_string(self, shape_in: Size, index: Index =Index()) -> str:
+	def get_transform_string(self, shape_in: Size, index: Index) -> str:
 		pass
 	def get_transform(self, shape_in: Size, index: Index) -> Module:
 		return eval(self.get_transform_string(shape_in, index))
-	#make overrides for each
 	def shape_in_bounds(self, shape_in: Size) -> bool:
 		for bound, dimension_size in zip(self.shape_bounds, shape_in):
 			if not dimension_size in bound:
@@ -37,10 +51,13 @@ class NodeParameters():
 	def get_raw_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
 		temp_tranform = self.get_transform(shape_in, index)
 		return temp_tranform(torch.zeros(shape_in)).shape
+	#change this to use the string version
+	def get_batch_norm_string(self, features: int) -> str:
+		return "Identity()"
 	def get_batch_norm(self, features: int) -> Module:
-		return Identity()
+		return eval(self.get_batch_norm_string(features))
 	
-class IdentityInfo(NodeParameters):
+class IdentityParameters(BaseParameters):
 	def __init__(self) -> None:
 		super().__init__()
 	def get_transform_string(self, shape_in: Size, index: Index =Index()) -> str:
@@ -48,10 +65,10 @@ class IdentityInfo(NodeParameters):
 	def get_raw_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
 		return shape_in
 
-class BasicConvInfo(NodeParameters):
+class ConvParameters(BaseParameters):
 	def __init__(self,
-			node_info: NodeParameters = NodeParameters(),
-			dimension: int =1,
+			node_info: BaseParameters = BaseParameters(),
+			dimension: int = 1,
 			kernel_size: Tuple | int = 1, 
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
@@ -69,15 +86,7 @@ class BasicConvInfo(NodeParameters):
 		self.dilation = dilation
 		self.padding = padding
 	def get_transform_string(self, shape_in: Size, index: Index = Index()) -> str:
-		#TODO: move away from using ratio
-		out_channels = self.size_coefficient_bounds.from_index(index, shape_in[1])
-		return f"Conv{self.dimension}d(in_channels={shape_in[1]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
-	def get_batch_norm(self, features: int) -> Module:
-		if self.dimension == 1:
-			return nn.BatchNorm1d(features) 
-		elif self.dimension == 2:
-			return nn.BatchNorm2d(features)
-		elif self.dimension == 3:
-			return nn.BatchNorm3d(features)
-		else:
-			raise ValueError("Invalid dimension")
+		out_channels = self.size_coefficient_bounds.from_index(index, shape_in[0])
+		return f"Conv{self.dimension}d(in_channels={shape_in[0]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
+	def get_batch_norm_string(self, features: int) -> str:
+		return f"BatchNorm{self.dimension}d({features})"

@@ -8,7 +8,7 @@ import torch.nn as nn
 from src.model_structures.commons import  get_features_shape, mould_features
 from src.build_structures.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
 
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from typing_extensions import Self
 from dataclasses import dataclass
 
@@ -18,8 +18,8 @@ class Graph():
 	def __init__(self, input_nodes: List[Node] = list(), output_nodes: List[Node] = list()) -> None:
 		self.input_nodes: List[Node] = input_nodes 
 		self.output_nodes: List[Node] = output_nodes 
-	def to_flat_module_source(self) -> str:
-		return ""
+	def to_flat_source_module(self) -> Tuple[str, str]:
+		return "", ""
 	def to_runnable_module(self) -> None:
 		pass
 	@dataclass
@@ -38,9 +38,8 @@ class Graph():
 		def __len__(self) -> int:
 			return len(self.stack)
 	#TODO: consider there being no explicit shapes in and out, instead have it entirely dealt with by the node patterns
-	#TODO:
-	#	be able to refernce the already existiing nodes that parent a node
-	#		required for the case of summing nodes
+	#TODO: a recursive build instead, to allow for backtracking, rather than trying to force shapes
+	#	only other option is some type of lookahead, which would be a pain
 	@staticmethod
 	def from_build_graph(build_graph: BuildGraph, shapes_in: List[Size], shape_outs: List[Size]) -> Graph:
 		input_nodes: List[Node] = []
