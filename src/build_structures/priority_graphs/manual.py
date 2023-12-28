@@ -22,10 +22,10 @@ class Graph:
 
 class NodePattern:
 	def __init__(self, node_parameters: NodeParameters = IdentityInfo()):
-		self.transitions: List[TransitionGroup] = []
+		self.transition_groups: List[TransitionGroup] = []
 		self.node_parameters: NodeParameters = node_parameters 
 	def add_transition_group(self, group: TransitionGroup) -> None:
-		self.transitions.append(copy(group))
+		self.transition_groups.append(copy(group))
 	@abstractmethod	
 	def analyze(self) -> None:
 		#paceholder for possible auto priority assignment

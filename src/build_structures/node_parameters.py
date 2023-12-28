@@ -3,34 +3,38 @@ from __future__ import annotations
 import torch
 from torch import Size 
 import torch.nn as nn
-from torch.nn import Conv2d, Module, ModuleList
+from torch.nn import Conv2d, Module, Identity
 
-from src.model_structures.commons import Identity, MergeMethod
-from src.build_structures.commons import Bound, Index
-
+from src.build_structures.commons import Bound, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
-from typing import List, Set, Dict, Tuple
+from typing import List, Tuple
 
 class NodeParameters():
 	def __init__(self,
 			shape_bounds: List[Bound] = [Bound()], 
 			size_coefficient_bounds: Bound = Bound(),
-			activation_functions: List[Module] = [Identity()], 
-			merge_method: MergeMethod =MergeMethod.ADD, 
+			merge_method: MergeMethod = Concat(), 
 			) -> None:
 		self.shape_bounds = shape_bounds 
 		self.size_coefficient_bounds = size_coefficient_bounds
-		self.activation_functions = activation_functions 
 		self.merge_method = merge_method
 	@abstractmethod
 	def get_transform_string(self, shape_in: Size, index: Index =Index()) -> str:
 		pass
 	def get_transform(self, shape_in: Size, index: Index) -> Module:
 		return eval(self.get_transform_string(shape_in, index))
-	def get_activation(self, index: Index) -> Module:
-		return self.activation_functions[index.get_index(len(self.activation_functions))]
 	#make overrides for each
-	def get_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
+	def shape_in_bounds(self, shape_in: Size) -> bool:
+		for bound, dimension_size in zip(self.shape_bounds, shape_in):
+			if not dimension_size in bound:
+				return False
+		return True 
+	def get_output_shape(self, shape_in: Size, sibling_shapes: List[Size], index: Index =Index()) -> Size | None:
+		output_shape: Size | None = self.get_raw_output_shape(shape_in, index)
+		if self.merge_method.validate_shapes(sibling_shapes + [output_shape]): 
+			return None
+		return output_shape if self.shape_in_bounds(output_shape) else None
+	def get_raw_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
 		temp_tranform = self.get_transform(shape_in, index)
 		return temp_tranform(torch.zeros(shape_in)).shape
 	def get_batch_norm(self, features: int) -> Module:
@@ -39,8 +43,10 @@ class NodeParameters():
 class IdentityInfo(NodeParameters):
 	def __init__(self) -> None:
 		super().__init__()
-#	def get_transform_string(self) -> str:
-#		return "Identity()"
+	def get_transform_string(self, shape_in: Size, index: Index =Index()) -> str:
+		return "Identity()"
+	def get_raw_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
+		return shape_in
 
 class BasicConvInfo(NodeParameters):
 	def __init__(self,
@@ -64,7 +70,7 @@ class BasicConvInfo(NodeParameters):
 		self.padding = padding
 	def get_transform_string(self, shape_in: Size, index: Index = Index()) -> str:
 		#TODO: move away from using ratio
-		out_channels = self.size_coefficient_bounds.from_ratio(index.as_ratio()) * shape_in[1]
+		out_channels = self.size_coefficient_bounds.from_index(index, shape_in[1])
 		return f"Conv{self.dimension}d(in_channels={shape_in[1]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
 	def get_batch_norm(self, features: int) -> Module:
 		if self.dimension == 1:
@@ -75,11 +81,3 @@ class BasicConvInfo(NodeParameters):
 			return nn.BatchNorm3d(features)
 		else:
 			raise ValueError("Invalid dimension")
-		
-#classic depth wise, where one kernel is applied to each input channel
-class DepthwiseConvInfo(NodeParameters):
-	pass
-
-#one kernel, applied to each channel
-class DepthwiseSharedConvInfo(NodeParameters):
-	pass
