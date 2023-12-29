@@ -4,47 +4,35 @@ import torch
 from torch import Size
 from typing import List
 
+from math import prod
+
 from abc import ABC as Abstract, abstractmethod
 
 #TODO:
 #	make merge methods use viewing in 1d to join
 class MergeMethod(Abstract):
 	@abstractmethod
-	def validate_shapes(self, shapes: List[Size]) -> bool:
+	def get_total_merged_size(self, shapes: List[Size]) -> int:
 		pass
 	@abstractmethod
-	def get_total_merged_shape(self, shapes: List[Size]) -> Size:
+	def get_required_size(self, shapes: List[Size]) -> int | None:
 		pass
 	@abstractmethod
-	def get_required_shape(self, shapes: List[Size]) -> Size | None:
-		pass
-	@abstractmethod
-	def get_merge_string(self, registers: List[str]) -> str | None:
+	def get_merge_src(self, registers: List[str]) -> str | None:
 		pass
 class Concat(MergeMethod):
-	def validate_shapes(self, shapes: List[Size]) -> bool:
-		for shape in shapes:
-			if shape[1:] != shapes[0][1:]:
-				return False
-		return True
-	def get_total_merged_shape(self, shapes: List[Size]) -> Size:
-		first_dim = sum([shape[0] for shape in shapes])
-		return Size([first_dim] + list(shapes[0][1:]))
-	def get_required_shape(self, shapes: List[Size]) -> Size | None:
+	def get_total_merged_size(self, shapes: List[Size]) -> int:
+		return sum([prod(shape) for shape in shapes])
+	def get_required_size(self, shapes: List[Size]) -> int | None:
 		return None
-	def get_merge_string(self, registers: List[str]) -> str | None:
+	def get_merge_src(self, registers: List[str]) -> str | None:
 		return f"torch.cat([{', '.join(registers)}], dim=1)"
 class Add(MergeMethod):
-	def validate_shapes(self, shapes: List[Size]) -> bool:
-		for shape in shapes:
-			if shape != shapes[0]:
-				return False
-		return True
-	def get_total_merged_shape(self, shapes: List[Size]) -> Size:
-		return shapes[0] 
-	def get_required_shape(self, shapes: List[Size]) -> Size | None:
-		return shapes[0]
-	def get_merge_string(self, registers: List[str]) -> str | None:
+	def get_total_merged_size(self, shapes: List[Size]) -> int:
+		return prod(shapes[0])
+	def get_required_size(self, shapes: List[Size]) -> int | None:
+		return prod(shapes[0])
+	def get_merge_src(self, registers: List[str]) -> str | None:
 		return f"{' + '.join(registers)}"
 	
 class Index:
