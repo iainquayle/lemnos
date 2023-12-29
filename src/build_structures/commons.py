@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import torch
 from torch import Size
 from typing import List
 
 from abc import ABC as Abstract, abstractmethod
 
+#TODO:
+#	make merge methods use viewing in 1d to join
 class MergeMethod(Abstract):
 	@abstractmethod
 	def validate_shapes(self, shapes: List[Size]) -> bool:
 		pass
 	@abstractmethod
-	def conform_shape(self, shape: Size, sibling_shapes: List[Size]) -> Size:
+	def get_total_merged_shape(self, shapes: List[Size]) -> Size:
+		pass
+	@abstractmethod
+	def get_required_shape(self, shapes: List[Size]) -> Size | None:
 		pass
 	@abstractmethod
 	def get_merge_string(self, registers: List[str]) -> str | None:
@@ -21,8 +27,11 @@ class Concat(MergeMethod):
 			if shape[1:] != shapes[0][1:]:
 				return False
 		return True
-	def conform_shape(self, shape: Size, sibling_shapes: List[Size]) -> Size:
-		return shape
+	def get_total_merged_shape(self, shapes: List[Size]) -> Size:
+		first_dim = sum([shape[0] for shape in shapes])
+		return Size([first_dim] + list(shapes[0][1:]))
+	def get_required_shape(self, shapes: List[Size]) -> Size | None:
+		return None
 	def get_merge_string(self, registers: List[str]) -> str | None:
 		return f"torch.cat([{', '.join(registers)}], dim=1)"
 class Add(MergeMethod):
@@ -31,8 +40,10 @@ class Add(MergeMethod):
 			if shape != shapes[0]:
 				return False
 		return True
-	def conform_shape(self, shape: Size, sibling_shapes: List[Size]) -> Size:
-		return sibling_shapes[0] if len(sibling_shapes) > 0 else shape
+	def get_total_merged_shape(self, shapes: List[Size]) -> Size:
+		return shapes[0] 
+	def get_required_shape(self, shapes: List[Size]) -> Size | None:
+		return shapes[0]
 	def get_merge_string(self, registers: List[str]) -> str | None:
 		return f"{' + '.join(registers)}"
 	

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import torch
-from torch import Tensor, Size 
-from torch.nn import Module, ModuleList
-import torch.nn as nn
+from torch import Size 
 
 from src.model_structures.commons import  get_features_shape, mould_features
 from src.build_structures.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 

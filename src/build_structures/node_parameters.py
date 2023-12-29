@@ -9,21 +9,6 @@ from src.build_structures.commons import Bound, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
-#TODO:
-#	make more unified solution for shape creation
-#	will need to take into account:
-#		sibling shapes
-#		coefficients
-#		shape bounds
-#		dimensionality conversions
-#NOTE: may need to change the assumtuption of always using dim 1, in the case of using higher dim convolutions for lower dim spaces
-#	ie, dim 1 will always be 1, dim 2 will be effectivley channels
-#	two options:
-#		have an explicit dim join param
-#		always join on 1, but have a secondary mould
-#		another maybe option, is auto view all inputs as 2d, join on 1, then use a mould
-#			should work, is still efficient, and maintains simplicity, maybe
-
 class BaseParameters():
 	def __init__(self,
 			shape_bounds: List[Bound] = [Bound()], 
@@ -43,27 +28,42 @@ class BaseParameters():
 			if not dimension_size in bound:
 				return False
 		return True 
-	def get_output_shape(self, shape_in: Size, sibling_shapes: List[Size], index: Index =Index()) -> Size | None:
-		output_shape: Size | None = self.get_raw_output_shape(shape_in, index)
-		if self.merge_method.validate_shapes(sibling_shapes + [output_shape]): 
-			return None
-		return output_shape if self.shape_in_bounds(output_shape) else None
-	def get_raw_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
-		temp_tranform = self.get_transform(shape_in, index)
-		return temp_tranform(torch.zeros(shape_in)).shape
-	#change this to use the string version
+	def get_output_shape(self, parent_shapes: List[Size], sibling_shapes: List[Size], index: Index =Index()) -> Size | None:
+		required_shape = self.merge_method.get_required_shape(sibling_shapes)
+		if required_shape is None:
+			pass
+		else:
+			pass
+		#TODO:
+		#	check if there is a required shape that needs to be hit
+		#		make func specific to getting a required shape 
+		#	if so, make it work within the bounds
+		#	else, make one using the coefficients, within the bounds
+		#		make a func specific to getting merged shape
+		#	these shapes must also be achievable once put through the transform
+		#		fairly easy with something like a regular conv, but much harder when it will spit out some multiple of features
+		#	else, none
+		#TODO:
+		#	consider when it makes sense, making a module specific to the verticle filter reuse
+		#	and switch mergers back to requiring the same shapes
+	@abstractmethod
+	def get_target_output_shape(self, parent_shapes: List[Size], index: Index =Index()) -> Size:
+		pass
 	def get_batch_norm_string(self, features: int) -> str:
 		return "Identity()"
 	def get_batch_norm(self, features: int) -> Module:
 		return eval(self.get_batch_norm_string(features))
 	
+#TODO: make tokens for constants, ie conv, bn, rbrack, comma
+#or make functions, ie then can just use param list
+
 class IdentityParameters(BaseParameters):
 	def __init__(self) -> None:
 		super().__init__()
 	def get_transform_string(self, shape_in: Size, index: Index =Index()) -> str:
 		return "Identity()"
-	def get_raw_output_shape(self, shape_in: Size, index: Index =Index()) -> Size:
-		return shape_in
+	def get_target_output_shape(self, parent_shapes: List[Size], index: Index =Index()) -> Size:
+		return self.merge_method.get_total_merged_shape(parent_shapes)
 
 class ConvParameters(BaseParameters):
 	def __init__(self,
@@ -90,3 +90,5 @@ class ConvParameters(BaseParameters):
 		return f"Conv{self.dimension}d(in_channels={shape_in[0]}, out_channels={int(out_channels)}, kernel_size={self.kernel_size}, stride={self.stride}, dilation={self.dilation}, padding={self.padding})"
 	def get_batch_norm_string(self, features: int) -> str:
 		return f"BatchNorm{self.dimension}d({features})"
+	def get_target_output_shape(self, parent_shapes: List[Size], index: Index =Index()) -> Size:
+		pass
