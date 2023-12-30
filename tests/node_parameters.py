@@ -11,13 +11,10 @@ from math import prod
 class TestParametersShapeFunctions(unittest.TestCase):
 	def setUp(self) -> None:
 		self.parameters = IdentityParameters()
-		self.parameters.shape_bounds = [Bound(1, 3), Bound(1, 32)]
 		self.parameters.merge_method = Concat()
 		self.base_shape = Size([3, 32])
 	def test_shape_in_bounds(self) -> None:
-		self.assertTrue(self.parameters.shape_in_bounds(self.base_shape))
-		self.assertFalse(self.parameters.shape_in_bounds(Size([3, 33])))
-		self.assertFalse(self.parameters.shape_in_bounds(Size([4, 32])))
+		pass
 	def test_get_output_shape(self) -> None:
 		pass
 	def test_get_output_shape_add(self) -> None:
@@ -29,13 +26,13 @@ class TestNodeParameters(unittest.TestCase):
 		self.parameters.merge_method = Concat()
 		self.base_shape = Size([2, 4])
 	def test_get_mould_shape_same_dim(self) -> None:
-		self.parameters.shape_bounds = [Bound(1, 4), Bound(1, 4)]
+		self.parameters.shape_bounds = Bound([1, 1], [4, 4])
 		self.assertEqual(self.parameters.get_mould_shape([self.base_shape, self.base_shape]), Size([4, 4]))
 	def test_get_mould_shape_up_dim(self) -> None:
-		self.parameters.shape_bounds = [Bound(1, 4), Bound(1, 4), Bound(1, 4)]
+		self.parameters.shape_bounds = Bound([1, 1, 1], [4, 4, 4])
 		self.assertEqual(self.parameters.get_mould_shape([self.base_shape]), Size([1, 2, 4]))
 	def test_get_mould_shape_down_dim(self) -> None:
-		self.parameters.shape_bounds = [Bound(1, 4)]
+		self.parameters.shape_bounds = Bound([1], [4])
 		self.assertEqual(self.parameters.get_mould_shape([self.base_shape]), Size([8]))
 
 class TestMergeMethod(unittest.TestCase):
@@ -59,13 +56,23 @@ class TestMergeMethod(unittest.TestCase):
 class TestIdentityParemeters(unittest.TestCase):
 	def setUp(self) -> None:
 		self.parameters = IdentityParameters()
-		self.parameters.shape_bounds = [Bound(1, 3), Bound(1, 32)]
+		self.parameters.shape_bounds = Bound([1, 1], [4, 8])
 		self.parameters.merge_method = Concat()
-		self.base_shape = Size([3, 32])
+		self.base_shape = Size([2, 4])
 	def test_transform_src(self) -> None:
 		self.assertEqual(self.parameters.get_transform_src(self.base_shape, self.base_shape), "Identity()")
-	def test_transform(self) -> None:
-		pass
+	def test_output_shape(self) -> None:
+		output = self.parameters.get_mould_and_output_shape([self.base_shape, self.base_shape], [])
+		if output is None:
+			self.fail("output shape is None")
+		self.assertEqual(output[0], Size([4, 4]))
+		output = self.parameters.get_mould_and_output_shape([self.base_shape, self.base_shape], [16])
+		self.assertIsNotNone(output)
+	def test_output_shape_fail_sibling(self) -> None:
+		output = self.parameters.get_mould_and_output_shape([self.base_shape, self.base_shape], [1])
+		self.assertIsNone(output)
+		output = self.parameters.get_mould_and_output_shape([self.base_shape, self.base_shape], [1, 2])
+		self.assertIsNone(output)
 
 class TestConvParameters(unittest.TestCase):
 	def setUp(self) -> None:

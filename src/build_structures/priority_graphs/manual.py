@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from torch import Tensor, Size
 from torch.nn import Module, ModuleList
 
-from src.model_structures.commons import Identity, MergeMethod
-from src.build_structures.node_parameters import NodeParameters, IdentityInfo
+from src.build_structures.node_parameters import BaseParameters, IdentityParameters 
 from src.build_structures.commons import Bound, Index
 
 from abc import ABC, abstractmethod
@@ -21,9 +20,9 @@ class Graph:
 		self.start_patterns: List[NodePattern] = []
 
 class NodePattern:
-	def __init__(self, node_parameters: NodeParameters = IdentityInfo()):
+	def __init__(self, node_parameters: BaseParameters = IdentityParameters()):
 		self.transition_groups: List[TransitionGroup] = []
-		self.node_parameters: NodeParameters = node_parameters 
+		self.node_parameters: BaseParameters = node_parameters 
 	def add_transition_group(self, group: TransitionGroup) -> None:
 		self.transition_groups.append(copy(group))
 	@abstractmethod	
@@ -37,6 +36,7 @@ class Transiton:
 	next_pattern: NodePattern
 	optional: bool = False
 	priority: int = 0
+	join_existing: bool = False
 
 class TransitionGroup:
 	def __init__(self, transitions: List[Transiton], repetition_bounds: Bound =Bound())  -> None:

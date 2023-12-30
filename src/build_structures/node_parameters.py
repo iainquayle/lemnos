@@ -5,57 +5,55 @@ from torch import Size
 import torch.nn as nn
 from torch.nn import Module, Identity
 
-from src.build_structures.commons import Bound, Index, MergeMethod, Concat
+from src.build_structures.commons import size_from_initial_shape, Bound, Range, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
+from math import prod
+
 class BaseParameters():
 	def __init__(self,
-			shape_bounds: List[Bound] = [Bound()], 
-			size_coefficient_bounds: Bound = Bound(),
+			shape_bounds: Bound = Bound(),
+			size_coefficient_bounds: Range = Range(),
 			merge_method: MergeMethod = Concat(), 
 			) -> None:
 		self.shape_bounds = shape_bounds 
 		self.size_coefficient_bounds = size_coefficient_bounds
 		self.merge_method = merge_method
-	def shape_in_bounds(self, shape_in: Size) -> bool:
-		for bound, dimension_size in zip(self.shape_bounds, shape_in):
-			if not dimension_size in bound:
-				return False
-		return True 
+	def validate_output_shape(self, shape_in: Size, shape_out: Size) -> bool:
+		return self.validate_output_shape_sub(shape_in, shape_out) and shape_out in self.shape_bounds
 	@abstractmethod
-	def validate_output_shape(self, shape_out: Size) -> bool:
+	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		pass
-	def get_output_shape(self, parent_shapes: List[Size], sibling_shapes: List[Size], index: Index =Index()) -> Size | None:
-		required_size = self.merge_method.get_required_size(sibling_shapes)
-		if required_size is None:
-			pass
-		else:
-			pass
-		#TODO:
-		#	check if there is a required shape that needs to be hit
-		#	else, make one using the coefficients, within the bounds
-		#	these shapes must also be achievable once put through the transform
-		#		fairly easy with something like a regular conv, but much harder when it will spit out some multiple of features
-		#	else, none
+	def get_mould_and_output_shape(self, parent_shapes: List[Size], required_sizes: List[int], index: Index = Index()) -> Tuple[Size, Size] | None:
+		mould_shape = self.get_mould_shape(parent_shapes)
+		required_size = None
+		for size in required_sizes:
+			if size is not None and size != required_sizes[0]:
+				return None
+			else:
+				required_size = size 
+		output_shape = self.get_output_shape_sub(mould_shape, required_size, index)
+		return None if output_shape == None or output_shape not in self.shape_bounds else (mould_shape, output_shape)
+	@abstractmethod
+	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
+		pass
 	def get_mould_shape(self, parent_shapes: List[Size]) -> Size:
 		if len(parent_shapes) == 0:
-			return Size([int(bound.lower) for bound in self.shape_bounds])
+			return Size([int(bound) for bound in self.shape_bounds.lower])
 		else:
 			max_dim_shape = Size()
 			for parent_shape in parent_shapes:
 				if len(parent_shape) > len(max_dim_shape):
 					max_dim_shape = parent_shape
 			total_merged_size: int = self.merge_method.get_total_merged_size(parent_shapes)
-			shape_list: List[int] = list(max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
-			for dimension_size in shape_list:
-				if total_merged_size % dimension_size != 0:
-					raise Exception("wtf mould shape failed")
-				total_merged_size = int(total_merged_size / dimension_size)
-			shape_list = ([1] * (len(self.shape_bounds) - len(shape_list) - 1)) + [total_merged_size] + shape_list
+			mould_shape = size_from_initial_shape(total_merged_size, max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
+			if mould_shape is None:
+				raise Exception("wtf mould shape failed")
+			shape_list = ([1] * (len(self.shape_bounds) - len(mould_shape))) + list(mould_shape)
 			return Size(shape_list)
 	@abstractmethod
-	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
+	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		pass
 	def get_transform(self, shape_in: Size, shape_out: Size) -> Module:
 		return Identity() #eval(self.get_transform_src(shape_in, shape_out))
@@ -71,43 +69,48 @@ class BaseParameters():
 class IdentityParameters(BaseParameters):
 	def __init__(self) -> None:
 		super().__init__()
-	def get_closest_shape(self, target_shape: Size, parent_shapes: List[Size]) -> Size:
-		return self.get_mould_shape(parent_shapes)
-	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
+	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
+		return shape_in == shape_out
+	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
+		return input_shape if required_size is None or required_size == prod(input_shape) else None
+	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		return "Identity()"
 
-def auto_fill_tuple(val: Tuple | int, bounds: List[Bound]) -> Tuple:
+#TODO: move to commons
+def auto_fill_tuple(val: Tuple | int, bounds: Bound) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val] * (len(bounds) - 1))
 class ConvParameters(BaseParameters):
 	def __init__(self,
 			node_info: BaseParameters = BaseParameters(),
-			kernel_size: Tuple | int = 1, 
+			kernel: Tuple | int = 1, 
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
-			padding: Tuple | int = 1
+			padding: Tuple | int = 1,
+			depthwise: bool = False,
 			) -> None:
 		super().__init__()
 		self.__dict__.update(node_info.__dict__)
-		if len(tuple([kernel_size])) == 0 or len(tuple([stride])) == 0 or len(tuple([dilation])) == 0 or len(tuple([padding])) == 0:
-			exit("kernel_size, stride, dilation, padding must have at least one dimension")
-		self.kernel_size: Tuple = auto_fill_tuple(kernel_size, self.shape_bounds)
+		if len(tuple([kernel])) == 0 or len(tuple([stride])) == 0 or len(tuple([dilation])) == 0 or len(tuple([padding])) == 0:
+			exit("kernel, stride, dilation, padding must have at least one dimension")
+		self.kernel: Tuple = auto_fill_tuple(kernel, self.shape_bounds)
 		self.stride: Tuple = auto_fill_tuple(stride, self.shape_bounds)
 		self.dilation: Tuple = auto_fill_tuple(dilation, self.shape_bounds)
 		self.padding: Tuple = auto_fill_tuple(padding,  self.shape_bounds)
-	def validate_output_shape(self, shape_out: Size) -> bool:
+		self.depthwise: bool = depthwise
+	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1
-		while (i < len(shape_out) 
-				and (shape_out[i] - (int(shape_out[i] / self.kernel_size[i]) + self.padding[i] * 2)) % self.stride[i] == 0
-				and shape_out[i] in self.shape_bounds[i]):
+		while (i < len(shape_out) and  (shape_out[i] * self.stride[i] - (2 * self.padding[i]) + (self.kernel[i] - 1)) == shape_in[i]):
 			i += 1
-		return i == len(shape_out) and shape_out[0] in self.shape_bounds[0]
-	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
-		i = 1
-		while i < len(shape_out) and (shape_out[i] - (int(shape_out[i] / self.kernel_size[i]) + self.padding[i] * 2)) % self.stride[i] == 0:
-			i += 1
-		if i == len(shape_in):
-			return ""
+		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
+	def input_dim_to_output_dim(self, input_shape: Size, dim: int) -> int | None:
+		return 0
+	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
+		initial_shape = Size([size for size in input_shape[1:]])
+		if required_size is None:
+			pass
 		else:
-			return None
+			pass
+	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
+		return ""
 	def get_batch_norm_src(self, shape_out: Size) -> str:
 		return ""
