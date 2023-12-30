@@ -76,7 +76,10 @@ class TestIdentityParemeters(unittest.TestCase):
 
 class TestConvParameters(unittest.TestCase):
 	def setUp(self) -> None:
-		self.base_shape = Size([3, 32])
-		self.parameters = ConvParameters(stride=2)
+		self.base_shape = Size([2, 4])
+		self.parameters = ConvParameters()
+		self.parameters.shape_bounds = Bound([1, 1], [4, 8])
+	def test_validate_output_shape(self) -> None:
+		self.assertTrue(self.parameters.validate_output_shape(self.base_shape, Size([4, 2])))
 	def test_transform_src(self) -> None:
 		pass

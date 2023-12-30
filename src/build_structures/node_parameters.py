@@ -34,7 +34,8 @@ class BaseParameters():
 			else:
 				required_size = size 
 		output_shape = self.get_output_shape_sub(mould_shape, required_size, index)
-		return None if output_shape == None or output_shape not in self.shape_bounds else (mould_shape, output_shape)
+		return None if output_shape == None or not self.validate_output_shape(mould_shape, output_shape) else (mould_shape, output_shape)
+	#could make this not return error
 	@abstractmethod
 	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
 		pass
@@ -97,26 +98,21 @@ class ConvParameters(BaseParameters):
 		self.dilation: Tuple = auto_fill_tuple(dilation, self.shape_bounds)
 		self.padding: Tuple = auto_fill_tuple(padding,  self.shape_bounds)
 		self.depthwise: bool = depthwise
+	def output_dim_to_input_dim(self, output_shape: Size, i: int) -> int:
+		return output_shape[i] * self.padding[i] + (self.kernel[i] - 1) - (self.stride[i] - 1) - (2 * self.padding[i])
+	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int:
+		return (input_shape[i] + (2 * self.padding[i]) - (self.kernel[i] - 1) + (self.stride[i] - 1)) // self.stride[i]
 	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1
-		while (i < len(shape_out) and  (shape_out[i] * self.stride[i] - (2 * self.padding[i]) + (self.kernel[i] - 1)) == shape_in[i]):
+		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
-	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int | None:
-		dim = input_shape[i] - (self.kernel[i] - 1) + (2 * self.padding[i])
-		if dim % self.stride[i] == 0:
-			dim = dim // self.stride[i]
-			if dim > 0:
-				return dim
-		return None
 	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
 		initial_shape = [self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))]
-		if None not in initial_shape:
-			if required_size is None:
-				pass
-			else:
-				return size_to_shape(required_size, Size(initial_shape)) #how get rid of lsp warning
-		return None
+		if required_size is None:
+			pass
+		else:
+			return size_to_shape(required_size, Size(initial_shape)) 
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
 		return ""
 	def get_batch_norm_src(self, shape_out: Size) -> str:
