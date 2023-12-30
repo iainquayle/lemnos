@@ -8,7 +8,7 @@ from math import prod
 
 from abc import ABC as Abstract, abstractmethod
 
-def size_from_initial_shape(size: int, initial_shape: Size) -> Size | None:
+def size_to_shape(size: int, initial_shape: Size) -> Size | None:
 	return Size([size // prod(initial_shape)] + list(initial_shape)) if size % prod(initial_shape) == 0 else None
 
 class MergeMethod(Abstract):

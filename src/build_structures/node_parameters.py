@@ -5,7 +5,7 @@ from torch import Size
 import torch.nn as nn
 from torch.nn import Module, Identity
 
-from src.build_structures.commons import size_from_initial_shape, Bound, Range, Index, MergeMethod, Concat
+from src.build_structures.commons import size_to_shape, Bound, Range, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
@@ -47,7 +47,7 @@ class BaseParameters():
 				if len(parent_shape) > len(max_dim_shape):
 					max_dim_shape = parent_shape
 			total_merged_size: int = self.merge_method.get_total_merged_size(parent_shapes)
-			mould_shape = size_from_initial_shape(total_merged_size, max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
+			mould_shape = size_to_shape(total_merged_size, max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
 			if mould_shape is None:
 				raise Exception("wtf mould shape failed")
 			shape_list = ([1] * (len(self.shape_bounds) - len(mould_shape))) + list(mould_shape)
@@ -102,14 +102,21 @@ class ConvParameters(BaseParameters):
 		while (i < len(shape_out) and  (shape_out[i] * self.stride[i] - (2 * self.padding[i]) + (self.kernel[i] - 1)) == shape_in[i]):
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
-	def input_dim_to_output_dim(self, input_shape: Size, dim: int) -> int | None:
-		return 0
+	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int | None:
+		dim = input_shape[i] - (self.kernel[i] - 1) + (2 * self.padding[i])
+		if dim % self.stride[i] == 0:
+			dim = dim // self.stride[i]
+			if dim > 0:
+				return dim
+		return None
 	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
-		initial_shape = Size([size for size in input_shape[1:]])
-		if required_size is None:
-			pass
-		else:
-			pass
+		initial_shape = [self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))]
+		if None not in initial_shape:
+			if required_size is None:
+				pass
+			else:
+				return size_to_shape(required_size, Size(initial_shape)) #how get rid of lsp warning
+		return None
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
 		return ""
 	def get_batch_norm_src(self, shape_out: Size) -> str:
