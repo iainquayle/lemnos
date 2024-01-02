@@ -12,14 +12,9 @@ from typing import List, Tuple
 from math import prod
 
 class BaseParameters():
-	def __init__(self,
-			shape_bounds: Bound = Bound(),
-			size_coefficient_bounds: Range = Range(),
-			merge_method: MergeMethod = Concat(), 
-			) -> None:
-		self.shape_bounds = shape_bounds 
-		self.size_coefficient_bounds = size_coefficient_bounds
-		self.merge_method = merge_method
+	def __init__(self) -> None:
+		self.shape_bounds = Bound() 
+		self.merge_method = Concat() 
 	def validate_output_shape(self, shape_in: Size, shape_out: Size) -> bool:
 		return self.validate_output_shape_sub(shape_in, shape_out) and shape_out in self.shape_bounds
 	@abstractmethod
@@ -68,8 +63,10 @@ class BaseParameters():
 #or make functions, ie then can just use param list
 
 class IdentityParameters(BaseParameters):
-	def __init__(self) -> None:
+	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
 		super().__init__()
+		self.shape_bounds = shape_bounds
+		self.merge_method = merge_method
 	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		return shape_in == shape_out
 	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
@@ -82,7 +79,8 @@ def auto_fill_tuple(val: Tuple | int, bounds: Bound) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val] * (len(bounds) - 1))
 class ConvParameters(BaseParameters):
 	def __init__(self,
-			node_info: BaseParameters = BaseParameters(),
+			shape_bounds: Bound = Bound(),
+			merge_method: MergeMethod = Concat(),
 			kernel: Tuple | int = 1, 
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
@@ -90,18 +88,29 @@ class ConvParameters(BaseParameters):
 			depthwise: bool = False,
 			) -> None:
 		super().__init__()
-		self.__dict__.update(node_info.__dict__)
-		if len(tuple([kernel])) == 0 or len(tuple([stride])) == 0 or len(tuple([dilation])) == 0 or len(tuple([padding])) == 0:
-			exit("kernel, stride, dilation, padding must have at least one dimension")
-		self.kernel: Tuple = auto_fill_tuple(kernel, self.shape_bounds)
-		self.stride: Tuple = auto_fill_tuple(stride, self.shape_bounds)
-		self.dilation: Tuple = auto_fill_tuple(dilation, self.shape_bounds)
-		self.padding: Tuple = auto_fill_tuple(padding,  self.shape_bounds)
+		if len(shape_bounds) < 2:
+			exit("shape_bounds must have at least two dimensions")
+		self.shape_bounds = shape_bounds
+		self.size_coefficents = Range()
+		self.merge_method = merge_method
+		self.kernel: Tuple = auto_fill_tuple(kernel, shape_bounds)
+		self.stride: Tuple = auto_fill_tuple(stride, shape_bounds)
+		self.dilation: Tuple = auto_fill_tuple(dilation, shape_bounds)
+		self.padding: Tuple = auto_fill_tuple(padding, shape_bounds)
+		if (len(self.kernel) != len(self.stride) 
+		  		or len(self.stride) != len(self.dilation) 
+		  		or len(self.dilation) != len(self.padding) 
+		  		or len(self.padding) != len(self.shape_bounds) - 1):
+			exit("kernel, stride, dilation, padding must all have the same length and be one less than shape_bounds")
 		self.depthwise: bool = depthwise
 	def output_dim_to_input_dim(self, output_shape: Size, i: int) -> int:
-		return output_shape[i] * self.padding[i] + (self.kernel[i] - 1) - (self.stride[i] - 1) - (2 * self.padding[i])
+		shape_i = i
+		i -= 1
+		return output_shape[shape_i] * self.padding[i] + (self.kernel[i] - 1) - (self.stride[i] - 1) - (2 * self.padding[i])
 	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int:
-		return (input_shape[i] + (2 * self.padding[i]) - (self.kernel[i] - 1) + (self.stride[i] - 1)) // self.stride[i]
+		shape_i = i
+		i -= 1
+		return (input_shape[shape_i] + (2 * self.padding[i]) - (self.kernel[i] - 1) + (self.stride[i] - 1)) // self.stride[i]
 	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
