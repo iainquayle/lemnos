@@ -11,7 +11,6 @@ from math import prod
 class TestParametersShapeFunctions(unittest.TestCase):
 	def setUp(self) -> None:
 		self.parameters = IdentityParameters()
-		self.parameters.merge_method = Concat()
 		self.base_shape = Size([3, 32])
 	def test_shape_in_bounds(self) -> None:
 		pass

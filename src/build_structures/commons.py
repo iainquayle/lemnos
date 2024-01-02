@@ -11,6 +11,10 @@ from abc import ABC as Abstract, abstractmethod
 def size_to_shape(size: int, initial_shape: Size) -> Size | None:
 	return Size([size // prod(initial_shape)] + list(initial_shape)) if size % prod(initial_shape) == 0 else None
 
+#TODO: make better conformance functions?
+#right now it just returns a total size if it is needed, however it would be smart if it could deal with cases such as concat
+#this is required for the and search part once implemented, and removes any needed check of the parent shapes of a node for conformity
+#it may be required that this is actually handled more directly by the node parameters? would be unfortunate
 class MergeMethod(Abstract):
 	@abstractmethod
 	def get_total_merged_size(self, shapes: List[Size]) -> int:

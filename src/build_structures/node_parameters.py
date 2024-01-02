@@ -64,7 +64,6 @@ class BaseParameters():
 
 class IdentityParameters(BaseParameters):
 	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
-		super().__init__()
 		self.shape_bounds = shape_bounds
 		self.merge_method = merge_method
 	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
@@ -87,7 +86,6 @@ class ConvParameters(BaseParameters):
 			padding: Tuple | int = 1,
 			depthwise: bool = False,
 			) -> None:
-		super().__init__()
 		if len(shape_bounds) < 2:
 			exit("shape_bounds must have at least two dimensions")
 		self.shape_bounds = shape_bounds
