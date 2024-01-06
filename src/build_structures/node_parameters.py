@@ -20,16 +20,21 @@ class BaseParameters():
 	@abstractmethod
 	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		pass
-	def get_mould_and_output_shape(self, parent_shapes: List[Size], required_sizes: List[int], index: Index = Index()) -> Tuple[Size, Size] | None:
+	def get_mould_and_output_shape(self, parent_shapes: List[Size], sibling_shapes: List[Size], index: Index = Index()) -> Tuple[Size, Size] | None:
+		#get mould shape, does not need to be validated technically, since all parents shouldve been validated from the start
+		#collect all sibling shapes
+		#get closest conforming shape
+		#	this could also be changes to take in a shape that is the aim, and change it to conform, then it is revalidated by the caller
+		#validate that shape is achievable based on layer type 
 		mould_shape = self.get_mould_shape(parent_shapes)
-		required_size = None
-		for size in required_sizes:
-			if size is not None and size != required_sizes[0]:
-				return None
-			else:
-				required_size = size 
-		output_shape = self.get_output_shape_sub(mould_shape, required_size, index)
-		return None if output_shape == None or not self.validate_output_shape(mould_shape, output_shape) else (mould_shape, output_shape)
+		#for size in required_sizes:
+		#	if size is not None and size != required_sizes[0]:
+		#		return None
+		#	else:
+		#		required_size = size 
+		#output_shape = self.get_output_shape_sub(mould_shape, required_size, index)
+		#return None if output_shape == None or not self.validate_output_shape(mould_shape, output_shape) else (mould_shape, output_shape)
+		return None
 	#could make this not return error
 	@abstractmethod
 	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
