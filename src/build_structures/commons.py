@@ -4,47 +4,42 @@ import torch
 from torch import Size
 from typing import List
 
+from dataclasses import dataclass
+
 from math import prod
 
 from abc import ABC as Abstract, abstractmethod
 
-def size_to_shape(size: int, initial_shape: Size) -> Size | None:
-	return Size([size // prod(initial_shape)] + list(initial_shape)) if size % prod(initial_shape) == 0 else None
+@dataclass
+class ConformanceShape:
+	dimensions: int
+	partial_shape: Size
 
-#TODO: two options for closest, either take dimensionality and always return a shape(s), or take bounds, and give closest conforming?
-#may be smart to sort out bounds here, otherwise techincally it would need to give back all possible shapes to makes sure there were none that didnt fit
 class MergeMethod(Abstract):
 	@abstractmethod
-	def get_closest_conforming_shape(self, sibling_shapes: List[Size], shape: Size, shape_bounds: Bound) -> Size | None:
+	def get_conformance_shape(self, sibling_shapes: List[Size], shape_bounds: Bound) -> ConformanceShape:
 		pass
 	@abstractmethod
 	def get_total_merged_size(self, shapes: List[Size]) -> int:
-		pass
-	@abstractmethod
-	def get_required_size(self, shapes: List[Size]) -> int | None:
 		pass
 	@abstractmethod
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		pass
 class Concat(MergeMethod):
-	def get_closest_conforming_shape(self, sibling_shapes: List[Size], shape: Size, shape_bounds: Bound) -> Size | None:
-		pass
+	def get_conformance_shape(self, sibling_shapes: List[Size], shape_bounds: Bound) -> ConformanceShape:
+		return ConformanceShape(len(shape_bounds), Size(sibling_shapes[0][1:]))
 	def get_total_merged_size(self, shapes: List[Size]) -> int:
 		return sum([prod(shape) for shape in shapes])
-	def get_required_size(self, shapes: List[Size]) -> int | None:
-		return None
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return f"torch.cat([{', '.join(registers)}], dim=1)"
 class Add(MergeMethod):
-	def get_closest_conforming_shape(self, sibling_shapes: List[Size], shape: Size, shape_bounds: Bound) -> Size | None:
-		pass
+	def get_conformance_shape(self, sibling_shapes: List[Size], shape_bounds: Bound) -> ConformanceShape:
+		return ConformanceShape(len(shape_bounds), Size(sibling_shapes[0]))
 	def get_total_merged_size(self, shapes: List[Size]) -> int:
-		return prod(shapes[0])
-	def get_required_size(self, shapes: List[Size]) -> int | None:
 		return prod(shapes[0])
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return f"{' + '.join(registers)}"
-	
+
 class Index:
 	MAX_INDEX = 2**16 -1
 	def __init__(self, index: int =0) -> None:

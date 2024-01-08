@@ -5,39 +5,37 @@ from torch import Size
 import torch.nn as nn
 from torch.nn import Module, Identity
 
-from src.build_structures.commons import size_to_shape, Bound, Range, Index, MergeMethod, Concat
+from src.build_structures.commons import ConformanceShape, Bound, Range, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
 from math import prod
 
+#to expand:
+#	get mould shape (dont need to validate, as validation happens when a new node is created and its shape made)
+#	fetch conformance shapes from children
+#		fetch from all possible children in a transition group
+#		conforming shape hold the total size of a conforming shape, and the upper shape that is required
+#		requires the dims and the siblings
+#	generate conforming shape, or none, from these
+#TODO: consider making it such that a shape of lower dim cant be used in a higher dim
 class BaseParameters():
 	def __init__(self) -> None:
 		self.shape_bounds = Bound() 
 		self.merge_method = Concat() 
 	def validate_output_shape(self, shape_in: Size, shape_out: Size) -> bool:
 		return self.validate_output_shape_sub(shape_in, shape_out) and shape_out in self.shape_bounds
+	#TODO: rename this
 	@abstractmethod
 	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
 		pass
-	def get_mould_and_output_shape(self, parent_shapes: List[Size], sibling_shapes: List[Size], index: Index = Index()) -> Tuple[Size, Size] | None:
-		#get mould shape, does not need to be validated technically, since all parents shouldve been validated from the start
-		#collect all sibling shapes
-		#get closest conforming shape
-		#	this could also be changes to take in a shape that is the aim, and change it to conform, then it is revalidated by the caller
-		#validate that shape is achievable based on layer type 
-		mould_shape = self.get_mould_shape(parent_shapes)
-		#for size in required_sizes:
-		#	if size is not None and size != required_sizes[0]:
-		#		return None
-		#	else:
-		#		required_size = size 
-		#output_shape = self.get_output_shape_sub(mould_shape, required_size, index)
-		#return None if output_shape == None or not self.validate_output_shape(mould_shape, output_shape) else (mould_shape, output_shape)
-		return None
-	#could make this not return error
+	def get_conformance_shape(self, sibling_shapes: List[Size]) -> ConformanceShape:
+		return self.merge_method.get_conformance_shape(sibling_shapes, self.shape_bounds)
+	#TODO: consider making this take in the stack elements, and getting conformances from them instead
+	def get_mould_and_output_shapes(self, parent_shapes: List[Size], conformance_shapes: List[ConformanceShape], index: Index = Index()) -> Tuple[Size, Size] | None:
+		pass
 	@abstractmethod
-	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
+	def get_output_shape(self, MouldShape: Size, conformance_shapes: List[ConformanceShape], index: Index = Index()) -> Size | None:
 		pass
 	def get_mould_shape(self, parent_shapes: List[Size]) -> Size:
 		if len(parent_shapes) == 0:
