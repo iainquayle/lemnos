@@ -14,6 +14,24 @@ from abc import ABC as Abstract, abstractmethod
 class ConformanceShape:
 	dimensions: int
 	partial_shape: Size
+	@staticmethod
+	def reduce_collection(conformance_shapes: List[ConformanceShape]) -> ConformanceShape | None:
+		if len(conformance_shapes) == 0:
+			raise Exception("cannot reduce empty collection")
+		else:
+			dimensions = 0
+			partial_shape = Size()
+			for conformance_shape in conformance_shapes:
+				i = 0
+				while i < len(conformance_shape.partial_shape) and i < len(partial_shape):
+					if conformance_shape.partial_shape[-i] != partial_shape[-i]:
+						return None
+					i += 1
+				if len(conformance_shape.partial_shape) > len(partial_shape):
+					partial_shape = conformance_shape.partial_shape
+				if conformance_shape.dimensions > dimensions:
+					dimensions = conformance_shape.dimensions
+			return ConformanceShape(dimensions, partial_shape)
 
 class MergeMethod(Abstract):
 	@abstractmethod
@@ -27,14 +45,14 @@ class MergeMethod(Abstract):
 		pass
 class Concat(MergeMethod):
 	def get_conformance_shape(self, sibling_shapes: List[Size], shape_bounds: Bound) -> ConformanceShape:
-		return ConformanceShape(len(shape_bounds), Size(sibling_shapes[0][1:]))
+		return ConformanceShape(len(shape_bounds), Size(sibling_shapes[0][1:] if len(sibling_shapes) > 0 else []))
 	def get_total_merged_size(self, shapes: List[Size]) -> int:
 		return sum([prod(shape) for shape in shapes])
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return f"torch.cat([{', '.join(registers)}], dim=1)"
 class Add(MergeMethod):
 	def get_conformance_shape(self, sibling_shapes: List[Size], shape_bounds: Bound) -> ConformanceShape:
-		return ConformanceShape(len(shape_bounds), Size(sibling_shapes[0]))
+		return ConformanceShape(len(shape_bounds), Size(sibling_shapes[0] if len(sibling_shapes) > 0 else []))
 	def get_total_merged_size(self, shapes: List[Size]) -> int:
 		return prod(shapes[0])
 	def get_merge_src(self, registers: List[str]) -> str | None:

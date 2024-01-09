@@ -24,33 +24,30 @@ class BaseParameters():
 		self.shape_bounds = Bound() 
 		self.merge_method = Concat() 
 	def validate_output_shape(self, shape_in: Size, shape_out: Size) -> bool:
-		return self.validate_output_shape_sub(shape_in, shape_out) and shape_out in self.shape_bounds
-	#TODO: rename this
+		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self.shape_bounds
 	@abstractmethod
-	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		pass
 	def get_conformance_shape(self, sibling_shapes: List[Size]) -> ConformanceShape:
 		return self.merge_method.get_conformance_shape(sibling_shapes, self.shape_bounds)
-	#TODO: consider making this take in the stack elements, and getting conformances from them instead
-	def get_mould_and_output_shapes(self, parent_shapes: List[Size], conformance_shapes: List[ConformanceShape], index: Index = Index()) -> Tuple[Size, Size] | None:
+	def get_mould_and_output_shapes(self, parent_shapes: List[Size], conformance_shape: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
 		pass
 	@abstractmethod
-	def get_output_shape(self, MouldShape: Size, conformance_shapes: List[ConformanceShape], index: Index = Index()) -> Size | None:
+	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
 		pass
 	def get_mould_shape(self, parent_shapes: List[Size]) -> Size:
 		if len(parent_shapes) == 0:
-			return Size([int(bound) for bound in self.shape_bounds.lower])
+			raise Exception("cannot get mould shape from empty parent shapes")
 		else:
 			max_dim_shape = Size()
 			for parent_shape in parent_shapes:
 				if len(parent_shape) > len(max_dim_shape):
 					max_dim_shape = parent_shape
 			total_merged_size: int = self.merge_method.get_total_merged_size(parent_shapes)
-			mould_shape = size_to_shape(total_merged_size, max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
-			if mould_shape is None:
-				raise Exception("wtf mould shape failed")
-			shape_list = ([1] * (len(self.shape_bounds) - len(mould_shape))) + list(mould_shape)
-			return Size(shape_list)
+			mould_list = list(max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
+			mould_list = [total_merged_size // prod(mould_list)] + mould_list
+			mould_list = ([1] * (len(self.shape_bounds) - len(mould_list))) + mould_list
+			return Size(mould_list)
 	@abstractmethod
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		pass
@@ -69,9 +66,16 @@ class IdentityParameters(BaseParameters):
 	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
 		self.shape_bounds = shape_bounds
 		self.merge_method = merge_method
-	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		return shape_in == shape_out
-	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
+	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
+		min_dim = min(len(input_shape), len(conformance_shape.partial_shape))
+		for i in range(min_dim):
+			if input_shape[i] != conformance_shape.partial_shape[i]:
+				return None
+		#TODO: get the rest of the check down
+		return input_shape
+	def get_output_shape_transform(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
 		return input_shape if required_size is None or required_size == prod(input_shape) else None
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		return "Identity()"
@@ -112,12 +116,12 @@ class ConvParameters(BaseParameters):
 		shape_i = i
 		i -= 1
 		return (input_shape[shape_i] + (2 * self.padding[i]) - (self.kernel[i] - 1) + (self.stride[i] - 1)) // self.stride[i]
-	def validate_output_shape_sub(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
-	def get_output_shape_sub(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
+	def get_output_shape_transform(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
 		initial_shape = [self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))]
 		if required_size is None:
 			pass
