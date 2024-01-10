@@ -11,6 +11,8 @@ from typing import List, Tuple
 
 from math import prod
 
+#TODO: make tokens for constants, ie conv, bn, rbrack, comma
+#or make functions, ie then can just use param list
 #to expand:
 #	get mould shape (dont need to validate, as validation happens when a new node is created and its shape made)
 #	fetch conformance shapes from children
@@ -31,7 +33,12 @@ class BaseParameters():
 	def get_conformance_shape(self, sibling_shapes: List[Size]) -> ConformanceShape:
 		return self.merge_method.get_conformance_shape(sibling_shapes, self.shape_bounds)
 	def get_mould_and_output_shapes(self, parent_shapes: List[Size], conformance_shape: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
-		pass
+		mould_shape = self.get_mould_shape(parent_shapes)
+		output_shape = self.get_output_shape(mould_shape, conformance_shape, index)
+		if output_shape is None:
+			return None
+		else:
+			return mould_shape, output_shape
 	@abstractmethod
 	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
 		pass
@@ -59,9 +66,6 @@ class BaseParameters():
 	def get_batch_norm(self, shape_out: Size) -> Module:
 		return eval(self.get_batch_norm_src(shape_out))
 	
-#TODO: make tokens for constants, ie conv, bn, rbrack, comma
-#or make functions, ie then can just use param list
-
 class IdentityParameters(BaseParameters):
 	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
 		self.shape_bounds = shape_bounds
