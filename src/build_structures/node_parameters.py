@@ -109,17 +109,14 @@ class ConvParameters(BaseParameters):
 		shape_i = i
 		i -= 1
 		return (input_shape[shape_i] + (2 * self.padding[i]) - (self.kernel[i] - 1) + (self.stride[i] - 1)) // self.stride[i]
+	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
+
+		pass
 	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
-	def get_output_shape_transform(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
-		initial_shape = [self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))]
-		if required_size is None:
-			pass
-		else:
-			return size_to_shape(required_size, Size(initial_shape)) 
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
 		return ""
 	def get_batch_norm_src(self, shape_out: Size) -> str:
