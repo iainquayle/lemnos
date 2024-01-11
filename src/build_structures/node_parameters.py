@@ -20,7 +20,6 @@ from math import prod
 #		conforming shape hold the total size of a conforming shape, and the upper shape that is required
 #		requires the dims and the siblings
 #	generate conforming shape, or none, from these
-#TODO: consider making it such that a shape of lower dim cant be used in a higher dim
 class BaseParameters():
 	def __init__(self) -> None:
 		self.shape_bounds = Bound() 
@@ -35,10 +34,7 @@ class BaseParameters():
 	def get_mould_and_output_shapes(self, parent_shapes: List[Size], conformance_shape: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
 		mould_shape = self.get_mould_shape(parent_shapes)
 		output_shape = self.get_output_shape(mould_shape, conformance_shape, index)
-		if output_shape is None:
-			return None
-		else:
-			return mould_shape, output_shape
+		return None if output_shape is None else (mould_shape, output_shape)
 	@abstractmethod
 	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
 		pass
@@ -73,14 +69,7 @@ class IdentityParameters(BaseParameters):
 	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		return shape_in == shape_out
 	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
-		min_dim = min(len(input_shape), len(conformance_shape.partial_shape))
-		for i in range(min_dim):
-			if input_shape[i] != conformance_shape.partial_shape[i]:
-				return None
-		#TODO: get the rest of the check down
-		return input_shape
-	def get_output_shape_transform(self, input_shape: Size, required_size: int | None, index: Index = Index()) -> Size | None:
-		return input_shape if required_size is None or required_size == prod(input_shape) else None
+		return input_shape if conformance_shape.compatible(ConformanceShape(len(input_shape), input_shape)) else None
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		return "Identity()"
 
@@ -98,7 +87,7 @@ class ConvParameters(BaseParameters):
 			depthwise: bool = False,
 			) -> None:
 		if len(shape_bounds) < 2:
-			exit("shape_bounds must have at least two dimensions")
+			raise Exception("shape_bounds must have at least two dimensions")
 		self.shape_bounds = shape_bounds
 		self.size_coefficents = Range()
 		self.merge_method = merge_method
@@ -110,7 +99,7 @@ class ConvParameters(BaseParameters):
 		  		or len(self.stride) != len(self.dilation) 
 		  		or len(self.dilation) != len(self.padding) 
 		  		or len(self.padding) != len(self.shape_bounds) - 1):
-			exit("kernel, stride, dilation, padding must all have the same length and be one less than shape_bounds")
+			raise Exception("kernel, stride, dilation, padding must all have the same length and be one less than shape_bounds")
 		self.depthwise: bool = depthwise
 	def output_dim_to_input_dim(self, output_shape: Size, i: int) -> int:
 		shape_i = i

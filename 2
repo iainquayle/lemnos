@@ -21,55 +21,55 @@ class ConformanceShape:
 		return len(self.partial_shape) == self.dimensions
 	def __eq__(self, other: ConformanceShape) -> bool:
 		return self.dimensions == other.dimensions and self.partial_shape == other.partial_shape
-	def __str__(self) -> str:
-		return f"ConShape({self.dimensions}, {self.partial_shape})"
-	def __repr__(self) -> str:
-		return str(self)
-	def common(self, other: ConformanceShape) -> ConformanceShape | None:
+	@staticmethod
+	def reduce_collection(conformance_shapes: List[ConformanceShape]) -> ConformanceShape | None:
 		#rules:
 		#	if no remaining open dims
 		#		dims to the right must be the same
-		#		remaining dims to the left must be product the same
+		#		remaing dims to the left must be product the same
 		#	if one constrained shape
-		#		take it if larger or fit the larger unconstrained to it, make it constrained
+		#		take it or fit the other to it
 		#	if remaining open dims
-		#		dims to the right must be the same, take the larger
-		small = self 
-		big = other 
-		if ((len(small.partial_shape) > len(big.partial_shape))
-				or (len(small.partial_shape) == len(big.partial_shape) 
-				and small.dimensions > big.dimensions)):
-			small = other 
-			big = self 
-		common = big
-		shape_equivilence_cutoff = len(small.partial_shape) 
-		if big.fully_constrained():
-			if small.fully_constrained():
-				shape_equivilence_cutoff -= 1
-				if prod(small.partial_shape[:-shape_equivilence_cutoff]) != prod(big.partial_shape[:-shape_equivilence_cutoff]):
-					return None
-		else:
-			if small.fully_constrained():
-				shape_equivilence_cutoff -= 1
-				big_product = prod(big.partial_shape[:-shape_equivilence_cutoff])
-				if big_product % small.partial_shape[0] != 0:
-					return None
-				common = ConformanceShape(big.dimensions, Size([small.partial_shape[0] // big_product] + list(big.partial_shape))) 
-		return None if small.partial_shape[-shape_equivilence_cutoff:] != big.partial_shape[len(big.partial_shape) - shape_equivilence_cutoff:] else deepcopy(common)
-	def compatible(self, other: ConformanceShape) -> bool:
-		return self.common(other) is not None
-	@staticmethod
-	def reduce_collection(conformance_shapes: List[ConformanceShape]) -> ConformanceShape | None:
+		#		dims to the right must be the same
 		if len(conformance_shapes) == 0:
 			raise Exception("cannot reduce empty collection")
 		else:
-			shapes_iter = iter(conformance_shapes)
-			common = next(shapes_iter)
-			for shape in shapes_iter:
-				common = common.common(shape)
-				if common is None:
+			reduced_shape = ConformanceShape(0, Size())
+			for conformance_shape in conformance_shapes:
+				small = reduced_shape
+				big = conformance_shape
+				if ((len(reduced_shape.partial_shape) > len(conformance_shape.partial_shape))
+						or (len(reduced_shape.partial_shape) == len(conformance_shape.partial_shape) 
+						and reduced_shape.dimensions > conformance_shape.dimensions)):
+					small = conformance_shape
+					big = reduced_shape
+				shape_equivilence_cutoff = 0
+				if len(small.partial_shape) == 0:
+					reduced_shape = big 
+				elif big.fully_constrained():
+					if small.fully_constrained():
+						shape_equivilence_cutoff = len(small.partial_shape) - 1
+						if prod(small.partial_shape[:-shape_equivilence_cutoff]) != prod(big.partial_shape[:-shape_equivilence_cutoff]):
+							return None
+						reduced_shape = big
+					else:
+						shape_equivilence_cutoff = len(small.partial_shape)
+						reduced_shape = big
+				else:
+					if small.fully_constrained():
+						shape_equivilence_cutoff = len(small.partial_shape) - 1
+						big_product = prod(big.partial_shape[:-shape_equivilence_cutoff])
+						if big_product % small.partial_shape[0] != 0:
+							return None
+						reduced_shape = ConformanceShape(big.dimensions, Size([small.partial_shape[0] // big_product] + list(big.partial_shape))) 
+					else:
+						shape_equivilence_cutoff = len(small.partial_shape)
+						reduced_shape = big
+				if small.partial_shape[-shape_equivilence_cutoff:] != big.partial_shape[len(big.partial_shape) - shape_equivilence_cutoff:]:
+					print(small.partial_shape[len(small.partial_shape) - shape_equivilence_cutoff:], big.partial_shape[len(big.partial_shape) - shape_equivilence_cutoff:])
 					return None
-			return common
+			return deepcopy(reduced_shape) 
+	
 
 class MergeMethod(Abstract):
 	#currently can only take shapes of a higher dimension or same

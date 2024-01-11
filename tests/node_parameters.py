@@ -66,6 +66,7 @@ class TestConformanceShape(unittest.TestCase):
 		self.c = ConformanceShape(3, Size([2, 3]))
 		self.d = ConformanceShape(3, Size([1, 2, 3]))
 		self.e = ConformanceShape(2, Size([4, 3]))
+		self.f = ConformanceShape(2, Size([3, 3]))
 	def test_both_constrained(self) -> None:
 		self.assertEqual(ConformanceShape.reduce_collection([self.a, self.a]), self.a)
 		self.assertEqual(ConformanceShape.reduce_collection([self.a, self.d]), self.d)
@@ -73,9 +74,12 @@ class TestConformanceShape(unittest.TestCase):
 	def test_one_constrained(self) -> None:
 		self.assertEqual(ConformanceShape.reduce_collection([self.a, self.b]), self.a)
 		self.assertEqual(ConformanceShape.reduce_collection([self.a, self.c]), self.d)
+		self.assertEqual(ConformanceShape.reduce_collection([self.a, ConformanceShape(2, Size())]), self.a)
+		self.assertIsNone(ConformanceShape.reduce_collection([self.a, self.f]))
 	def test_none_constrained(self) -> None:
 		self.assertEqual(ConformanceShape.reduce_collection([self.b, self.b]), self.b)
 		self.assertEqual(ConformanceShape.reduce_collection([self.b, self.c]), self.c)
+		self.assertEqual(ConformanceShape.reduce_collection([self.b, ConformanceShape(2, Size())]), self.b)
 
 class TestIdentityParemeters(unittest.TestCase):
 	def setUp(self) -> None:
@@ -86,9 +90,8 @@ class TestIdentityParemeters(unittest.TestCase):
 	def test_transform_src(self) -> None:
 		self.assertEqual(self.parameters.get_transform_src(self.base_shape, self.base_shape), "Identity()")
 	def test_output_shape(self) -> None:
-		pass
-	def test_output_shape_fail_sibling(self) -> None:
-		pass
+		self.assertEqual(self.parameters.get_output_shape(self.base_shape, ConformanceShape(2, Size([2, 4]))), Size([2, 4]))
+		self.assertIsNone(self.parameters.get_output_shape(self.base_shape, ConformanceShape(2, Size([2, 5]))))
 
 class TestConvParameters(unittest.TestCase):
 	def setUp(self) -> None:
