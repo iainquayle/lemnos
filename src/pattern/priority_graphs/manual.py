@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from torch import Tensor, Size
 from torch.nn import Module, ModuleList
 
-from src.build_structures.node_parameters import BaseParameters, IdentityParameters 
-from src.build_structures.commons import Bound, Index
+from src.pattern.node_parameters import BaseParameters, IdentityParameters 
+from src.pattern.commons import Bound, Index
 
 from abc import ABC, abstractmethod
 from typing import List, Set, Dict 

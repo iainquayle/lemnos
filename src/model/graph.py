@@ -3,14 +3,13 @@ from __future__ import annotations
 import torch
 from torch import Size 
 
-from src.model_structures.commons import  get_features_shape, mould_features
-from src.build_structures.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
+from src.model.commons import  get_features_shape, mould_features
+from src.pattern.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
+from src.pattern.commons import ConformanceShape, Index
 
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Iterable
 from typing_extensions import Self
 from dataclasses import dataclass
-
-#TODO: need to implement some means by which a node can check what dims a node may already have that it is connecting to
 
 class Graph():
 	def __init__(self, input_nodes: List[Node] = list(), output_nodes: List[Node] = list()) -> None:
@@ -24,6 +23,9 @@ class Graph():
 	class ExpansionNode:
 		parents: Dict[NodePattern, Node]
 		priority: int
+		def get_conformance_shape(self) -> ConformanceShape:
+			#TODO: implement
+			return ConformanceShape(0, Size())	
 	class ExpansionStack:
 		def __init__(self) -> None:
 			self.stack: List[Graph.ExpansionNode] = [Graph.ExpansionNode(dict(), 0)]
@@ -88,19 +90,25 @@ class Graph():
 		return graph 
 
 class Node():
-	def init(self):
-		self.index: int = 0
-		self.id: int = 0
-		self.node_pattern: NodePattern = NodePattern()
-		self.children: Set[Node] = set()
-		self.parents: Set[Node] = set()
-		self.output_shape: Size = Size()
-		self.mould_shape: Size = Size()
-	def add_child(self, child: Node) -> None:
+	def init(self, index: Index, id: int, node_pattern: NodePattern, output_shape: Size, mould_shape: Size, parents: Iterable[Self] | None) -> None:
+		self.index: Index = index
+		self.id: int = id 
+		self.node_pattern: NodePattern = node_pattern 
+		self.children: Set[Self] = set()
+		self.parents: Set[Self] = set()
+		if parents is not None:
+			self.set_parents(parents)
+		self.output_shape: Size = output_shape
+		self.mould_shape: Size = mould_shape 
+	def add_child(self, child: Self) -> None:
 		if child not in self.children:
 			self.children.add(child)
 			child.add_parent(self)
-	def add_parent(self, parent: Node) -> None:
+	def add_parent(self, parent: Self) -> None:
 		if parent not in self.parents:
 			self.parents.add(parent)
 			parent.add_child(self)
+	def set_parents(self, parents: Iterable[Self]) -> None:
+		self.parents = set()
+		for parent in parents:
+			self.add_parent(parent)

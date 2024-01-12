@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import torch
 from torch import Size
-from typing import List
+from typing import List, Iterable
+from typing_extensions import Self
 
 from copy import deepcopy
-from dataclasses import dataclass
 
 from math import prod
 
@@ -13,6 +12,29 @@ from abc import ABC as Abstract, abstractmethod
 
 #TODO: look for some more mathimatical way to deal with fully vs partially constrained shapes
 #	may allow for the removal of a bunch of branching 
+#	while there may not be a great way to make a more mathimatical way to deal with it, a new shape class could be useful that is used accross the board 
+
+#consider having it inherit from list
+class Shape:
+	def __init__(self, shape: List[int] | Size, fixed: bool) -> None:
+		self.shape: List[int] = list(shape)
+		self.fixed: bool = fixed
+	def immutable_length(self) -> int:
+		return len(self.shape) - 1 if self.fixed else 0
+	def immutable_shape(self) -> List[int]:
+		return self.shape[-self.immutable_length():]
+	def dimensions(self) -> int:
+		return len(self.shape) + 1 if not self.fixed else 0
+	#TODO: add big and small common? and a regular common that uses both? 
+	def __getitem__(self, index: int) -> int:
+		return self.shape[index]
+	def __len__(self) -> int:
+		return len(self.shape)
+	def __iter__(self) -> Iterable[int]:
+		return iter(self.shape)
+	def __eq__(self, other: Self) -> bool:
+		return self.shape == other.shape and self.fixed == other.fixed
+
 
 class ConformanceShape:
 	def __init__(self, dimensions: int, partial_shape: Size) -> None:
@@ -22,13 +44,13 @@ class ConformanceShape:
 		self.partial_shape = partial_shape
 	def fully_constrained(self) -> bool:
 		return len(self.partial_shape) == self.dimensions
-	def __eq__(self, other: ConformanceShape) -> bool:
+	def __eq__(self, other: Self) -> bool:
 		return self.dimensions == other.dimensions and self.partial_shape == other.partial_shape
 	def __str__(self) -> str:
 		return f"ConShape({self.dimensions}, {self.partial_shape})"
 	def __repr__(self) -> str:
 		return str(self)
-	def common(self, other: ConformanceShape) -> ConformanceShape | None:
+	def common(self, other: Self) -> Self | None:
 		#rules:
 		#	if no remaining open dims
 		#		dims to the right must be the same
@@ -59,20 +81,19 @@ class ConformanceShape:
 					return None
 				common = ConformanceShape(big.dimensions, Size([small.partial_shape[0] // big_product] + list(big.partial_shape))) 
 		return None if small.partial_shape[-shape_equivilence_cutoff:] != big.partial_shape[len(big.partial_shape) - shape_equivilence_cutoff:] else deepcopy(common)
-	def compatible(self, other: ConformanceShape) -> bool:
+	def compatible(self, other: Self) -> bool:
 		return self.common(other) is not None
 	@staticmethod
-	def reduce_collection(conformance_shapes: List[ConformanceShape]) -> ConformanceShape | None:
-		if len(conformance_shapes) == 0:
+	def reduce_collection(conformance_shapes: Iterable[ConformanceShape]) -> ConformanceShape | None:
+		shapes_iter = iter(conformance_shapes)
+		common = next(shapes_iter)
+		if common is None:
 			raise Exception("cannot reduce empty collection")
-		else:
-			shapes_iter = iter(conformance_shapes)
-			common = next(shapes_iter)
-			for shape in shapes_iter:
-				common = common.common(shape)
-				if common is None:
-					return None
-			return common
+		for shape in shapes_iter:
+			common = common.common(shape)
+			if common is None:
+				return None
+		return common
 
 class MergeMethod(Abstract):
 	#currently can only take shapes of a higher dimension or same

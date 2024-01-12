@@ -3,8 +3,8 @@ import unittest
 from torch import Size, zeros
 from torch.nn import Conv1d
 
-from src.build_structures.node_parameters import IdentityParameters, ConvParameters 
-from src.build_structures.commons import Bound, Index, Concat, Add, ConformanceShape
+from src.pattern.node_parameters import IdentityParameters, ConvParameters 
+from src.pattern.commons import Bound, Index, Concat, Add, ConformanceShape
 
 from math import prod
 

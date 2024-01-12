@@ -5,7 +5,7 @@ from torch import Size
 import torch.nn as nn
 from torch.nn import Module, Identity
 
-from src.build_structures.commons import ConformanceShape, Bound, Range, Index, MergeMethod, Concat
+from src.pattern.commons import ConformanceShape, Bound, Range, Index, MergeMethod, Concat
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
