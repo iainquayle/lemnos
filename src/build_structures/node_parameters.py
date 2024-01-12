@@ -31,12 +31,12 @@ class BaseParameters():
 		pass
 	def get_conformance_shape(self, sibling_shapes: List[Size]) -> ConformanceShape:
 		return self.merge_method.get_conformance_shape(sibling_shapes, self.shape_bounds)
-	def get_mould_and_output_shapes(self, parent_shapes: List[Size], conformance_shape: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
+	def get_mould_and_output_shapes(self, parent_shapes: List[Size], output_conformance: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
 		mould_shape = self.get_mould_shape(parent_shapes)
-		output_shape = self.get_output_shape(mould_shape, conformance_shape, index)
+		output_shape = self.get_output_shape(mould_shape, output_conformance, index)
 		return None if output_shape is None else (mould_shape, output_shape)
 	@abstractmethod
-	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
+	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
 		pass
 	def get_mould_shape(self, parent_shapes: List[Size]) -> Size:
 		if len(parent_shapes) == 0:
@@ -68,8 +68,8 @@ class IdentityParameters(BaseParameters):
 		self.merge_method = merge_method
 	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		return shape_in == shape_out
-	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
-		return input_shape if conformance_shape.compatible(ConformanceShape(len(input_shape), input_shape)) else None
+	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
+		return input_shape if output_conformance.compatible(ConformanceShape(len(input_shape), input_shape)) else None
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		return "Identity()"
 
@@ -102,15 +102,16 @@ class ConvParameters(BaseParameters):
 			raise Exception("kernel, stride, dilation, padding must all have the same length and be one less than shape_bounds")
 		self.depthwise: bool = depthwise
 	def output_dim_to_input_dim(self, output_shape: Size, i: int) -> int:
-		shape_i = i
 		i -= 1
-		return output_shape[shape_i] * self.padding[i] + (self.kernel[i] - 1) - (self.stride[i] - 1) - (2 * self.padding[i])
+		return (output_shape[i + 1] - 1) * self.stride[i] + (self.kernel[i] * self.dilation[i] - (self.dilation[i] - 1)) - self.padding[i] * 2
 	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int:
-		shape_i = i
 		i -= 1
-		return (input_shape[shape_i] + (2 * self.padding[i]) - (self.kernel[i] - 1) + (self.stride[i] - 1)) // self.stride[i]
-	def get_output_shape(self, input_shape: Size, conformance_shape: ConformanceShape, index: Index = Index()) -> Size | None:
-
+		return ((input_shape[i + 1] + self.padding[i] * 2) - (self.kernel[i] * self.dilation[i] - (self.dilation[i] - 1))) // self.stride[i] + 1
+	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
+		initial_shape = Size([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
+		if output_conformance.compatible(ConformanceShape(len(input_shape), initial_shape)):
+			#TODO: perhaps useful to be able to specifiy which conformance shape to mould to fit the other, 
+			pass
 		pass
 	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1

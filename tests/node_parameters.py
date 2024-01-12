@@ -1,6 +1,7 @@
 import unittest
 
-from torch import Size
+from torch import Size, zeros
+from torch.nn import Conv1d
 
 from src.build_structures.node_parameters import IdentityParameters, ConvParameters 
 from src.build_structures.commons import Bound, Index, Concat, Add, ConformanceShape
@@ -95,11 +96,25 @@ class TestIdentityParemeters(unittest.TestCase):
 
 class TestConvParameters(unittest.TestCase):
 	def setUp(self) -> None:
-		self.base_shape = Size([2, 4])
-		self.parameters = ConvParameters(shape_bounds=Bound([1, 1], [4, 8]), kernel=3, stride=1, padding=1, dilation=1)
-	def test_validate_output_shape(self) -> None:
-		self.parameters = ConvParameters(shape_bounds=Bound([1, 1], [4, 8]), kernel=1, stride=1, padding=1)
-		#self.assertTrue(self.parameters.validate_output_shape(self.base_shape, Size([2, 4])))
-		#self.assertTrue(self.parameters.validate_output_shape(self.base_shape, Size([4, 4])))
-	def test_transform_src(self) -> None:
 		pass
+	def test_validate_output_shape(self) -> None:
+		parameters = ConvParameters(Bound([1, 1], [1, 9]), kernel=3, stride=1, padding=0, dilation=1)
+		pass
+	def test_input_to_output_dim(self) -> None:
+		input = zeros(1, 1, 9)
+		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=0, dilation=1, bias=False)
+		parameters = ConvParameters(Bound([1, 1], [1, 9]), kernel=3, stride=1, padding=0, dilation=1)
+		self.assertEqual(parameters.input_dim_to_output_dim(input.shape[1:], 1), reference(input).shape[2])
+		input = zeros(1, 1, 8)
+		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=2, padding=0, dilation=1, bias=False)
+		parameters = ConvParameters(Bound([1, 1], [1, 9]), kernel=2, stride=2, padding=0, dilation=1)
+		self.assertEqual(parameters.input_dim_to_output_dim(input.shape[1:], 1), reference(input).shape[2])
+		input = zeros(1, 1, 9)
+		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1, padding=1, dilation=2, bias=False)
+		parameters = ConvParameters(Bound([1, 1], [1, 9]), kernel=2, stride=1, padding=1, dilation=2)
+		self.assertEqual(parameters.input_dim_to_output_dim(input.shape[1:], 1), reference(input).shape[2])
+	def test_output_to_input_dim(self) -> None:
+		parameters = ConvParameters(Bound([1, 1], [1, 9]), kernel=3, stride=1, padding=0, dilation=1)
+		self.assertEqual(parameters.output_dim_to_input_dim(Size([1, 7]), 1), 9)
+		parameters = ConvParameters(Bound([1, 1], [1, 9]), kernel=2, stride=2, padding=0, dilation=1)
+		self.assertEqual(parameters.output_dim_to_input_dim(Size([1, 4]), 1), 8)
