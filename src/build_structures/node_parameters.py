@@ -34,7 +34,7 @@ class BaseParameters():
 	def get_mould_and_output_shapes(self, parent_shapes: List[Size], output_conformance: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
 		mould_shape = self.get_mould_shape(parent_shapes)
 		output_shape = self.get_output_shape(mould_shape, output_conformance, index)
-		return None if output_shape is None else (mould_shape, output_shape)
+		return None if output_shape is None or output_shape not in self.shape_bounds else (mould_shape, output_shape)
 	@abstractmethod
 	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
 		pass
@@ -110,9 +110,14 @@ class ConvParameters(BaseParameters):
 	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
 		initial_shape = Size([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
 		if output_conformance.compatible(ConformanceShape(len(input_shape), initial_shape)):
-			#TODO: perhaps useful to be able to specifiy which conformance shape to mould to fit the other, 
-			pass
-		pass
+			if output_conformance.fully_constrained():
+				return Size([prod(output_conformance.partial_shape) // prod(initial_shape)] + list(initial_shape))
+			else:
+				lower = max(self.shape_bounds.lower[0], int(input_shape[0] * self.size_coefficents.lower))
+				upper = min(self.shape_bounds.upper[0], int(input_shape[0] * self.size_coefficents.upper))
+				return Size([index.to_int(upper - lower) + lower] + list(initial_shape))
+		else:
+			return None
 	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:

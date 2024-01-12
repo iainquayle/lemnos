@@ -11,6 +11,9 @@ from math import prod
 
 from abc import ABC as Abstract, abstractmethod
 
+#TODO: look for some more mathimatical way to deal with fully vs partially constrained shapes
+#	may allow for the removal of a bunch of branching 
+
 class ConformanceShape:
 	def __init__(self, dimensions: int, partial_shape: Size) -> None:
 		if len(partial_shape) > dimensions:
@@ -116,11 +119,9 @@ class Add(MergeMethod):
 class Index:
 	MAX_INDEX = 2**16 -1
 	def __init__(self, index: int =0) -> None:
-		self.set_index(index)
-	def set_index(self, index: int) -> None:
-		self.index = index % Index.MAX_INDEX
-	def get_index(self, max_index: int) -> int:
-		return self.index % max_index if max_index > 0 else 0
+		self.index = index
+	def to_int(self, mod_factor: int) -> int:
+		return self.index % mod_factor if mod_factor > 0 else 0
 	def as_ratio(self) -> float:
 		return self.index / Index.MAX_INDEX
 
@@ -159,5 +160,3 @@ class Range:
 		self.lower: float = lower
 	def difference(self) -> int | float:
 		return self.upper - self.lower
-	def from_index(self, index: Index, size: int) -> int:
-		return int((self.lower * size) + index.get_index((int)(self.difference() * size)))
