@@ -16,7 +16,7 @@ from abc import ABC as Abstract, abstractmethod
 
 #consider having it inherit from list
 class Shape:
-	def __init__(self, shape: List[int] | Size, fixed: bool) -> None:
+	def __init__(self, shape: List[int] | Size, fixed: bool = True) -> None:
 		self.shape: List[int] = list(shape)
 		self.fixed: bool = fixed
 	def immutable_length(self) -> int:
