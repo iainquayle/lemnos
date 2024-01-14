@@ -3,7 +3,6 @@ from __future__ import annotations
 import torch
 from torch import Size 
 
-from src.model.commons import  get_features_shape, mould_features
 from src.pattern.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
 from src.pattern.commons import ConformanceShape, Index
 
