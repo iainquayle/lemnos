@@ -15,12 +15,16 @@ class Shape:
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size, fixed: bool = True) -> None:
 		self.shape: List[int] = list(shape) if not isinstance(shape, List) else shape
 		self.fixed: bool = fixed
+	#TODO: use new ones for variable number args, use from for the various types
 	@staticmethod
 	def new_fixed(shape: Tuple[int, ...] | List[int] | Size) -> Shape:
 		return Shape(shape, True)
 	@staticmethod
 	def new_unfixed(shape: Tuple[int, ...] | List[int] | Size) -> Shape:
 		return Shape(shape, False)
+	@staticmethod
+	def fixed_from_iterable(shape: Iterable[int]) -> Shape:
+		return Shape([], False)
 	def upper_length(self) -> int:
 		return len(self.shape) - 1 if self.fixed else 0
 	def reverse_upper_equal(self, reverse_index: int, other: Self) -> bool:
