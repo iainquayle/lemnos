@@ -10,9 +10,9 @@ from math import prod
 #TODO: consider using tuple instead, like size does
 #or using list, then get the already implemented functionality like the iterator...
 #or other option is build on top of size itself, though thats lots of abstraction
-class Shape:
-	def __init__(self, shape: Tuple[int] | List[int] | Size, fixed: bool = True) -> None:
-		self.shape: List[int] = list(shape)
+class Shape(tuple):
+	def __init__(self, shape: Tuple[int, ...] | List[int] | Size, fixed: bool = True) -> None:
+		super().__new__(cls(shape))
 		self.fixed: bool = fixed
 	#TODO: find better name for upper
 	def upper_length(self) -> int:
