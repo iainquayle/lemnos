@@ -5,7 +5,7 @@ from torch import Size
 
 from src.pattern.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
 from src.pattern.commons import Index
-from src.shared.shape import Shape 
+from src.shared.shape import Shape, LockedShape, OpenShape
 
 from typing import Dict, List, Set, Tuple, Iterable
 from typing_extensions import Self
@@ -25,7 +25,7 @@ class Graph():
 		priority: int
 		def get_conformance_shape(self) -> Shape:
 			#TODO: implement
-			return Shape.fixed(1)
+			return LockedShape.new(1)
 	class ExpansionStack:
 		def __init__(self) -> None:
 			self.stack: List[Graph.ExpansionNode] = [Graph.ExpansionNode(dict(), 0)]
@@ -41,7 +41,7 @@ class Graph():
 	#TODO: a recursive build instead, to allow for backtracking, rather than trying to force shapes
 	#	only other option is some type of lookahead, which would be a pain
 	@staticmethod
-	def from_build_graph(build_graph: BuildGraph, shapes_in: List[Size], shape_outs: List[Size]) -> Graph:
+	def from_build_graph(build_graph: BuildGraph, shapes_in: List[LockedShape], shape_outs: List[LockedShape]) -> Graph:
 		input_nodes: List[Node] = []
 		output_nodes: List[Node] = []
 		expansion_nodes: Dict[NodePattern, Graph.ExpansionStack] = {}
@@ -90,7 +90,7 @@ class Graph():
 		return graph 
 
 class Node():
-	def init(self, index: Index, id: int, node_pattern: NodePattern, output_shape: Shape, mould_shape: Shape, parents: Iterable[Self] | None) -> None:
+	def init(self, index: Index, id: int, node_pattern: NodePattern, output_shape: LockedShape, mould_shape: LockedShape, parents: Iterable[Self] | None) -> None:
 		self._index: Index = index
 		self._id: int = id 
 		self._node_pattern: NodePattern = node_pattern 
@@ -98,8 +98,8 @@ class Node():
 		self._parents: Set[Self] = set()
 		if parents is not None:
 			self.set_parents(parents)
-		self._output_shape: Shape = output_shape
-		self._mould_shape: Shape = mould_shape 
+		self._output_shape: LockedShape = output_shape
+		self._mould_shape: LockedShape = mould_shape 
 	def add_child(self, child: Self) -> None:
 		if child not in self._children:
 			self._children.add(child)

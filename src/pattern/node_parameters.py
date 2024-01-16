@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import torch
-from torch import Size 
 import torch.nn as nn
 from torch.nn import Module, Identity
 
-from src.pattern.commons import ConformanceShape, Bound, Range, Index, MergeMethod, Concat
+from src.pattern.commons import Index
+from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
+from src.shared.merge_method import MergeMethod, Concat, Add
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
@@ -22,26 +23,28 @@ from math import prod
 #	generate conforming shape, or none, from these
 class BaseParameters():
 	def __init__(self) -> None:
-		self.shape_bounds = Bound() 
+		self.shape_bounds = Bound([]) 
 		self.merge_method = Concat() 
-	def validate_output_shape(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape(self, shape_in: LockedShape, shape_out: Shape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self.shape_bounds
 	@abstractmethod
-	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: Shape) -> bool:
 		pass
-	def get_conformance_shape(self, sibling_shapes: List[Size]) -> ConformanceShape:
-		return self.merge_method.get_conformance_shape(sibling_shapes, self.shape_bounds)
-	def get_mould_and_output_shapes(self, parent_shapes: List[Size], output_conformance: ConformanceShape, index: Index = Index()) -> Tuple[Size, Size] | None:
+	def get_conformance_shape(self, sibling_shapes: List[LockedShape]) -> Shape:
+		return self.merge_method.get_conformance_shape(sibling_shapes)
+	def get_mould_and_output_shapes(self, parent_shapes: List[LockedShape], output_conformance: Shape, index: Index = Index()) -> Tuple[LockedShape, LockedShape] | None:
 		mould_shape = self.get_mould_shape(parent_shapes)
 		output_shape = self.get_output_shape(mould_shape, output_conformance, index)
 		return None if output_shape is None or output_shape not in self.shape_bounds else (mould_shape, output_shape)
 	@abstractmethod
-	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		pass
-	def get_mould_shape(self, parent_shapes: List[Size]) -> Size:
+	def get_mould_shape(self, parent_shapes: List[LockedShape]) -> LockedShape:
 		if len(parent_shapes) == 0:
 			raise Exception("cannot get mould shape from empty parent shapes")
 		else:
+			#TODO: redo this
+			return LockedShape.new(1, 1, 1, 1)
 			max_dim_shape = Size()
 			for parent_shape in parent_shapes:
 				if len(parent_shape) > len(max_dim_shape):
@@ -68,8 +71,8 @@ class IdentityParameters(BaseParameters):
 		self.merge_method = merge_method
 	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
 		return shape_in == shape_out
-	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
-		return input_shape if output_conformance.compatible(ConformanceShape(len(input_shape), input_shape)) else None
+	def get_output_shape(self, input_shape: Size, output_conformance: Shape, index: Index = Index()) -> Size | None:
+		return input_shape if output_conformance.compatible(Shape(len(input_shape), input_shape)) else None
 	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
 		return "Identity()"
 
@@ -107,9 +110,9 @@ class ConvParameters(BaseParameters):
 	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int:
 		i -= 1
 		return ((input_shape[i + 1] + self.padding[i] * 2) - (self.kernel[i] * self.dilation[i] - (self.dilation[i] - 1))) // self.stride[i] + 1
-	def get_output_shape(self, input_shape: Size, output_conformance: ConformanceShape, index: Index = Index()) -> Size | None:
+	def get_output_shape(self, input_shape: Size, output_conformance: Shape, index: Index = Index()) -> Size | None:
 		initial_shape = Size([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
-		if output_conformance.compatible(ConformanceShape(len(input_shape), initial_shape)):
+		if output_conformance.compatible(Shape(len(input_shape), initial_shape)):
 			if output_conformance.fully_constrained():
 				return Size([prod(output_conformance.partial_shape) // prod(initial_shape)] + list(initial_shape))
 			else:

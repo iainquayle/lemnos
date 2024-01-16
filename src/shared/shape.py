@@ -12,9 +12,6 @@ from abc import ABC as Abstract, abstractmethod
 #	tuple, because init doesnt play nice when adding other parameters, and makes manipulation harder
 #TODO: probably want to optim some of this
 #TODO: make a proper to src
-#TODO: could techinically split this into two subclasses, allowing for the use of the type system to enforce when a shape is locked or not
-#	technically, the shapes inside model nodes and being inputted into merge methods are always locked, but can be either when a node is being built
-#	may be worth it, but may also have some additional overhead?
 #TODO: consider making more for loop implementing functions rather than slice, as it may perform better 
 #rules:
 #	if no remaining open dims
@@ -24,7 +21,7 @@ from abc import ABC as Abstract, abstractmethod
 #	if remaining open dims
 #		dims to the right must be the same
 
-#TODO: consider renaming to something like locked and open 
+#TODO: consider renaming locked to fixed, or sized
 class Shape(Abstract):
 	__slots__ = ("_shape")
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
