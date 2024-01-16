@@ -4,7 +4,8 @@ import torch
 from torch import Size 
 
 from src.pattern.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
-from src.pattern.commons import ConformanceShape, Index
+from src.pattern.commons import Index
+from src.shared.shape import Shape 
 
 from typing import Dict, List, Set, Tuple, Iterable
 from typing_extensions import Self
@@ -12,8 +13,8 @@ from dataclasses import dataclass
 
 class Graph():
 	def __init__(self, input_nodes: List[Node] = list(), output_nodes: List[Node] = list()) -> None:
-		self.input_nodes: List[Node] = input_nodes 
-		self.output_nodes: List[Node] = output_nodes 
+		self._input_nodes: List[Node] = input_nodes 
+		self._output_nodes: List[Node] = output_nodes 
 	def to_flat_source_module(self) -> Tuple[str, str]:
 		return "", ""
 	def to_runnable_module(self) -> None:
@@ -22,9 +23,9 @@ class Graph():
 	class ExpansionNode:
 		parents: Dict[NodePattern, Node]
 		priority: int
-		def get_conformance_shape(self) -> ConformanceShape:
+		def get_conformance_shape(self) -> Shape:
 			#TODO: implement
-			return ConformanceShape(0, Size())	
+			return Shape.fixed(1)
 	class ExpansionStack:
 		def __init__(self) -> None:
 			self.stack: List[Graph.ExpansionNode] = [Graph.ExpansionNode(dict(), 0)]
@@ -89,25 +90,25 @@ class Graph():
 		return graph 
 
 class Node():
-	def init(self, index: Index, id: int, node_pattern: NodePattern, output_shape: Size, mould_shape: Size, parents: Iterable[Self] | None) -> None:
-		self.index: Index = index
-		self.id: int = id 
-		self.node_pattern: NodePattern = node_pattern 
-		self.children: Set[Self] = set()
-		self.parents: Set[Self] = set()
+	def init(self, index: Index, id: int, node_pattern: NodePattern, output_shape: Shape, mould_shape: Shape, parents: Iterable[Self] | None) -> None:
+		self._index: Index = index
+		self._id: int = id 
+		self._node_pattern: NodePattern = node_pattern 
+		self._children: Set[Self] = set()
+		self._parents: Set[Self] = set()
 		if parents is not None:
 			self.set_parents(parents)
-		self.output_shape: Size = output_shape
-		self.mould_shape: Size = mould_shape 
+		self._output_shape: Shape = output_shape
+		self._mould_shape: Shape = mould_shape 
 	def add_child(self, child: Self) -> None:
-		if child not in self.children:
-			self.children.add(child)
+		if child not in self._children:
+			self._children.add(child)
 			child.add_parent(self)
 	def add_parent(self, parent: Self) -> None:
-		if parent not in self.parents:
-			self.parents.add(parent)
+		if parent not in self._parents:
+			self._parents.add(parent)
 			parent.add_child(self)
 	def set_parents(self, parents: Iterable[Self]) -> None:
-		self.parents = set()
+		self._parents = set()
 		for parent in parents:
 			self.add_parent(parent)

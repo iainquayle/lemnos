@@ -1,0 +1,17 @@
+import time
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
+import random
+
+@dataclass
+class A:
+	f: bool
+	a: int = random.randint(0, 100)
+	def access(self, i):
+		return self.action(i)
+	def action(self, i):
+		return i + self.a
+	
+
+class S(ABC):
+	pass
