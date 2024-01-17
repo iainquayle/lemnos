@@ -43,7 +43,7 @@ class BaseParameters(Abstract):
 		return len(self._shape_bounds)
 	
 class IdentityParameters(BaseParameters):
-	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
+	def __init__(self, shape_bounds: Bound, merge_method: MergeMethod) -> None:
 		self._shape_bounds = shape_bounds
 		self._merge_method = merge_method
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
@@ -56,18 +56,19 @@ def auto_fill_tuple(val: Tuple | int, bounds: Bound) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val] * (len(bounds) - 1))
 class ConvParameters(BaseParameters):
 	def __init__(self,
-			shape_bounds: Bound = Bound(),
-			merge_method: MergeMethod = Concat(),
+			shape_bounds: Bound, 
+			size_coefficents: Range,
+			merge_method: MergeMethod,
 			kernel: Tuple | int = 1, 
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
-			padding: Tuple | int = 1,
+			padding: Tuple | int = 0,
 			depthwise: bool = False,
 			) -> None:
 		if len(shape_bounds) < 2:
 			raise Exception("shape_bounds must have at least two dimensions")
 		self._shape_bounds = shape_bounds
-		self._size_coefficents = Range()
+		self._size_coefficents = size_coefficents 
 		self._merge_method = merge_method
 		self._kernel: Tuple = auto_fill_tuple(kernel, shape_bounds)
 		self._stride: Tuple = auto_fill_tuple(stride, shape_bounds)
