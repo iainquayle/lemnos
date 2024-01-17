@@ -4,7 +4,6 @@ from torch import Size
 from typing import List, Iterable, Tuple
 from typing_extensions import Self
 from copy import copy
-from torch import Size
 from math import prod
 from abc import ABC as Abstract, abstractmethod
 #not extending:
@@ -22,12 +21,12 @@ from abc import ABC as Abstract, abstractmethod
 #		dims to the right must be the same
 
 #TODO: consider renaming locked to fixed, or sized
-#TODO: make prod cache?
 #TODO: make validating inits
 class Shape(Abstract):
-	__slots__ = ("_shape")
+	__slots__ = ("_shape", "_product_cache")
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
 		self._shape: List[int] = list(shape) if not isinstance(shape, List) else shape
+		self._product_cache: int = prod(self._shape)
 	@staticmethod
 	@abstractmethod
 	def new(*values: int) -> Shape:
@@ -92,6 +91,8 @@ class Shape(Abstract):
 	@abstractmethod
 	def __copy__(self) -> Shape:
 		pass
+	def get_product(self) -> int:
+		return self._product_cache
 
 class LockedShape(Shape):
 	@staticmethod
@@ -161,13 +162,22 @@ class OpenShape(Shape):
 		return OpenShape(self._shape)
 
 class Bound:
+	_LOWER_INDEX = 0
+	_UPPER_INDEX = 1
+	__slots__ = ("_bounds")
 	def __init__(self, bounds: List[Tuple[int, int]] = []) -> None:
-		for i in range(len(bounds)):
-			if bounds[i][0] > bounds[i][1]:
-				bounds[i] = (bounds[i][1], bounds[i][0])
-			if bounds[i][0] <= 0:
-				raise Exception("lower bound less than 1")
 		self._bounds: List[Tuple[int, int]] = bounds
+		for i in range(len(bounds)):
+			if self.lower(i) > self.upper(i):
+				bounds[i] = (self.upper(i), self.lower(i))
+			if self.lower(i) <= 0:
+				raise Exception("lower bound less than 1")
+	def __getitem__(self, index: int) -> Tuple[int, int]:
+		return self._bounds[index]
+	def lower(self, index: int) -> int:
+		return self._bounds[index][Bound._LOWER_INDEX]
+	def upper(self, index: int) -> int:
+		return self._bounds[index][Bound._UPPER_INDEX]
 	def __contains__(self, shape: Shape) -> bool:
 		if shape.dimensionality() != len(self._bounds):
 			return False
@@ -191,3 +201,7 @@ class Range:
 		self._lower: float = lower
 	def difference(self) -> int | float:
 		return self._upper - self._lower
+	def lower(self) -> float:
+		return self._lower
+	def upper(self) -> float:
+		return self._upper

@@ -23,29 +23,29 @@ from math import prod
 #	generate conforming shape, or none, from these
 class BaseParameters(Abstract):
 	def __init__(self) -> None:
-		self.shape_bounds = Bound([]) 
-		self.merge_method = Concat() 
+		self._shape_bounds = Bound([]) 
+		self._merge_method = Concat() 
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: Shape) -> bool:
-		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self.shape_bounds
+		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: Shape) -> bool:
 		pass
 	def get_conformance_shape(self, sibling_shapes: List[LockedShape]) -> Shape:
-		return self.merge_method.get_conformance_shape(sibling_shapes, self.dimensionality())
+		return self._merge_method.get_conformance_shape(sibling_shapes, self.dimensionality())
 	def get_mould_and_output_shapes(self, parent_shapes: List[LockedShape], output_conformance: Shape, index: Index = Index()) -> Tuple[LockedShape, LockedShape] | None:
-		mould_shape = self.merge_method.get_output_shape(parent_shapes, self.dimensionality())
+		mould_shape = self._merge_method.get_output_shape(parent_shapes, self.dimensionality())
 		output_shape = self.get_output_shape(mould_shape, output_conformance, index)
-		return None if output_shape is None or output_shape not in self.shape_bounds else (mould_shape, output_shape)
+		return None if output_shape is None or output_shape not in self._shape_bounds else (mould_shape, output_shape)
 	@abstractmethod
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		pass
 	def dimensionality(self) -> int:
-		return len(self.shape_bounds)
+		return len(self._shape_bounds)
 	
 class IdentityParameters(BaseParameters):
 	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
-		self.shape_bounds = shape_bounds
-		self.merge_method = merge_method
+		self._shape_bounds = shape_bounds
+		self._merge_method = merge_method
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in == shape_out
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
@@ -66,42 +66,38 @@ class ConvParameters(BaseParameters):
 			) -> None:
 		if len(shape_bounds) < 2:
 			raise Exception("shape_bounds must have at least two dimensions")
-		self.shape_bounds = shape_bounds
-		self.size_coefficents = Range()
-		self.merge_method = merge_method
-		self.kernel: Tuple = auto_fill_tuple(kernel, shape_bounds)
-		self.stride: Tuple = auto_fill_tuple(stride, shape_bounds)
-		self.dilation: Tuple = auto_fill_tuple(dilation, shape_bounds)
-		self.padding: Tuple = auto_fill_tuple(padding, shape_bounds)
-		if (len(self.kernel) != len(self.stride) 
-		  		or len(self.stride) != len(self.dilation) 
-		  		or len(self.dilation) != len(self.padding) 
-		  		or len(self.padding) != len(self.shape_bounds) - 1):
+		self._shape_bounds = shape_bounds
+		self._size_coefficents = Range()
+		self._merge_method = merge_method
+		self._kernel: Tuple = auto_fill_tuple(kernel, shape_bounds)
+		self._stride: Tuple = auto_fill_tuple(stride, shape_bounds)
+		self._dilation: Tuple = auto_fill_tuple(dilation, shape_bounds)
+		self._padding: Tuple = auto_fill_tuple(padding, shape_bounds)
+		if (len(self._kernel) != len(self._stride) 
+		  		or len(self._stride) != len(self._dilation) 
+		  		or len(self._dilation) != len(self._padding) 
+		  		or len(self._padding) != len(self._shape_bounds) - 1):
 			raise Exception("kernel, stride, dilation, padding must all have the same length and be one less than shape_bounds")
 		self.depthwise: bool = depthwise
-	def output_dim_to_input_dim(self, output_shape: Size, i: int) -> int:
+	def output_dim_to_input_dim(self, output_shape: LockedShape, i: int) -> int:
 		i -= 1
-		return (output_shape[i + 1] - 1) * self.stride[i] + (self.kernel[i] * self.dilation[i] - (self.dilation[i] - 1)) - self.padding[i] * 2
-	def input_dim_to_output_dim(self, input_shape: Size, i: int) -> int:
+		return (output_shape[i + 1] - 1) * self._stride[i] + (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1)) - self._padding[i] * 2
+	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
 		i -= 1
-		return ((input_shape[i + 1] + self.padding[i] * 2) - (self.kernel[i] * self.dilation[i] - (self.dilation[i] - 1))) // self.stride[i] + 1
-	def get_output_shape(self, input_shape: Size, output_conformance: Shape, index: Index = Index()) -> Size | None:
-		initial_shape = Size([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
-		if output_conformance.compatible(Shape(len(input_shape), initial_shape)):
-			if output_conformance.fully_constrained():
-				return Size([prod(output_conformance.partial_shape) // prod(initial_shape)] + list(initial_shape))
+		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
+		open_shape = OpenShape([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
+		if output_conformance.compatible(open_shape): 
+			if output_conformance.is_locked():
+				return open_shape.to_locked(output_conformance.get_product() // open_shape.get_product())
 			else:
-				lower = max(self.shape_bounds.lower[0], int(input_shape[0] * self.size_coefficents.lower))
-				upper = min(self.shape_bounds.upper[0], int(input_shape[0] * self.size_coefficents.upper))
-				return Size([index.to_int(upper - lower) + lower] + list(initial_shape))
+				lower = max(self._shape_bounds.lower(0), int(input_shape.get_product() * self._size_coefficents.lower()) // output_conformance.get_product())
+				upper = min(self._shape_bounds.upper(0), int(input_shape.get_product() * self._size_coefficents.upper()) // output_conformance.get_product())
+				return open_shape.to_locked(index.to_int(upper - lower) + lower)
 		else:
 			return None
-	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
-	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str | None:
-		return ""
-	def get_batch_norm_src(self, shape_out: Size) -> str:
-		return ""

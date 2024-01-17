@@ -31,10 +31,17 @@ class Concat(MergeMethod):
 		else:
 			return sibling_shapes[0].to_open().squash(dimensionality)
 	def get_total_merged_size(self, shapes: List[LockedShape]) -> int:
-		return sum([prod(iter(shape)) for shape in shapes])
+		return sum([shape.get_product() for shape in shapes])
 	def _get_output_shape(self, sibling_shapes: Iterable[LockedShape], dimensionality: int) -> LockedShape:
-		#TODO: expand so its quicker
-		return reduce(lambda x, y: x if len(x) > len(y) else y, sibling_shapes).squash(dimensionality)
+		siblings_iter = iter(sibling_shapes)
+		largest_shape = next(siblings_iter) 
+		total_size = largest_shape.get_product()
+		for shape in siblings_iter:
+			if len(shape) > len(largest_shape):
+				largest_shape = shape
+			total_size += largest_shape.get_product()
+		largest_shape = largest_shape.to_open().squash(dimensionality)
+		return largest_shape.to_locked(total_size // largest_shape.get_product())
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return ""
 class Add(MergeMethod):
@@ -44,16 +51,8 @@ class Add(MergeMethod):
 		else:
 			return sibling_shapes[0].squash(dimensionality)
 	def get_total_merged_size(self, shapes: List[LockedShape]) -> int:
-		return prod(iter(shapes[0]))
+		return shapes[0].get_product()
 	def _get_output_shape(self, sibling_shapes: Iterable[LockedShape], dimensionality: int) -> LockedShape:
-		siblings_iter = iter(sibling_shapes)
-		largest_shape = next(siblings_iter) 
-		total_size = prod(iter(largest_shape))
-		for shape in siblings_iter:
-			if len(shape) > len(largest_shape):
-				largest_shape = shape
-			total_size += prod(iter(shape))
-		largest_shape = largest_shape.to_open().squash(dimensionality)
-		return largest_shape.to_locked(total_size // prod(iter(largest_shape)))
+		return reduce(lambda x, y: x if len(x) > len(y) else y, sibling_shapes).squash(dimensionality)
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return ""
