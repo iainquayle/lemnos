@@ -19,7 +19,6 @@ class Graph():
 		pass
 	@dataclass
 	class ExpansionNode:
-		__slots__ = ["parents", "priority"]
 		parents: Dict[NodePattern, Node]
 		priority: int
 		def get_conformance_shape(self) -> Shape | None:
@@ -39,7 +38,7 @@ class Graph():
 	#TODO: a recursive build instead, to allow for backtracking, rather than trying to force shapes
 	#	only other option is some type of lookahead, which would be a pain
 	@staticmethod
-	def from_build_graph(build_graph: BuildGraph, shapes_in: List[LockedShape], shape_outs: List[LockedShape]) -> Graph:
+	def from_build_graph(build_graph: BuildGraph, shapes_in: List[LockedShape], shape_outs: List[LockedShape], index: Index) -> Graph | None:
 		input_nodes: List[Node] = []
 		output_nodes: List[Node] = []
 		expansion_nodes: Dict[NodePattern, Graph.ExpansionStack] = {}
