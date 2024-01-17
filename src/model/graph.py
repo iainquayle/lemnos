@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import torch
-from torch import Size 
-
 from src.pattern.priority_graphs.manual import NodePattern, MAX_PRIORITY, Graph as BuildGraph 
 from src.pattern.commons import Index
-from src.shared.shape import Shape, LockedShape, OpenShape
+from src.shared.shape import Shape, LockedShape 
 
 from typing import Dict, List, Set, Tuple, Iterable
 from typing_extensions import Self
 from dataclasses import dataclass
 
 class Graph():
+	_MAX_ITERATIONS = 1024 
 	def __init__(self, input_nodes: List[Node] = list(), output_nodes: List[Node] = list()) -> None:
 		self._input_nodes: List[Node] = input_nodes 
 		self._output_nodes: List[Node] = output_nodes 
@@ -21,12 +19,13 @@ class Graph():
 		pass
 	@dataclass
 	class ExpansionNode:
+		__slots__ = ["parents", "priority"]
 		parents: Dict[NodePattern, Node]
 		priority: int
-		def get_conformance_shape(self) -> Shape:
-			#TODO: implement
-			return LockedShape.new(1)
+		def get_conformance_shape(self) -> Shape | None:
+			return Shape.reduce_common_lossless([parent.get_output_shape() for parent in self.parents.values()])
 	class ExpansionStack:
+		__slots__ = ["stack"]
 		def __init__(self) -> None:
 			self.stack: List[Graph.ExpansionNode] = [Graph.ExpansionNode(dict(), 0)]
 		def push(self, data: Graph.ExpansionNode) -> None:
@@ -37,7 +36,6 @@ class Graph():
 			return self.stack[-1]
 		def __len__(self) -> int:
 			return len(self.stack)
-	#TODO: consider there being no explicit shapes in and out, instead have it entirely dealt with by the node patterns
 	#TODO: a recursive build instead, to allow for backtracking, rather than trying to force shapes
 	#	only other option is some type of lookahead, which would be a pain
 	@staticmethod
@@ -49,9 +47,8 @@ class Graph():
 			node = Node()
 			input_nodes.append(node)
 			expansion_nodes[pattern] = Graph.ExpansionStack()
-		MAX_ITERATIONS = 1024 
 		iterations = 0
-		while len(expansion_nodes) > 0 and iterations < MAX_ITERATIONS:
+		while len(expansion_nodes) > 0 and iterations < Graph._MAX_ITERATIONS:
 			min_node_pattern = None 
 			min_priority = MAX_PRIORITY + 1
 			for pattern, stack in expansion_nodes.items():
@@ -90,6 +87,7 @@ class Graph():
 		return graph 
 
 class Node():
+	__slots__ = ["_index", "_id", "_node_pattern", "_children", "_parents", "_output_shape", "_mould_shape"]
 	def init(self, index: Index, id: int, node_pattern: NodePattern, output_shape: LockedShape, mould_shape: LockedShape, parents: Iterable[Self] | None) -> None:
 		self._index: Index = index
 		self._id: int = id 
@@ -112,3 +110,5 @@ class Node():
 		self._parents = set()
 		for parent in parents:
 			self.add_parent(parent)
+	def get_output_shape(self) -> LockedShape:
+		return self._output_shape

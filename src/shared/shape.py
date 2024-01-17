@@ -21,7 +21,6 @@ from abc import ABC as Abstract, abstractmethod
 #		dims to the right must be the same
 
 #TODO: consider renaming locked to fixed, or sized
-#TODO: make validating inits
 class Shape(Abstract):
 	__slots__ = ("_shape", "_product_cache")
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
@@ -95,6 +94,10 @@ class Shape(Abstract):
 		return self._product_cache
 
 class LockedShape(Shape):
+	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
+		if len(shape) == 0:
+			raise Exception("locked shape cannot be empty")
+		super().__init__(shape)
 	@staticmethod
 	def new(*values: int) -> LockedShape:
 		return LockedShape(values)
