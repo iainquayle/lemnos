@@ -21,7 +21,7 @@ from math import prod
 #		conforming shape hold the total size of a conforming shape, and the upper shape that is required
 #		requires the dims and the siblings
 #	generate conforming shape, or none, from these
-class BaseParameters():
+class BaseParameters(Abstract):
 	def __init__(self) -> None:
 		self.shape_bounds = Bound([]) 
 		self.merge_method = Concat() 
@@ -31,50 +31,25 @@ class BaseParameters():
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: Shape) -> bool:
 		pass
 	def get_conformance_shape(self, sibling_shapes: List[LockedShape]) -> Shape:
-		return self.merge_method.get_conformance_shape(sibling_shapes)
+		return self.merge_method.get_conformance_shape(sibling_shapes, self.dimensionality())
 	def get_mould_and_output_shapes(self, parent_shapes: List[LockedShape], output_conformance: Shape, index: Index = Index()) -> Tuple[LockedShape, LockedShape] | None:
-		mould_shape = self.get_mould_shape(parent_shapes)
+		mould_shape = self.merge_method.get_output_shape(parent_shapes, self.dimensionality())
 		output_shape = self.get_output_shape(mould_shape, output_conformance, index)
 		return None if output_shape is None or output_shape not in self.shape_bounds else (mould_shape, output_shape)
 	@abstractmethod
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		pass
-	def get_mould_shape(self, parent_shapes: List[LockedShape]) -> LockedShape:
-		if len(parent_shapes) == 0:
-			raise Exception("cannot get mould shape from empty parent shapes")
-		else:
-			#TODO: redo this
-			return LockedShape.new(1, 1, 1, 1)
-			max_dim_shape = Size()
-			for parent_shape in parent_shapes:
-				if len(parent_shape) > len(max_dim_shape):
-					max_dim_shape = parent_shape
-			total_merged_size: int = self.merge_method.get_total_merged_size(parent_shapes)
-			mould_list = list(max_dim_shape[max(1, len(max_dim_shape) - len(self.shape_bounds) + 1):])
-			mould_list = [total_merged_size // prod(mould_list)] + mould_list
-			mould_list = ([1] * (len(self.shape_bounds) - len(mould_list))) + mould_list
-			return Size(mould_list)
-	@abstractmethod
-	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
-		pass
-	def get_transform(self, shape_in: Size, shape_out: Size) -> Module:
-		return Identity() #eval(self.get_transform_src(shape_in, shape_out))
-	@abstractmethod
-	def get_batch_norm_src(self, shape_out: Size) -> str:
-		pass
-	def get_batch_norm(self, shape_out: Size) -> Module:
-		return eval(self.get_batch_norm_src(shape_out))
+	def dimensionality(self) -> int:
+		return len(self.shape_bounds)
 	
 class IdentityParameters(BaseParameters):
 	def __init__(self, shape_bounds: Bound = Bound(), merge_method: MergeMethod = Concat()) -> None:
 		self.shape_bounds = shape_bounds
 		self.merge_method = merge_method
-	def validate_output_shape_transform(self, shape_in: Size, shape_out: Size) -> bool:
+	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in == shape_out
-	def get_output_shape(self, input_shape: Size, output_conformance: Shape, index: Index = Index()) -> Size | None:
-		return input_shape if output_conformance.compatible(Shape(len(input_shape), input_shape)) else None
-	def get_transform_src(self, shape_in: Size, shape_out: Size) -> str:
-		return "Identity()"
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
+		return input_shape if output_conformance.compatible(input_shape) else None
 
 #TODO: move to commons
 def auto_fill_tuple(val: Tuple | int, bounds: Bound) -> Tuple:

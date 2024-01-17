@@ -22,6 +22,8 @@ from abc import ABC as Abstract, abstractmethod
 #		dims to the right must be the same
 
 #TODO: consider renaming locked to fixed, or sized
+#TODO: make prod cache?
+#TODO: make validating inits
 class Shape(Abstract):
 	__slots__ = ("_shape")
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
@@ -52,6 +54,11 @@ class Shape(Abstract):
 	@abstractmethod
 	def to_open(self) -> OpenShape:
 		pass
+	@abstractmethod
+	def squash(self, dimensionality: int) -> Shape:
+		pass
+	def compatible(self, other: Shape) -> bool:
+		return self.common(other) is not None
 	def is_locked(self) -> bool:
 		return isinstance(self, LockedShape)
 	def common_lossless(self, other: Shape) -> Shape | None:
@@ -98,6 +105,11 @@ class LockedShape(Shape):
 		return LockedShape(self._shape)
 	def to_open(self) -> OpenShape:
 		return OpenShape(self._shape[1:])
+	def squash(self, dimensionality: int) -> LockedShape:
+		if dimensionality > self.dimensionality():
+			return copy(self) 
+		else:
+			return LockedShape([prod(self._shape[:-(dimensionality - 1)])] + self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
 		common = copy(self)
 		reverse_index = min(self.upper_length(), other.upper_length())
@@ -126,6 +138,11 @@ class OpenShape(Shape):
 		return LockedShape([dimension] + self._shape)
 	def to_open(self) -> OpenShape:
 		return OpenShape(self._shape)
+	def squash(self, dimensionality: int) -> OpenShape:
+		if dimensionality > self.dimensionality():
+			return copy(self)
+		else:
+			return OpenShape(self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
 		common = copy(self)
 		reverse_index = min(self.upper_length(), other.upper_length())
@@ -144,7 +161,7 @@ class OpenShape(Shape):
 		return OpenShape(self._shape)
 
 class Bound:
-	def __init__(self, bounds: List[Tuple[int, int]]) -> None:
+	def __init__(self, bounds: List[Tuple[int, int]] = []) -> None:
 		for i in range(len(bounds)):
 			if bounds[i][0] > bounds[i][1]:
 				bounds[i] = (bounds[i][1], bounds[i][0])

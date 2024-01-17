@@ -15,6 +15,11 @@ class TestShapeCommons(unittest.TestCase):
 	def test_upper_length(self) -> None:
 		self.assertEqual(self.a.upper_length(), 1)
 		self.assertEqual(self.c.upper_length(), 2)
+	def test_squash(self) -> None:
+		self.assertEqual(self.d.squash(2), self.a)
+		self.assertEqual(self.d.squash(3), self.d)
+		self.assertEqual(self.c.squash(2), self.b)
+		self.assertEqual(self.c.squash(3), self.c)
 	def test_dimensionality(self) -> None:
 		self.assertEqual(self.a.dimensionality(), 2)
 		self.assertEqual(self.c.dimensionality(), 3)
