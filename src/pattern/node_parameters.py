@@ -1,17 +1,26 @@
 from __future__ import annotations
 
-import torch
-import torch.nn as nn
-from torch.nn import Module, Identity
-
 from src.pattern.commons import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 from src.shared.merge_method import MergeMethod, Concat, Add
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
-from math import prod
-
+#TODO: move shape bounds to manual node, maybe even the merge method too?? probably not the second part
+#	need to be able to check that a transition is valid, this as of now, means that a whole node could be invalid
+#	which means that alrady switching to a stack based build would be needed
+#	that being said, a node could be invalid when it is created even without the bounds making it so, so perhaps a switch to stack based is needed
+#	only other possibility is to make a lookahead, but that means there would be redundant work happening when the node is created
+#	this stuff could be cached
+#	for stack:
+#		will be needed for a true and search of a space to find a valid graph, as soon as there becomes to non deterministic loops in a pattern
+#		generally more foolproof
+#	against stack:
+#		as of right now, will be less efficient, as it will create nodes, then backtrack if needed
+#	if the stack based is used
+#		keep in mind, there needs to be some way once a node has been rejected, to unwind the stack back to a possibly valid point
+#		does this just mean attempting the next transition from the one above?
+#		or does this require that it be unwinded all the way back to the very first occurence of a trransition into that node?
 #TODO: make tokens for constants, ie conv, bn, rbrack, comma
 #or make functions, ie then can just use param list
 #to expand:
@@ -22,6 +31,7 @@ from math import prod
 #		requires the dims and the siblings
 #	generate conforming shape, or none, from these
 class BaseParameters(Abstract):
+	__slots__ = ["_shape_bounds", "_merge_method"]
 	def __init__(self) -> None:
 		self._shape_bounds = Bound([]) 
 		self._merge_method = Concat() 
@@ -51,10 +61,10 @@ class IdentityParameters(BaseParameters):
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		return input_shape if output_conformance.compatible(input_shape) else None
 
-#TODO: move to commons
-def auto_fill_tuple(val: Tuple | int, bounds: Bound) -> Tuple:
-	return val if isinstance(val, tuple) else tuple([val] * (len(bounds) - 1))
+def fill_conv_tuple(val: Tuple | int, dimensionality: int) -> Tuple:
+	return val if isinstance(val, tuple) else tuple([val] * (dimensionality - 1))
 class ConvParameters(BaseParameters):
+	__slots__ = ["_shape_bounds", "_size_coefficents", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
 	def __init__(self,
 			shape_bounds: Bound, 
 			size_coefficents: Range,
@@ -70,10 +80,10 @@ class ConvParameters(BaseParameters):
 		self._shape_bounds = shape_bounds
 		self._size_coefficents = size_coefficents 
 		self._merge_method = merge_method
-		self._kernel: Tuple = auto_fill_tuple(kernel, shape_bounds)
-		self._stride: Tuple = auto_fill_tuple(stride, shape_bounds)
-		self._dilation: Tuple = auto_fill_tuple(dilation, shape_bounds)
-		self._padding: Tuple = auto_fill_tuple(padding, shape_bounds)
+		self._kernel: Tuple = fill_conv_tuple(kernel, len(shape_bounds))
+		self._stride: Tuple = fill_conv_tuple(stride, len(shape_bounds))
+		self._dilation: Tuple = fill_conv_tuple(dilation, len(shape_bounds))
+		self._padding: Tuple = fill_conv_tuple(padding, len(shape_bounds))
 		if (len(self._kernel) != len(self._stride) 
 		  		or len(self._stride) != len(self._dilation) 
 		  		or len(self._dilation) != len(self._padding) 
