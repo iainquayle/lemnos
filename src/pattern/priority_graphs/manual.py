@@ -20,11 +20,12 @@ class Graph:
 		self.start_patterns: List[NodePattern] = []
 
 class NodePattern:
-	def __init__(self, node_parameters: BaseParameters = IdentityParameters()):
-		self.transition_groups: List[TransitionGroup] = []
-		self.node_parameters: BaseParameters = node_parameters 
+	__slots__ = ["_node_parameters", "_transition_groups"]
+	def __init__(self, node_parameters: BaseParameters):
+		self._transition_groups: List[TransitionGroup] = []
+		self._node_parameters: BaseParameters = node_parameters 
 	def add_transition_group(self, group: TransitionGroup) -> None:
-		self.transition_groups.append(copy(group))
+		self._transition_groups.append(copy(group))
 	@abstractmethod	
 	def analyze(self) -> None:
 		#paceholder for possible auto priority assignment
@@ -39,17 +40,18 @@ class Transiton:
 	join_existing: bool = False
 
 class TransitionGroup:
+	__slots__ = ["_transitions", "_repetition_bounds"]
 	def __init__(self, transitions: List[Transiton], repetition_bounds: Bound =Bound())  -> None:
-		self.transitions: List[Transiton] = copy(transitions)
-		self.repetition_bounds: Bound = repetition_bounds
+		self._transitions: List[Transiton] = copy(transitions)
+		self._repetition_bounds: Bound = repetition_bounds
 	def set_transitions(self, transitions: List[Transiton]) -> None:
 		pattern_set: Set[NodePattern] = set()
 		for transition in transitions:
 			if transition.next_pattern in pattern_set:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.next_pattern)
-		self.transitions = transitions
+		self._transitions = transitions
 	def __str__(self) -> str:
-		return f"TG{self.transitions}"
+		return f"TG{self._transitions}"
 	def __repr__(self) -> str:
 		return str(self)
