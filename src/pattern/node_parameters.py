@@ -6,12 +6,8 @@ from src.shared.merge_method import MergeMethod, Concat, Add
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
-#TODO: move shape bounds to manual node, maybe even the merge method too?? probably not the second part
-#	need to be able to check that a transition is valid, this as of now, means that a whole node could be invalid
+#TODO:
 #	which means that alrady switching to a stack based build would be needed
-#	that being said, a node could be invalid when it is created even without the bounds making it so, so perhaps a switch to stack based is needed
-#	only other possibility is to make a lookahead, but that means there would be redundant work happening when the node is created
-#	this stuff could be cached
 #	for stack:
 #		will be needed for a true and search of a space to find a valid graph, as soon as there becomes to non deterministic loops in a pattern
 #		generally more foolproof
@@ -19,8 +15,7 @@ from typing import List, Tuple
 #		as of right now, will be less efficient, as it will create nodes, then backtrack if needed
 #	if the stack based is used
 #		keep in mind, there needs to be some way once a node has been rejected, to unwind the stack back to a possibly valid point
-#		does this just mean attempting the next transition from the one above?
-#		or does this require that it be unwinded all the way back to the very first occurence of a trransition into that node?
+#		this will need to be done all the way back to the first transition into that node
 #TODO: make tokens for constants, ie conv, bn, rbrack, comma
 #or make functions, ie then can just use param list
 #to expand:
@@ -30,15 +25,18 @@ from typing import List, Tuple
 #		conforming shape hold the total size of a conforming shape, and the upper shape that is required
 #		requires the dims and the siblings
 #	generate conforming shape, or none, from these
+#TODO: consider making an interface for reverse indexing, that takes in a positive index
+#	will simplify lots
+
 class BaseParameters(Abstract):
 	__slots__ = ["_shape_bounds", "_merge_method"]
 	def __init__(self) -> None:
 		self._shape_bounds = Bound([]) 
 		self._merge_method = Concat() 
-	def validate_output_shape(self, shape_in: LockedShape, shape_out: Shape) -> bool:
+	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
-	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: Shape) -> bool:
+	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
 	def get_conformance_shape(self, sibling_shapes: List[LockedShape]) -> Shape:
 		return self._merge_method.get_conformance_shape(sibling_shapes, self.dimensionality())

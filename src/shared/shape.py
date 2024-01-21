@@ -168,26 +168,40 @@ class Bound:
 	_LOWER_INDEX = 0
 	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
-	def __init__(self, bounds: List[Tuple[int, int]] = []) -> None:
-		self._bounds: List[Tuple[int, int]] = bounds
+	def __init__(self, bounds: List[Tuple[int, int] | None]= []) -> None:
+		self._bounds: List[Tuple[int, int] | None] = bounds
 		for i in range(len(bounds)):
-			if self.lower(i) > self.upper(i):
-				bounds[i] = (self.upper(i), self.lower(i))
-			if self.lower(i) <= 0:
-				raise Exception("lower bound less than 1")
-	def __getitem__(self, index: int) -> Tuple[int, int]:
+			element = bounds[i]
+			if element is not None:
+				if element[Bound._LOWER_INDEX] > element[Bound._UPPER_INDEX]:
+					bounds[i] = element[Bound._UPPER_INDEX], element[Bound._LOWER_INDEX]
+				if element[Bound._LOWER_INDEX] <= 0:
+					raise Exception("lower bound less than 1")
+	def __getitem__(self, index: int) -> Tuple[int, int] | None:
 		return self._bounds[index]
-	def lower(self, index: int) -> int:
-		return self._bounds[index][Bound._LOWER_INDEX]
-	def upper(self, index: int) -> int:
-		return self._bounds[index][Bound._UPPER_INDEX]
+	def lower(self, index: int) -> int | None:
+		element = self._bounds[index]
+		return element[Bound._LOWER_INDEX] if element is not None else None
+	def upper(self, index: int) -> int | None:
+		element = self._bounds[index]
+		return element[Bound._UPPER_INDEX] if element is not None else None
+	def clamp(self, shape: Shape) -> Shape:
+		if shape.dimensionality() > len(self._bounds):
+			raise Exception("shape dimensionality greater than bounds")
+		new_shape = copy(shape)
+		for i in range(1, len(new_shape) + 1):
+			element = self._bounds[-i]
+			if element is not None:
+				new_shape._shape[-i] = min(element[Bound._UPPER_INDEX], max(element[Bound._LOWER_INDEX], new_shape[-i]))
+		return new_shape
 	def __contains__(self, shape: Shape) -> bool:
-		if shape.dimensionality() != len(self._bounds):
+		if shape.dimensionality() > len(self._bounds):
 			return False
-		#TODO: probably nicer way to do this, dont really like using the -1
-		for (lower, upper), i in zip(self._bounds, shape.to_tuple()):
-			if i != -1 and (i < lower or i > upper):
-				return False
+		for i in range(1, len(shape) + 1):
+			element = self._bounds[-i]
+			if element is not None:
+				if shape[-i] < element[Bound._LOWER_INDEX] or shape[-i] > element[Bound._UPPER_INDEX]:
+					return False
 		return True
 	def __len__(self) -> int:
 		return len(self._bounds)
