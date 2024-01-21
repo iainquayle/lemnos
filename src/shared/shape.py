@@ -190,10 +190,14 @@ class Bound:
 			raise Exception("shape dimensionality greater than bounds")
 		new_shape = copy(shape)
 		for i in range(1, len(new_shape) + 1):
-			element = self._bounds[-i]
-			if element is not None:
-				new_shape._shape[-i] = min(element[Bound._UPPER_INDEX], max(element[Bound._LOWER_INDEX], new_shape[-i]))
+			new_shape._shape[-i] = self.clamp_value(new_shape[-i], -i)
 		return new_shape
+	def clamp_value(self, value: int, index: int) -> int:
+		element = self._bounds[index]
+		if element is not None:
+			return min(element[Bound._UPPER_INDEX], max(element[Bound._LOWER_INDEX], value))
+		else:
+			return value
 	def __contains__(self, shape: Shape) -> bool:
 		if shape.dimensionality() > len(self._bounds):
 			return False

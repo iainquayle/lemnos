@@ -100,9 +100,9 @@ class ConvParameters(BaseParameters):
 			if output_conformance.is_locked():
 				return open_shape.to_locked(output_conformance.get_product() // open_shape.get_product())
 			else:
-				lower = max(self._shape_bounds.lower(0), int(input_shape.get_product() * self._size_coefficents.lower()) // output_conformance.get_product())
-				upper = min(self._shape_bounds.upper(0), int(input_shape.get_product() * self._size_coefficents.upper()) // output_conformance.get_product())
-				return open_shape.to_locked(index.to_int(upper - lower) + lower)
+				lower = int(input_shape.get_product() * self._size_coefficents.lower()) // output_conformance.get_product()
+				upper = int(input_shape.get_product() * self._size_coefficents.upper()) // output_conformance.get_product()
+				return open_shape.to_locked(self._shape_bounds.clamp_value(index.to_int(upper - lower) + lower, 0))
 		else:
 			return None
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
