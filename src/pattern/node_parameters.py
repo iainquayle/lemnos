@@ -15,7 +15,13 @@ from typing import List, Tuple
 #		as of right now, will be less efficient, as it will create nodes, then backtrack if needed
 #	if the stack based is used
 #		keep in mind, there needs to be some way once a node has been rejected, to unwind the stack back to a possibly valid point
+#			deep copy the expansion nodes, if valid below, then replace with what is passed back up, else keep it
 #		this will need to be done all the way back to the first transition into that node
+#			nodes realtions will need to removed
+#	why to use vs moving validation to minimal look ahead:
+#		all the merge, shape transformation validation can be done looking at the possible transition
+#		but, it is still possible that a later node will be invalid, as it may not have a valid transition out, which could invalidate the node in question
+#		bounding more on the way in could make a better chance of finding a valid graph, however it would need a fair amount of more work to make work
 #TODO: make tokens for constants, ie conv, bn, rbrack, comma
 #or make functions, ie then can just use param list
 #to expand:

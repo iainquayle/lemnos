@@ -111,3 +111,12 @@ class Node():
 			self.add_parent(parent)
 	def get_output_shape(self) -> LockedShape:
 		return self._output_shape
+	def unbind_child(self, child: Self) -> None:
+		if child in self._children:
+			self._children.remove(child)
+			child.unbind_parent(self)
+	#technically dont need to unbind parent, but probably safest
+	def unbind_parent(self, parent: Self) -> None:
+		if parent in self._parents:
+			self._parents.remove(parent)
+			parent.unbind_child(self)
