@@ -24,27 +24,27 @@ class Graph():
 		def get_conformance_shape(self) -> Shape | None:
 			return Shape.reduce_common_lossless([parent.get_output_shape() for parent in self.parents.values()])
 	class ExpansionStack:
-		__slots__ = ["stack"]
+		__slots__ = ["_stack"]
 		def __init__(self) -> None:
-			self.stack: List[Graph.ExpansionNode] = [Graph.ExpansionNode(dict(), 0)]
+			self._stack: List[Graph.ExpansionNode] = [Graph.ExpansionNode(dict(), 0)]
 		def push(self, data: Graph.ExpansionNode) -> None:
-			self.stack.append(data)
+			self._stack.append(data)
 		def pop(self) -> Graph.ExpansionNode:
-			return self.stack.pop()
+			return self._stack.pop()
 		def peek(self) -> Graph.ExpansionNode:
-			return self.stack[-1]
+			return self._stack[-1]
 		def __len__(self) -> int:
-			return len(self.stack)
-	#TODO: a recursive build instead, to allow for backtracking, rather than trying to force shapes
-	#	only other option is some type of lookahead, which would be a pain
+			return len(self._stack)
+	#what should this be categorized under
+	#should the build graph create the graph
+	#	may be easier to do it as such?
+	#or should the graph create itself from the build graph
 	@staticmethod
 	def from_build_graph(build_graph: BuildGraph, shapes_in: List[LockedShape], shape_outs: List[LockedShape], index: Index) -> Graph | None:
 		input_nodes: List[Node] = []
 		output_nodes: List[Node] = []
 		expansion_nodes: Dict[NodePattern, Graph.ExpansionStack] = {}
 		for pattern in build_graph.start_patterns:
-			node = Node()
-			input_nodes.append(node)
 			expansion_nodes[pattern] = Graph.ExpansionStack()
 		iterations = 0
 		while len(expansion_nodes) > 0 and iterations < Graph._MAX_ITERATIONS:

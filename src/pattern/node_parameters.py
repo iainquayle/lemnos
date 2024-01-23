@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.pattern.commons import Index
+from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 from src.shared.merge_method import MergeMethod, Concat, Add
 from abc import ABC as Abstract, abstractmethod 
