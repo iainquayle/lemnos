@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
-from src.shared.merge_method import MergeMethod, Concat, Add
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
@@ -32,37 +31,32 @@ from typing import List, Tuple
 #		requires the dims and the siblings
 #	generate conforming shape, or none, from these
 #TODO: consider making an interface for reverse indexing, that takes in a positive index
-#	will simplify lots
 
 class BaseParameters(Abstract):
-	__slots__ = ["_shape_bounds", "_merge_method"]
+	__slots__ = ["_shape_bounds"]
 	def __init__(self) -> None:
 		self._shape_bounds = Bound([]) 
-		self._merge_method = Concat() 
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
-	def get_conformance_shape(self, sibling_shapes: List[LockedShape]) -> Shape:
-		return self._merge_method.get_conformance_shape(sibling_shapes, self.dimensionality())
-	def get_mould_and_output_shapes(self, parent_shapes: List[LockedShape], output_conformance: Shape, index: Index = Index()) -> Tuple[LockedShape, LockedShape] | None:
-		mould_shape = self._merge_method.get_output_shape(parent_shapes, self.dimensionality())
-		output_shape = self.get_output_shape(mould_shape, output_conformance, index)
+	def get_mould_and_output_shapes(self, mould_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> Tuple[LockedShape, LockedShape] | None:
+		mould_shape = mould_shape.squash(self.dimensionality())
+		output_shape = self._get_output_shape(mould_shape, output_conformance, index)
 		return None if output_shape is None or output_shape not in self._shape_bounds else (mould_shape, output_shape)
 	@abstractmethod
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
+	def _get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		pass
 	def dimensionality(self) -> int:
 		return len(self._shape_bounds)
 	
 class IdentityParameters(BaseParameters):
-	def __init__(self, shape_bounds: Bound, merge_method: MergeMethod) -> None:
+	def __init__(self, shape_bounds: Bound) -> None:
 		self._shape_bounds = shape_bounds
-		self._merge_method = merge_method
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in == shape_out
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
+	def _get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		return input_shape if output_conformance.compatible(input_shape) else None
 
 def fill_conv_tuple(val: Tuple | int, dimensionality: int) -> Tuple:
@@ -72,7 +66,6 @@ class ConvParameters(BaseParameters):
 	def __init__(self,
 			shape_bounds: Bound, 
 			size_coefficents: Range,
-			merge_method: MergeMethod,
 			kernel: Tuple | int = 1, 
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
@@ -83,7 +76,6 @@ class ConvParameters(BaseParameters):
 			raise Exception("shape_bounds must have at least two dimensions")
 		self._shape_bounds = shape_bounds
 		self._size_coefficents = size_coefficents 
-		self._merge_method = merge_method
 		self._kernel: Tuple = fill_conv_tuple(kernel, len(shape_bounds))
 		self._stride: Tuple = fill_conv_tuple(stride, len(shape_bounds))
 		self._dilation: Tuple = fill_conv_tuple(dilation, len(shape_bounds))
@@ -100,7 +92,7 @@ class ConvParameters(BaseParameters):
 	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
+	def _get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		open_shape = OpenShape([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
 		if output_conformance.compatible(open_shape): 
 			if output_conformance.is_locked():

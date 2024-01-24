@@ -67,7 +67,7 @@ class Shape(Abstract):
 	@staticmethod
 	def reduce_common_lossless(shapes: Iterable[Shape]) -> Shape | None:
 		shapes_iter = iter(shapes)
-		common = next(shapes_iter)
+		common = next(shapes_iter, None)
 		if common is None:
 			raise Exception("cannot reduce empty collection")
 		for shape in shapes_iter:
