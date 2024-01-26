@@ -122,14 +122,10 @@ class NodePattern:
 		input_shape = self._merge_method.get_output_shape([parent.get_output_shape() for parent in parents])
 		pivot = index.to_int(len(self._transition_groups))
 		i = 0
-		outside = 0
-		while outside < 2: 
+		while abs(i) < max(len(self._transition_groups) - pivot, pivot): 
 			if pivot + i < len(self._transition_groups) and pivot + i >= 0:
 				group = self._transition_groups[pivot + i]
-				outside = 0
-				#maybe just make a new func that deals with expanding a certain group, and simplify this shit, pain in the ass
-			else:
-				outside += 1
+				
 			i = -i if i > 0 else -i + 1
 
 
