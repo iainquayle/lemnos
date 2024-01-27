@@ -18,7 +18,7 @@ from copy import copy
 class _ExpansionNode:
 	def __init__(self, parents: List[Node], priority: int) -> None:
 		self.parents: List[Node] = parents #may be quicker to make this a dict again
-		self.priority: int
+		self.priority: int = priority 
 	def get_parent_shapes(self) -> List[LockedShape]:
 		return [parent.get_output_shape() for parent in self.parents]
 	def add_parent(self, parent: Node, priority: int) -> None:
@@ -69,11 +69,9 @@ class Graph:
 		self._ends.append(pattern)
 	#TODO: perhaps add a flag that switches whether the indices should be attempted in order, or just used at random for breeding,
 	#	could use a random seed, that can also effectivley work as a flag
-	#only real option for capturing input and output nodes in current setup is to return a list of nodes and find them after
-	#TODO: consider making it such that start patterns must have single transitions to unique patterns
-	#	or make join_existing a enum, with a third option of auto, which will make or join
-	#	since rn inputs dont have priorities, meaning the creator of a node wont necessarily go first
-	#	or just try finding the true start pattern
+	#	only real option for capturing input and output nodes in current setup is to return a list of nodes and find them after
+	#TODO: consider adding ordering to input nodes to it 
+	#TODO: consider making turning join existing into enum
 	def build(self, input_shapes: List[LockedShape], output_shapes: List[LockedShape], indices: List[Index]) -> None:
 		if len(input_shapes) != len(self._starts):
 			raise ValueError("Incorrect number of input shapes")
@@ -125,8 +123,31 @@ class NodePattern:
 		while abs(i) < max(len(self._transition_groups) - pivot, pivot): 
 			if pivot + i < len(self._transition_groups) and pivot + i >= 0:
 				group = self._transition_groups[pivot + i]
-				
+				transition_iter = iter(group._transitions)
+				join_nodes: Dict[Transiton, _ExpansionNode] = {}
+				conformance_shape = OpenShape.new()
+				while (transition := next(transition_iter, None)) is not None and conformance_shape is not None:
+					if transition.join_existing and ((join_on := expansion_nodes[transition.next].get_available(parents[0])) is not None
+							and (conformance_shape := conformance_shape.common_lossless(transition.next.get_conformance_shape(join_on.get_parent_shapes()))) is not None):
+						join_nodes[transition] = join_on
+					else:
+						conformance_shape = None
+				if conformance_shape is not None:
+					shapes = self._node_parameters.get_mould_and_output_shapes(input_shape, conformance_shape, index)
+					if shapes is not None:
+						node = Node(index, id, self, *shapes, parents)
+						for transition in group._transitions:
+							stack = expansion_nodes[transition.next]
+							if transition.join_existing:
+								join_nodes[transition].add_parent(node, transition.priority)
+							else:
+								if transition.next not in expansion_nodes:
+									expansion_nodes[transition.next] = _ExpansionStack()
+								stack.push(_ExpansionNode([node], transition.priority))
+							
+						pass
 			i = -i if i > 0 else -i + 1
+		return self
 
 
 		valid_group_and_shapes: Tuple[TransitionGroup, Dict[Transiton, _ExpansionNode], Shape, Shape] | None = None
