@@ -12,65 +12,6 @@ from typing_extensions import Self
 from dataclasses import dataclass
 from copy import copy, deepcopy
 
-@dataclass
-class _ExpansionNode:
-	def __init__(self, parents: List[ModelNode], priority: int) -> None:
-		self.parents: List[ModelNode] = parents #may be quicker to make this a dict again
-		self.priority: int = priority 
-	def get_parent_shapes(self) -> List[LockedShape]:
-		return [parent.get_output_shape() for parent in self.parents]
-	def add_parent(self, parent: ModelNode, priority: int) -> None:
-		if self.taken(parent):
-			raise ValueError("Parent already taken")
-		self.parents.append(parent)
-		self.priority = min(self.priority, priority) 
-	def taken(self, node: ModelNode) -> bool:
-		for parent in self.parents:
-			if parent.get_pattern() == node.get_pattern():
-				return True
-		return False
-	def __copy__(self) -> _ExpansionNode:
-		return _ExpansionNode(copy(self.parents), self.priority)
-class _ExpansionStack:
-	__slots__ = ["_stack"]
-	def __init__(self, stack: List[_ExpansionNode] = []) -> None:
-		self._stack: List[_ExpansionNode] = stack 
-	def push(self, data: _ExpansionNode) -> None:
-		self._stack.append(data)
-	def get_available(self, node: ModelNode) -> _ExpansionNode | None: 
-		for i in range(len(self._stack) - 1, -1, -1):
-			if not self._stack[i].taken(node):
-				return self._stack[i] 
-		return None
-	def pop(self) -> _ExpansionNode:
-		return self._stack.pop()
-	def peek(self) -> _ExpansionNode:
-		return self._stack[-1]
-	def get_priority(self) -> int:
-		return self.peek().priority
-	def __len__(self) -> int:
-		return len(self._stack)
-	def __deepcopy__(self) -> _ExpansionStack:
-		return _ExpansionStack(copy(self._stack))
-class _ExpansionCollection:
-	__slots__ = ["_expansion_nodes"]
-	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
-		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
-	def min(self) -> Tuple[SchemaNode, _ExpansionStack] | None:
-		return min(self._expansion_nodes.items(), key=lambda item: item[1].get_priority())
-	def add(self, node: ModelNode, priority: int) -> None:
-		if node.get_pattern() in self._expansion_nodes:
-			self._expansion_nodes[node.get_pattern()].push(_ExpansionNode([node], priority))
-		else:
-			self._expansion_nodes[node.get_pattern()] = _ExpansionStack([_ExpansionNode([node], priority)])
-	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
-		return self._expansion_nodes[key]
-	def __copy__(self) -> _ExpansionCollection:
-		return _ExpansionCollection(deepcopy(self._expansion_nodes))
-	def __contains__(self, key: SchemaNode) -> bool:
-		return key in self._expansion_nodes
-
-
 class Model():
 	_MAX_ITERATIONS = 1024 
 	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
@@ -180,3 +121,67 @@ class ModelNode():
 			parent.unbind_child(self)
 	def get_pattern(self) -> SchemaNode:
 		return self._node_pattern
+
+@dataclass
+class _ExpansionNode:
+	def __init__(self, parents: List[ModelNode], priority: int) -> None:
+		self.parents: List[ModelNode] = parents #may be quicker to make this a dict again
+		self.priority: int = priority 
+	def get_parent_shapes(self) -> List[LockedShape]:
+		return [parent.get_output_shape() for parent in self.parents]
+	def add_parent(self, parent: ModelNode, priority: int) -> None: #TODO: condider making this just return a bool
+		if not self.available(parent):
+			raise ValueError("Parent already taken")
+		self.parents.append(parent)
+		self.priority = min(self.priority, priority) 
+	def available(self, node: ModelNode) -> bool:
+		for parent in self.parents:
+			if parent.get_pattern() == node.get_pattern():
+				return False 
+		return True 
+	def __copy__(self) -> _ExpansionNode:
+		return _ExpansionNode(copy(self.parents), self.priority)
+class _ExpansionStack:
+	__slots__ = ["_stack"]
+	def __init__(self, stack: List[_ExpansionNode] = []) -> None:
+		self._stack: List[_ExpansionNode] = stack 
+	def push(self, data: _ExpansionNode) -> None:
+		self._stack.append(data)
+	def get_available(self, node: ModelNode) -> _ExpansionNode | None: 
+		for i in range(len(self._stack) - 1, -1, -1):
+			if self._stack[i].available(node):
+				return self._stack[i] 
+		return None
+	def pop(self) -> _ExpansionNode:
+		return self._stack.pop()
+	def peek(self) -> _ExpansionNode:
+		return self._stack[-1]
+	def get_priority(self) -> int:
+		return self.peek().priority if len(self._stack) > 0 else Transition.get_max_priority() + 1
+	def __len__(self) -> int:
+		return len(self._stack)
+	def __deepcopy__(self) -> _ExpansionStack:
+		return _ExpansionStack(copy(self._stack))
+class _ExpansionCollection:
+	__slots__ = ["_expansion_nodes"]
+	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
+		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
+	def min(self) -> Tuple[SchemaNode, _ExpansionStack] | None:
+		if len(self._expansion_nodes) == 0:
+			return None
+		min_schema = min(self._expansion_nodes.items(), key=lambda item: item[1].get_priority()) 
+		if len(min_schema[1]) == 0:
+			return None
+		return min_schema
+	def add(self, node: ModelNode, priority: int) -> None:
+		if node.get_pattern() in self._expansion_nodes:
+			self._expansion_nodes[node.get_pattern()].push(_ExpansionNode([node], priority))
+		else:
+			self._expansion_nodes[node.get_pattern()] = _ExpansionStack([_ExpansionNode([node], priority)])
+	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
+		return self._expansion_nodes[key]
+	def __copy__(self) -> _ExpansionCollection:
+		return _ExpansionCollection(deepcopy(self._expansion_nodes))
+	def __contains__(self, key: SchemaNode) -> bool:
+		return key in self._expansion_nodes
+
