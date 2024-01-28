@@ -53,7 +53,7 @@ class ConvParameters(BaseParameters):
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
 			padding: Tuple | int = 0,
-			depthwise: bool = False,
+			depthwise: bool = False, #TODO: change this to a factor? or somthing else so filter groups can be a different size and a different number of groups
 			) -> None:
 		if len(shape_bounds) < 2:
 			raise Exception("shape_bounds must have at least two dimensions")
