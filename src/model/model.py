@@ -1,28 +1,28 @@
 from __future__ import annotations
 
-from src.pattern.priority_graphs.manual import NodePattern
+from src.schema.priority_graphs.manual import SchemaNode 
 from src.shared.shape import LockedShape 
 from src.shared.index import Index
 
 from typing import List, Set, Tuple, Iterable
 from typing_extensions import Self
 
-class Graph():
+class Model():
 	_MAX_ITERATIONS = 1024 
-	def __init__(self, input_nodes: List[Node] = [], output_nodes: List[Node] = list()) -> None:
-		self._input_nodes: List[Node] = input_nodes 
-		self._output_nodes: List[Node] = output_nodes 
+	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
+		self._input_nodes: List[ModelNode] = input_nodes 
+		self._output_nodes: List[ModelNode] = output_nodes 
 	def to_flat_source_module(self) -> Tuple[str, str]:
 		return "", ""
 	def to_runnable_module(self) -> None:
 		pass
 
-class Node():
+class ModelNode():
 	__slots__ = ["_index", "_id", "_node_pattern", "_children", "_parents", "_output_shape", "_mould_shape"]
-	def __init__(self, index: Index, id: int, node_pattern: NodePattern, output_shape: LockedShape, mould_shape: LockedShape, parents: Iterable[Self] | None) -> None:
+	def __init__(self, index: Index, id: int, node_pattern: SchemaNode, output_shape: LockedShape, mould_shape: LockedShape, parents: Iterable[Self] | None) -> None:
 		self._index: Index = index
 		self._id: int = id 
-		self._node_pattern: NodePattern = node_pattern 
+		self._node_pattern: SchemaNode = node_pattern 
 		self._children: Set[Self] = set() #may want to make this a list, so that order is preserved
 		self._parents: Set[Self] = set()
 		if parents is not None:
@@ -57,5 +57,5 @@ class Node():
 		if parent in self._parents:
 			self._parents.remove(parent)
 			parent.unbind_child(self)
-	def get_pattern(self) -> NodePattern:
+	def get_pattern(self) -> SchemaNode:
 		return self._node_pattern

@@ -3,7 +3,7 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from src.pattern.node_parameters import IdentityParameters, ConvParameters 
+from src.schema.node_parameters import IdentityParameters, ConvParameters 
 from src.shared.shape import LockedShape, OpenShape, Bound, Range
 
 class TestIdentityParemeters(unittest.TestCase):
