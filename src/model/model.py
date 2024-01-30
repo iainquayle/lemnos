@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.schema.node_parameters import IdentityParameters
-from src.schema.priority_graphs.manual import SchemaNode, Schema, Transition 
+from src.schema.priority_schemas.manual import SchemaNode, Schema, Transition
 from src.shared.shape import LockedShape, OpenShape, Bound 
 from src.shared.index import Index
 from src.shared.merge_method import Concat
@@ -12,6 +12,10 @@ from typing_extensions import Self
 from dataclasses import dataclass
 from copy import copy, deepcopy
 
+
+#TODO: may need to move the building once again
+#	make seperate module for the schema, then put building in there, shouldnt have cirular import then too
+#	make a little more sense, and make room for the model to generate source
 class Model():
 	_MAX_ITERATIONS = 1024 
 	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
@@ -43,7 +47,7 @@ class Model():
 		if (result := expansion_collection.min()) is not None:
 			schema_node, stack = result
 			parents = stack.pop().parents
-			pivot = index.to_int(len(schema_node.transition_groups))
+			pivot = index.get_shuffled(len(schema_node.transition_groups))
 			i = 0
 			while abs(i) < max(len(schema_node.transition_groups) - pivot, pivot):
 				if pivot + i < len(schema_node.transition_groups) and pivot + i >= 0:

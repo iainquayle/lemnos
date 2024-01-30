@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
 from src.schema.node_parameters import BaseParameters  
 from src.shared.shape import Bound, LockedShape, Shape 
@@ -8,12 +7,8 @@ from src.shared.merge_method import MergeMethod
 from typing import List, Set 
 from copy import copy 
 
-#TODO: well shit, may need to move build back to the model, and just treat the pattern as data
-
 #TODO: items that need to be added:
 #	macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
-
-#TODO: rename to schema
 class Schema:
 	def __init__(self) -> None:
 		if len(self.inputs) == 0 or len(self.outputs) == 0:
@@ -49,7 +44,7 @@ class Transition:
 		if priority > Transition._MAX_PRIORITY or priority < Transition._MIN_PRIORITY:
 			raise ValueError("Priority out of bounds")
 		self.next: SchemaNode = next
-		self.optional: bool =  False #optional 
+		self.optional: bool =  False 
 		self.priority: int = priority 
 		self.join_existing: bool = join_existing 
 	@staticmethod

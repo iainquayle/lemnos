@@ -83,7 +83,7 @@ class ConvParameters(BaseParameters):
 			else:
 				lower = int(input_shape.get_product() * self._size_coefficents.lower()) // output_conformance.get_product()
 				upper = int(input_shape.get_product() * self._size_coefficents.upper()) // output_conformance.get_product()
-				return open_shape.to_locked(self._shape_bounds.clamp_value(index.to_int(upper - lower) + lower, 0))
+				return open_shape.to_locked(self._shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0) , 0))
 		else:
 			return None
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:

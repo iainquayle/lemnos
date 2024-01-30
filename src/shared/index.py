@@ -1,8 +1,16 @@
+from typing import Tuple 
+import random
+
 class Index:
 	MAX_INDEX = 2**16 -1
 	def __init__(self, index: int =0) -> None:
-		self.index = index
-	def to_int(self, mod_factor: int) -> int:
-		return self.index % mod_factor if mod_factor > 0 else 0
-	def as_ratio(self) -> float:
-		return self.index / Index.MAX_INDEX
+		self._index = index
+	def get_shuffled(self, bounds: Tuple[int, int] | int, salt: int = 0) -> int:
+		if isinstance(bounds, int):
+			bounds = (0, bounds)
+		elif bounds[0] > bounds[1]:
+			bounds = (bounds[1], bounds[0])
+		#TODO: may need to change this, so that the bounding is done after the num is generated?
+		return random.Random(self._index + salt).randint(*bounds)
+	def get(self) -> int:
+		return self._index
