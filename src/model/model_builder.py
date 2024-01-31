@@ -102,7 +102,7 @@ class _ExpansionNode:
 			if parent.get_pattern() == node.get_pattern():
 				return False 
 		return True 
-	def __copy__(self) -> _ExpansionNode:
+	def copy(self) -> _ExpansionNode:
 		return _ExpansionNode(copy(self.parents), self.priority)
 class _ExpansionStack:
 	__slots__ = ["_stack"]
@@ -123,8 +123,8 @@ class _ExpansionStack:
 		return self.peek().priority if len(self._stack) > 0 else Transition.get_max_priority() + 1
 	def __len__(self) -> int:
 		return len(self._stack)
-	def __deepcopy__(self) -> _ExpansionStack:
-		return _ExpansionStack(copy(self._stack))
+	def copy(self) -> _ExpansionStack:
+		return _ExpansionStack([copy(node) for node in self._stack])
 class _ExpansionCollection:
 	__slots__ = ["_expansion_nodes"]
 	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
@@ -156,7 +156,9 @@ class _ExpansionCollection:
 	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
 		return self._expansion_nodes[key]
 	def __copy__(self) -> _ExpansionCollection:
-		return _ExpansionCollection(deepcopy(self._expansion_nodes))
+		return _ExpansionCollection({key: copy(value) for key, value in self._expansion_nodes.items()})
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._expansion_nodes
+	def __len__(self) -> int:
+		return len(self._expansion_nodes)
 

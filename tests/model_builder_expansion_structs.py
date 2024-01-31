@@ -7,6 +7,7 @@ from src.schema.node_parameters import IdentityParameters
 from src.shared.merge_method import Concat
 from src.shared.shape import Bound, LockedShape
 from src.shared.index import Index
+from copy import copy
 
 s1 = SchemaNode(IdentityParameters(Bound()), Concat())
 s2 = SchemaNode(IdentityParameters(Bound()), Concat())
@@ -46,3 +47,8 @@ class TestExpansionCollection(unittest.TestCase):
 		self.collection = _ExpansionCollection({s1: self.stack1, s2: self.stack2})
 	def test_min(self):
 		pass
+	def test_copy(self):
+		new_collection = copy(self.collection) 
+		self.assertEqual(len(new_collection), len(self.collection))
+		self.assertEqual(new_collection[s1].peek().parents, self.collection[s1].peek().parents)
+		self.assertEqual(new_collection[s2].peek().parents, self.collection[s2].peek().parents)
