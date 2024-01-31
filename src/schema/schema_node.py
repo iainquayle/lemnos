@@ -47,7 +47,7 @@ class Transition:
 		return self._priority
 	#def is_optional(self) -> bool:
 	#	return self._optional
-	def join_existing(self) -> bool:
+	def get_join_existing(self) -> bool:
 		return self._join_existing
 	@staticmethod
 	def get_max_priority() -> int:

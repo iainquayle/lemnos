@@ -38,7 +38,7 @@ class ModelBuilder:
 			input = SchemaNode(IdentityParameters(Bound([None] * len(shape))), Concat())
 			input_node = ModelNode(Index(), i, input, shape, shape, None)
 			input_nodes.append(input_node)
-			expansion_collection.add(input_node, -1)
+			#expansion_collection.add(input_node, -1)
 		nodes = ModelBuilder._build_node(expansion_collection, indices, len(input_nodes))
 		if (result := expansion_collection.min()) is not None:
 			to_expand, _ = result
@@ -46,8 +46,8 @@ class ModelBuilder:
 		else:
 			raise ValueError("No valid input")
 		return Model()
-	@staticmethod
-	def _build_node(expansion_collection: _ExpansionCollection, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
+	@staticmethod #TODO: it may make sense that this actually be put under the expansion collection class, as its expanding itself
+	def _build_node(expansion_collection: _ExpansionCollection, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode: 
 		index = indices[0]
 		if (result := expansion_collection.min()) is not None:
 			schema_node, stack = result
@@ -61,8 +61,8 @@ class ModelBuilder:
 					join_nodes: Dict[Transition, _ExpansionNode] = {}
 					conformance_shape = OpenShape.new()
 					while (transition := next(transition_iter, None)) is not None and conformance_shape is not None:
-						if transition.join_existing():
-							if join_on := expansion_collection[transition.get_next()].get_available(parents[0]):
+						if transition.get_join_existing():
+							if join_on := expansion_collection[transition.get_next()].get_available(parents[0]): #TODO: double check this
 								conformance_shape = conformance_shape.common_lossless(transition.get_next().get_conformance_shape(join_on.get_parent_shapes()))
 								join_nodes[transition] = join_on
 							else:
@@ -74,10 +74,7 @@ class ModelBuilder:
 							node = ModelNode(index, id, schema_node, *shapes, parents)
 							for transition in iter(group):
 								stack = new_collection[transition.get_next()]
-								if transition.join_existing():
-									join_nodes[transition].add_parent(node, transition.get_priority())
-								else:
-									new_collection.add(node, transition.get_priority())
+								new_collection.add(transition, node)
 							if isinstance(result := ModelBuilder._build_node(new_collection, indices, id + 1), SchemaNode):
 								for transition in iter(group):
 									if transition.get_next() == result and not transition.join_existing():
@@ -139,11 +136,23 @@ class _ExpansionCollection:
 		if len(min_schema[1]) == 0:
 			return None
 		return min_schema
-	def add(self, node: ModelNode, priority: int) -> None:
-		if node.get_pattern() in self._expansion_nodes:
-			self._expansion_nodes[node.get_pattern()].push(_ExpansionNode([node], priority))
+	def pop_min(self) -> _ExpansionNode | None:
+		if (result := self.min()) is not None:
+			_, stack = result
+			return stack.pop()
+		return None
+	def add(self, transition: Transition, parent: ModelNode) -> bool:
+		if transition.get_join_existing():
+			if transition.get_next() in self and (join_on := self[transition.get_next()].get_available(parent)) is not None:
+				join_on.add_parent(parent, transition.get_priority())
+				return True
+			else:
+				return False
 		else:
-			self._expansion_nodes[node.get_pattern()] = _ExpansionStack([_ExpansionNode([node], priority)])
+			if transition.get_next() not in self:
+				self._expansion_nodes[transition.get_next()] = _ExpansionStack()
+			self._expansion_nodes[transition.get_next()].push(_ExpansionNode([parent], transition.get_priority()))
+			return True	
 	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
 		return self._expansion_nodes[key]
 	def __copy__(self) -> _ExpansionCollection:
