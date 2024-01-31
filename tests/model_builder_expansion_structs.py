@@ -1,7 +1,8 @@
 import unittest   
 
-from src.model.model import _ExpansionNode, _ExpansionStack, _ExpansionCollection, ModelNode
-from src.schema.priority_schemas.manual import SchemaNode, Transition
+from src.model.model_builder import _ExpansionNode, _ExpansionStack, _ExpansionCollection
+from src.model.model import ModelNode
+from src.schema.schema_node import SchemaNode, Transition
 from src.schema.node_parameters import IdentityParameters 
 from src.shared.merge_method import Concat
 from src.shared.shape import Bound, LockedShape
