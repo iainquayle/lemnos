@@ -77,13 +77,59 @@ class ModelBuilder:
 								new_collection.add(transition, node)
 							if isinstance(result := ModelBuilder._build_node(new_collection, indices, id + 1), SchemaNode):
 								for transition in iter(group):
-									if transition.get_next() == result and not transition.join_existing():
+									if transition.get_next() == result and not transition.get_join_existing():
 										return result
 							else:
 								return [node, *result]
 				i = -i if i > 0 else -i + 1
 			return schema_node
 		return []
+
+
+class _ExpansionCollection:
+	__slots__ = ["_expansion_nodes"]
+	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
+		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
+	def min(self) -> Tuple[SchemaNode, _ExpansionStack] | None: 
+		if len(self._expansion_nodes) == 0:
+			return None
+		min_schema = min(self._expansion_nodes.items(), key=lambda item: item[1].get_priority()) 
+		if len(min_schema[1]) == 0:
+			return None
+		return min_schema
+	def pop_min(self) -> _ExpansionNode | None:
+		if (result := self.min()) is not None:
+			_, stack = result
+			return stack.pop()
+		return None
+	def add(self, transition: Transition, parent: ModelNode) -> bool:
+		if transition.get_join_existing():
+			if transition.get_next() in self and (join_on := self[transition.get_next()].get_available(parent)) is not None:
+				join_on.add_parent(parent, transition.get_priority())
+				return True
+			else:
+				return False
+		else:
+			if transition.get_next() not in self:
+				self._expansion_nodes[transition.get_next()] = _ExpansionStack()
+			self._expansion_nodes[transition.get_next()].push(_ExpansionNode([parent], transition.get_priority()))
+			return True	
+	def is_empty(self) -> bool:
+		for stack in self._expansion_nodes.values():
+			if len(stack) > 0:
+				return False
+		return True
+	def expand_node(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode | None:
+		pass
+	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
+		return self._expansion_nodes[key]
+	def __copy__(self) -> _ExpansionCollection:
+		return _ExpansionCollection({key: copy(value) for key, value in self._expansion_nodes.items()})
+	def __contains__(self, key: SchemaNode) -> bool:
+		return key in self._expansion_nodes
+	def __len__(self) -> int:
+		return len(self._expansion_nodes)
+
 
 @dataclass
 class _ExpansionNode:
@@ -125,40 +171,3 @@ class _ExpansionStack:
 		return len(self._stack)
 	def copy(self) -> _ExpansionStack:
 		return _ExpansionStack([copy(node) for node in self._stack])
-class _ExpansionCollection:
-	__slots__ = ["_expansion_nodes"]
-	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
-		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
-	def min(self) -> Tuple[SchemaNode, _ExpansionStack] | None:
-		if len(self._expansion_nodes) == 0:
-			return None
-		min_schema = min(self._expansion_nodes.items(), key=lambda item: item[1].get_priority()) 
-		if len(min_schema[1]) == 0:
-			return None
-		return min_schema
-	def pop_min(self) -> _ExpansionNode | None:
-		if (result := self.min()) is not None:
-			_, stack = result
-			return stack.pop()
-		return None
-	def add(self, transition: Transition, parent: ModelNode) -> bool:
-		if transition.get_join_existing():
-			if transition.get_next() in self and (join_on := self[transition.get_next()].get_available(parent)) is not None:
-				join_on.add_parent(parent, transition.get_priority())
-				return True
-			else:
-				return False
-		else:
-			if transition.get_next() not in self:
-				self._expansion_nodes[transition.get_next()] = _ExpansionStack()
-			self._expansion_nodes[transition.get_next()].push(_ExpansionNode([parent], transition.get_priority()))
-			return True	
-	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
-		return self._expansion_nodes[key]
-	def __copy__(self) -> _ExpansionCollection:
-		return _ExpansionCollection({key: copy(value) for key, value in self._expansion_nodes.items()})
-	def __contains__(self, key: SchemaNode) -> bool:
-		return key in self._expansion_nodes
-	def __len__(self) -> int:
-		return len(self._expansion_nodes)
-
