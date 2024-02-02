@@ -8,9 +8,8 @@ from src.shared.index import Index
 from src.schema.schema_node import SchemaNode, Transition 
 
 from typing import List, Dict, Tuple
-from copy import copy, deepcopy 
 
-from dataclasses import dataclass
+from copy import copy
 
 #TODO: perhaps add a flag that switches whether the indices should be atModelNodeted in order, or just used at random for breeding,
 #	could use a random seed, that can also effectivley work as a flag
@@ -39,19 +38,24 @@ class ModelBuilder:
 			input_node = ModelNode(Index(), i, input, shape, shape, None)
 			input_nodes.append(input_node)
 			#expansion_collection.add(input_node, -1)
-		nodes = ModelBuilder._build_node(expansion_collection, indices, len(input_nodes))
+		nodes = expansion_collection.build_min(indices, len(input_nodes))
 		if (result := expansion_collection.min()) is not None:
 			to_expand, _ = result
 			#to_expand.build(expansion_collection, indices, len(input_nodes))
 		else:
 			raise ValueError("No valid input")
 		return Model()
-	@staticmethod #TODO: it may make sense that this actually be put under the expansion collection class, as its expanding itself
-	def _build_node(expansion_collection: _ExpansionCollection, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode: 
+
+class _ExpansionCollection:
+	__slots__ = ["_expansion_nodes"]
+	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
+		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
+	def build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
 		index = indices[0]
-		if (result := expansion_collection.min()) is not None:
-			schema_node, stack = result
-			parents = stack.pop().parents
+		if (result := self.pop_min()) is not None:
+			schema_node, expansion_node = result
+			parents = expansion_node.get_parents()
+			input_shape: LockedShape = schema_node.get_merge_method().get_output_shape([parent.get_output_shape() for parent in parents])
 			pivot = index.get_shuffled(len(schema_node))
 			i = 0
 			while abs(i) < max(len(schema_node) - pivot, pivot):
@@ -62,20 +66,20 @@ class ModelBuilder:
 					conformance_shape = OpenShape.new()
 					while (transition := next(transition_iter, None)) is not None and conformance_shape is not None:
 						if transition.get_join_existing():
-							if join_on := expansion_collection[transition.get_next()].get_available(parents[0]): #TODO: double check this
+							if (join_on := self[transition.get_next()].get_available(schema_node)) is not None: #TODO: double check this
 								conformance_shape = conformance_shape.common_lossless(transition.get_next().get_conformance_shape(join_on.get_parent_shapes()))
 								join_nodes[transition] = join_on
 							else:
 								conformance_shape = None
 					if conformance_shape is not None:
-						new_collection = copy(expansion_collection)
-						shapes = schema_node.get_parameters().get_mould_and_output_shapes(parents[0].get_output_shape(), conformance_shape, index)
+						new_collection = copy(self)
+						shapes = schema_node.get_parameters().get_mould_and_output_shapes(input_shape, conformance_shape, index)
 						if shapes is not None:
 							node = ModelNode(index, id, schema_node, *shapes, parents)
 							for transition in iter(group):
 								stack = new_collection[transition.get_next()]
 								new_collection.add(transition, node)
-							if isinstance(result := ModelBuilder._build_node(new_collection, indices, id + 1), SchemaNode):
+							if isinstance(result := new_collection.build_min(indices, id + 1), SchemaNode):
 								for transition in iter(group):
 									if transition.get_next() == result and not transition.get_join_existing():
 										return result
@@ -84,12 +88,6 @@ class ModelBuilder:
 				i = -i if i > 0 else -i + 1
 			return schema_node
 		return []
-
-
-class _ExpansionCollection:
-	__slots__ = ["_expansion_nodes"]
-	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
-		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
 	def min(self) -> Tuple[SchemaNode, _ExpansionStack] | None: 
 		if len(self._expansion_nodes) == 0:
 			return None
@@ -97,15 +95,15 @@ class _ExpansionCollection:
 		if len(min_schema[1]) == 0:
 			return None
 		return min_schema
-	def pop_min(self) -> _ExpansionNode | None:
+	def pop_min(self) -> Tuple[SchemaNode, _ExpansionNode] | None:
 		if (result := self.min()) is not None:
-			_, stack = result
-			return stack.pop()
+			schema, stack = result
+			return schema, stack.pop()
 		return None
 	def add(self, transition: Transition, parent: ModelNode) -> bool:
 		if transition.get_join_existing():
-			if transition.get_next() in self and (join_on := self[transition.get_next()].get_available(parent)) is not None:
-				join_on.add_parent(parent, transition.get_priority())
+			if transition.get_next() in self and (join_on_node := self[transition.get_next()].get_available(parent)) is not None:
+				join_on_node.add_parent(parent, transition.get_priority())
 				return True
 			else:
 				return False
@@ -119,8 +117,6 @@ class _ExpansionCollection:
 			if len(stack) > 0:
 				return False
 		return True
-	def expand_node(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode | None:
-		pass
 	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
 		return self._expansion_nodes[key]
 	def __copy__(self) -> _ExpansionCollection:
@@ -129,44 +125,45 @@ class _ExpansionCollection:
 		return key in self._expansion_nodes
 	def __len__(self) -> int:
 		return len(self._expansion_nodes)
-
-
-@dataclass
 class _ExpansionNode:
+	__slots__ = ["_parents", "_priority"]
 	def __init__(self, parents: List[ModelNode], priority: int) -> None:
-		self.parents: List[ModelNode] = parents #may be quicker to make this a dict again
-		self.priority: int = priority 
+		self._parents: Dict[SchemaNode, ModelNode] = {parent.get_pattern(): parent for parent in parents} #may be quicker to make this a dict again
+		self._priority: int = priority 
 	def get_parent_shapes(self) -> List[LockedShape]:
-		return [parent.get_output_shape() for parent in self.parents]
-	def add_parent(self, parent: ModelNode, priority: int) -> None: #TODO: condider making this just return a bool
+		return [parent.get_output_shape() for parent in self._parents.values()]
+	def get_parents(self) -> List[ModelNode]:
+		return list(self._parents.values())
+	def get_priority(self) -> int:
+		return self._priority
+	def add_parent(self, parent: ModelNode, priority: int) -> bool: #TODO: condider making this just return a bool
 		if not self.available(parent):
-			raise ValueError("Parent already taken")
-		self.parents.append(parent)
-		self.priority = min(self.priority, priority) 
-	def available(self, node: ModelNode) -> bool:
-		for parent in self.parents:
-			if parent.get_pattern() == node.get_pattern():
-				return False 
-		return True 
+			return False
+		self._parents[parent.get_pattern()] = parent
+		self._priority = min(self._priority, priority) 
+		return True
+	def available(self, parent: ModelNode | SchemaNode) -> bool:
+		return (parent.get_pattern() if isinstance(parent, ModelNode) else parent) not in self._parents 
 	def copy(self) -> _ExpansionNode:
-		return _ExpansionNode(copy(self.parents), self.priority)
+		return _ExpansionNode(copy(self.get_parents()), self._priority)
 class _ExpansionStack:
 	__slots__ = ["_stack"]
 	def __init__(self, stack: List[_ExpansionNode] = []) -> None:
 		self._stack: List[_ExpansionNode] = stack 
 	def push(self, data: _ExpansionNode) -> None:
 		self._stack.append(data)
-	def get_available(self, node: ModelNode) -> _ExpansionNode | None: 
-		for i in range(len(self._stack) - 1, -1, -1):
-			if self._stack[i].available(node):
-				return self._stack[i] 
-		return None
+	def get_available(self, parent: ModelNode | SchemaNode) -> _ExpansionNode | None: 
+		result = None
+		for node in self._stack:
+			if node.available(parent):
+				result = node
+		return result
 	def pop(self) -> _ExpansionNode:
 		return self._stack.pop()
 	def peek(self) -> _ExpansionNode:
 		return self._stack[-1]
 	def get_priority(self) -> int:
-		return self.peek().priority if len(self._stack) > 0 else Transition.get_max_priority() + 1
+		return self.peek().get_priority() if len(self._stack) > 0 else Transition.get_max_priority() + 1
 	def __len__(self) -> int:
 		return len(self._stack)
 	def copy(self) -> _ExpansionStack:
