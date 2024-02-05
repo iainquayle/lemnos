@@ -35,10 +35,11 @@ class ModelBuilder:
 		return Model()
 
 class _BuildTracker:
-	__slots__ = ["_build_nodes", "_max_iterations"]
+	__slots__ = ["_build_nodes", "_max_iterations", "_indices"]
 	def __init__(self, indices: List[Index], max_iterations: int, build_nodes: Dict[SchemaNode, _BuildStack] = dict()) -> None:
 		self._build_nodes: Dict[SchemaNode, _BuildStack] = build_nodes
 		self._max_iterations: int = max_iterations
+		self._indices: List[Index] = indices
 	@staticmethod
 	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: List[Index], max_iterations: int) -> List[ModelNode] | None:
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
@@ -126,7 +127,7 @@ class _BuildTracker:
 	def __getitem__(self, key: SchemaNode) -> _BuildStack:
 		return self._build_nodes[key]
 	def __copy__(self) -> _BuildTracker:
-		return _BuildTracker({key: copy(value) for key, value in self._build_nodes.items()})
+		return _BuildTracker(self._indices, self._max_iterations, {key: copy(value) for key, value in self._build_nodes.items()})
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._build_nodes
 	def __len__(self) -> int:

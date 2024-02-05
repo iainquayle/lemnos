@@ -23,7 +23,7 @@ class TestBuildTracker(unittest.TestCase):
 		self.node2 = _BuildNode([m1s2], 10)
 		self.stack1 = _BuildStack([self.node1])
 		self.stack2 = _BuildStack([self.node2])
-		self.collection = _BuildTracker({s1: self.stack1, s2: self.stack2})
+		self.collection = _BuildTracker([], 0, {s1: self.stack1, s2: self.stack2})
 	def test_build_min_final(self):
 		pass
 	def test_build_min_fail_join_existing(self):
@@ -36,7 +36,7 @@ class TestBuildTracker(unittest.TestCase):
 		self.assertEqual(self.collection.pop_min(), (s1, self.node1))
 		self.assertEqual(self.collection.pop_min(), (s2, self.node2))
 	def test_pop_min_empty(self):
-		collection = _BuildTracker()
+		collection = _BuildTracker([], 0)
 		self.assertIsNone(collection.pop_min())
 	def test_copy(self):
 		new_collection = copy(self.collection) 
@@ -58,7 +58,7 @@ class TestBuildTracker(unittest.TestCase):
 		self.assertEqual(self.collection[s2].peek().get_priority(), 0)
 	def test_record_invalid(self):
 		t2_j = Transition(s2, 1, True)
-		tracker = _BuildTracker({s1: self.stack1, s2: _BuildStack([])})
+		tracker = _BuildTracker([], 0, {s1: self.stack1, s2: _BuildStack([])})
 		self.assertFalse(tracker.record_transition(t2_j, m1s1))
 		t1_j = Transition(s1, 0, True)
 		self.assertFalse(tracker.record_transition(t1_j, m1s1))
