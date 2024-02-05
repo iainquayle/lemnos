@@ -199,9 +199,7 @@ class Bound:
 		else:
 			return value
 	def __contains__(self, shape: Shape) -> bool:
-		if shape.dimensionality() > len(self._bounds):
-			return False
-		for i in range(1, len(shape) + 1):
+		for i in range(1, max(len(shape), len(self._bounds)) + 1):
 			element = self._bounds[-i]
 			if element is not None:
 				if shape[-i] < element[Bound._LOWER_INDEX] or shape[-i] > element[Bound._UPPER_INDEX]:

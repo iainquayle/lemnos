@@ -50,6 +50,9 @@ class _ExpansionCollection:
 	__slots__ = ["_expansion_nodes"]
 	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
 		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
+	@staticmethod
+	def init_inputs(inputs: List[SchemaNode], input_shapes: List[LockedShape]) -> _ExpansionCollection:
+		pass
 	def build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
 		index = indices[0]
 		if (result := self.pop_min()) is not None:
@@ -88,7 +91,8 @@ class _ExpansionCollection:
 									#	backtrack to the previous and try next option
 									#		likely slower
 									#		guaranteed to find all valid graphs constrained by known shortfalls
-									if transition.get_next() == result and not transition.get_join_existing(): 
+									#would be benificial no matter which option, to do a preliminary bounds check on the transformed shape when the node is created
+									if transition.get_next() == result and not transition.get_join_existing(): #this needs to change
 										return result
 							else:
 								return [node, *result]
