@@ -46,11 +46,15 @@ class ModelNode():
 			raise Exception("Cannot unbind node with children")
 		for parent in self._parents:
 			parent.unbind_child(self)
+	def unbind_all(self) -> None:
+		for child in self._children:
+			child.unbind_parent(self)
+		for parent in self._parents:
+			parent.unbind_child(self)
 	def unbind_child(self, child: Self) -> None:
 		if child in self._children:
 			self._children.remove(child)
 			child.unbind_parent(self)
-	#technically dont need to unbind parent, but probably safest
 	def unbind_parent(self, parent: Self) -> None:
 		if parent in self._parents:
 			self._parents.remove(parent)

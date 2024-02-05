@@ -19,45 +19,40 @@ from copy import copy
 #TODO: items that need to be added:
 #	macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
 class ModelBuilder:
-	def __init__(self) -> None:
-		if len(self.inputs) == 0 or len(self.outputs) == 0:
+	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_iterations: int) -> None:
+		if len(inputs) == 0 or len(outputs) == 0:
 			raise ValueError("No start or end patterns")
-		self.inputs: List[SchemaNode] = []
-		self.outputs: List[SchemaNode] = []
+		self.inputs: List[SchemaNode] = inputs 
+		self.outputs: List[SchemaNode] = outputs 
+		self.max_iterations: int = max_iterations
 	def add_start(self, pattern: SchemaNode) -> None:
 		self.inputs.append(pattern)
 	def add_end(self, pattern: SchemaNode) -> None:
 		self.outputs.append(pattern)
-	def from_schema(self, input_shapes: List[LockedShape], indices: List[Index]) -> Model:
+	def build(self, input_shapes: List[LockedShape], indices: List[Index]) -> Model:
 		if len(input_shapes) != len(self.inputs):
 			raise ValueError("Incorrect number of input shapes")
-		expansion_collection: _ExpansionCollection = _ExpansionCollection()
-		input_nodes: List[ModelNode] = []
-		for i, shape in enumerate(input_shapes):
-			input = SchemaNode(IdentityParameters(Bound([None] * len(shape))), Concat())
-			input_node = ModelNode(Index(), i, input, shape, shape, None)
-			input_nodes.append(input_node)
-			#expansion_collection.add(input_node, -1)
-		nodes = expansion_collection.build_min(indices, len(input_nodes))
-		if (result := expansion_collection.min()) is not None:
-			to_expand, _ = result
-			#to_expand.build(expansion_collection, indices, len(input_nodes))
-		else:
-			raise ValueError("No valid input")
 		return Model()
 
-class _ExpansionCollection:
-	__slots__ = ["_expansion_nodes"]
-	def __init__(self, expansion_nodes: Dict[SchemaNode, _ExpansionStack] = dict()) -> None:
-		self._expansion_nodes: Dict[SchemaNode, _ExpansionStack] = expansion_nodes
+class _BuildTracker:
+	__slots__ = ["_build_nodes", "_max_iterations"]
+	def __init__(self, indices: List[Index], max_iterations: int, build_nodes: Dict[SchemaNode, _BuildStack] = dict()) -> None:
+		self._build_nodes: Dict[SchemaNode, _BuildStack] = build_nodes
+		self._max_iterations: int = max_iterations
 	@staticmethod
-	def init_inputs(inputs: List[SchemaNode], input_shapes: List[LockedShape]) -> _ExpansionCollection:
-		pass
-	def build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
+	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: List[Index], max_iterations: int) -> List[ModelNode] | None:
+		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
+		tracker = _BuildTracker(indices, max_iterations, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()})
+		if not isinstance((result := tracker._build_min(indices, 0)), SchemaNode):
+			for node in dummy_nodes.values():
+				node.unbind_all()
+			return result
+		return None
+	def _build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
 		index = indices[0]
 		if (result := self.pop_min()) is not None:
-			schema_node, expansion_node = result
-			parents = expansion_node.get_parents()
+			schema_node, build_node = result
+			parents = build_node.get_parents()
 			input_shape: LockedShape = schema_node.get_merge_method().get_output_shape([parent.get_output_shape() for parent in parents])
 			pivot = index.get_shuffled(len(schema_node))
 			i = 0
@@ -65,7 +60,7 @@ class _ExpansionCollection:
 				if pivot + i < len(schema_node) and pivot + i >= 0:
 					group = schema_node[pivot + i]
 					transition_iter = iter(group)
-					join_nodes: Dict[Transition, _ExpansionNode] = {}
+					join_nodes: Dict[Transition, _BuildNode] = {}
 					conformance_shape = OpenShape.new()
 					while (transition := next(transition_iter, None)) is not None and conformance_shape is not None: #TODO: simplify somehow, fugly
 						if transition.get_join_existing():
@@ -75,38 +70,38 @@ class _ExpansionCollection:
 							else:
 								conformance_shape = None
 					if conformance_shape is not None:
-						new_collection = copy(self)
+						tracker_copy = copy(self)
 						shapes = schema_node.get_parameters().get_mould_and_output_shapes(input_shape, conformance_shape, index)
 						if shapes is not None:
 							node = ModelNode(index, id, schema_node, *shapes, parents)
 							for transition in iter(group):
-								new_collection.record_transition(transition, node)
-							if isinstance(result := new_collection.build_min(indices, id + 1), SchemaNode):
-								for transition in iter(group):
-									#two options:
-									#	backtrack all the way to the creator of the node
-									#		suppose node will always create shape out of bounds 
-									#		quicker likely
-									#		may miss some valid graphs?
-									#	backtrack to the previous and try next option
-									#		likely slower
-									#		guaranteed to find all valid graphs constrained by known shortfalls
-									#would be benificial no matter which option, to do a preliminary bounds check on the transformed shape when the node is created
-									if transition.get_next() == result and not transition.get_join_existing(): #this needs to change
-										return result
+								tracker_copy.record_transition(transition, node)
+							if isinstance(result := tracker_copy._build_min(indices, id + 1), SchemaNode):
+								#two options:
+								#	backtrack all the way to the creator of the node
+								#		suppose node will always create shape out of bounds 
+								#		quicker likely
+								#		may miss some valid graphs?
+								#	backtrack to the previous and try next option
+								#		likely slower
+								#		guaranteed to find all valid graphs constrained by known shortfalls
+								#would be benificial no matter which option, to do a preliminary bounds check on the transformed shape when the node is created
+								if result in self and len(self[result]) == len(tracker_copy[result]): 
+									#right idea but still not right, what if it made another version of itself
+									return result
 							else:
 								return [node, *result]
 				i = -i if i > 0 else -i + 1
 			return schema_node
 		return []
-	def min(self) -> Tuple[SchemaNode, _ExpansionStack] | None: 
-		if len(self._expansion_nodes) == 0:
+	def min(self) -> Tuple[SchemaNode, _BuildStack] | None: 
+		if len(self._build_nodes) == 0:
 			return None
-		min_schema = min(self._expansion_nodes.items(), key=lambda item: item[1].get_priority()) 
+		min_schema = min(self._build_nodes.items(), key=lambda item: item[1].get_priority()) 
 		if len(min_schema[1]) == 0:
 			return None
 		return min_schema
-	def pop_min(self) -> Tuple[SchemaNode, _ExpansionNode] | None:
+	def pop_min(self) -> Tuple[SchemaNode, _BuildNode] | None:
 		if (result := self.min()) is not None:
 			schema, stack = result
 			return schema, stack.pop()
@@ -120,23 +115,23 @@ class _ExpansionCollection:
 				return False
 		else:
 			if transition.get_next() not in self:
-				self._expansion_nodes[transition.get_next()] = _ExpansionStack()
-			self._expansion_nodes[transition.get_next()].push(_ExpansionNode([parent], transition.get_priority()))
+				self._build_nodes[transition.get_next()] = _BuildStack()
+			self._build_nodes[transition.get_next()].push(_BuildNode([parent], transition.get_priority()))
 			return True	
 	def is_empty(self) -> bool:
-		for stack in self._expansion_nodes.values():
+		for stack in self._build_nodes.values():
 			if len(stack) > 0:
 				return False
 		return True
-	def __getitem__(self, key: SchemaNode) -> _ExpansionStack:
-		return self._expansion_nodes[key]
-	def __copy__(self) -> _ExpansionCollection:
-		return _ExpansionCollection({key: copy(value) for key, value in self._expansion_nodes.items()})
+	def __getitem__(self, key: SchemaNode) -> _BuildStack:
+		return self._build_nodes[key]
+	def __copy__(self) -> _BuildTracker:
+		return _BuildTracker({key: copy(value) for key, value in self._build_nodes.items()})
 	def __contains__(self, key: SchemaNode) -> bool:
-		return key in self._expansion_nodes
+		return key in self._build_nodes
 	def __len__(self) -> int:
-		return len(self._expansion_nodes)
-class _ExpansionNode:
+		return len(self._build_nodes)
+class _BuildNode:
 	__slots__ = ["_parents", "_priority"]
 	def __init__(self, parents: List[ModelNode], priority: int) -> None:
 		self._parents: Dict[SchemaNode, ModelNode] = {parent.get_pattern(): parent for parent in parents} #may be quicker to make this a dict again
@@ -155,27 +150,27 @@ class _ExpansionNode:
 		return True
 	def available(self, parent: ModelNode | SchemaNode) -> bool:
 		return (parent.get_pattern() if isinstance(parent, ModelNode) else parent) not in self._parents 
-	def __copy__(self) -> _ExpansionNode:
-		return _ExpansionNode(copy(self.get_parents()), self._priority)
-class _ExpansionStack:
+	def __copy__(self) -> _BuildNode:
+		return _BuildNode(copy(self.get_parents()), self._priority)
+class _BuildStack:
 	__slots__ = ["_stack"]
-	def __init__(self, stack: List[_ExpansionNode] = []) -> None:
-		self._stack: List[_ExpansionNode] = stack 
-	def push(self, data: _ExpansionNode) -> None:
+	def __init__(self, stack: List[_BuildNode] = []) -> None:
+		self._stack: List[_BuildNode] = stack 
+	def push(self, data: _BuildNode) -> None:
 		self._stack.append(data)
-	def get_available(self, parent: ModelNode | SchemaNode) -> _ExpansionNode | None: 
+	def get_available(self, parent: ModelNode | SchemaNode) -> _BuildNode | None: 
 		result = None
 		for node in self._stack:
 			if node.available(parent):
 				result = node
 		return result
-	def pop(self) -> _ExpansionNode:
+	def pop(self) -> _BuildNode:
 		return self._stack.pop()
-	def peek(self) -> _ExpansionNode:
+	def peek(self) -> _BuildNode:
 		return self._stack[-1]
 	def get_priority(self) -> int:
 		return self.peek().get_priority() if len(self._stack) > 0 else Transition.get_max_priority() + 1
 	def __len__(self) -> int:
 		return len(self._stack)
-	def __copy__(self) -> _ExpansionStack:
-		return _ExpansionStack([copy(node) for node in self._stack])
+	def __copy__(self) -> _BuildStack:
+		return _BuildStack([copy(node) for node in self._stack])
