@@ -77,11 +77,18 @@ class _ExpansionCollection:
 						if shapes is not None:
 							node = ModelNode(index, id, schema_node, *shapes, parents)
 							for transition in iter(group):
-								stack = new_collection[transition.get_next()]
 								new_collection.record_transition(transition, node)
 							if isinstance(result := new_collection.build_min(indices, id + 1), SchemaNode):
 								for transition in iter(group):
-									if transition.get_next() == result and not transition.get_join_existing():
+									#two options:
+									#	backtrack all the way to the creator of the node
+									#		suppose node will always create shape out of bounds 
+									#		quicker likely
+									#		may miss some valid graphs?
+									#	backtrack to the previous and try next option
+									#		likely slower
+									#		guaranteed to find all valid graphs constrained by known shortfalls
+									if transition.get_next() == result and not transition.get_join_existing(): 
 										return result
 							else:
 								return [node, *result]
