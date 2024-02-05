@@ -64,9 +64,9 @@ class _ExpansionCollection:
 					transition_iter = iter(group)
 					join_nodes: Dict[Transition, _ExpansionNode] = {}
 					conformance_shape = OpenShape.new()
-					while (transition := next(transition_iter, None)) is not None and conformance_shape is not None:
+					while (transition := next(transition_iter, None)) is not None and conformance_shape is not None: #TODO: simplify somehow, fugly
 						if transition.get_join_existing():
-							if (join_on := self[transition.get_next()].get_available(schema_node)) is not None: #TODO: double check this
+							if (join_on := self[transition.get_next()].get_available(schema_node)) is not None: 
 								conformance_shape = conformance_shape.common_lossless(transition.get_next().get_conformance_shape(join_on.get_parent_shapes()))
 								join_nodes[transition] = join_on
 							else:
@@ -78,7 +78,7 @@ class _ExpansionCollection:
 							node = ModelNode(index, id, schema_node, *shapes, parents)
 							for transition in iter(group):
 								stack = new_collection[transition.get_next()]
-								new_collection.add(transition, node)
+								new_collection.record_transition(transition, node)
 							if isinstance(result := new_collection.build_min(indices, id + 1), SchemaNode):
 								for transition in iter(group):
 									if transition.get_next() == result and not transition.get_join_existing():
@@ -100,7 +100,7 @@ class _ExpansionCollection:
 			schema, stack = result
 			return schema, stack.pop()
 		return None
-	def add(self, transition: Transition, parent: ModelNode) -> bool:
+	def record_transition(self, transition: Transition, parent: ModelNode) -> bool:
 		if transition.get_join_existing():
 			if transition.get_next() in self and (join_on_node := self[transition.get_next()].get_available(parent)) is not None:
 				join_on_node.add_parent(parent, transition.get_priority())
@@ -144,7 +144,7 @@ class _ExpansionNode:
 		return True
 	def available(self, parent: ModelNode | SchemaNode) -> bool:
 		return (parent.get_pattern() if isinstance(parent, ModelNode) else parent) not in self._parents 
-	def copy(self) -> _ExpansionNode:
+	def __copy__(self) -> _ExpansionNode:
 		return _ExpansionNode(copy(self.get_parents()), self._priority)
 class _ExpansionStack:
 	__slots__ = ["_stack"]
@@ -166,5 +166,5 @@ class _ExpansionStack:
 		return self.peek().get_priority() if len(self._stack) > 0 else Transition.get_max_priority() + 1
 	def __len__(self) -> int:
 		return len(self._stack)
-	def copy(self) -> _ExpansionStack:
+	def __copy__(self) -> _ExpansionStack:
 		return _ExpansionStack([copy(node) for node in self._stack])

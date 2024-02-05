@@ -58,18 +58,22 @@ class TestExpansionCollection(unittest.TestCase):
 		self.assertEqual(len(new_collection), len(self.collection))
 		self.assertEqual(new_collection[s1].peek().get_parents(), self.collection[s1].peek().get_parents())
 		self.assertEqual(new_collection[s2].peek().get_parents(), self.collection[s2].peek().get_parents())
-	def test_add_valid(self):
+		self.assertNotEqual(id(new_collection[s1]), id(self.collection[s1]))
+		self.assertNotEqual(id(new_collection[s2]), id(self.collection[s2]))
+		self.assertNotEqual(id(new_collection[s1].peek()), id(self.collection[s1].peek()))
+		self.assertNotEqual(id(new_collection[s2].peek()), id(self.collection[s2].peek()))
+	def test_record_valid(self):
 		t2_nj = Transition(s2, 1)
-		self.assertTrue(self.collection.add(t2_nj, m1s1))
+		self.assertTrue(self.collection.record_transition(t2_nj, m1s1))
 		self.assertEqual(self.collection[s2].peek().get_parents(), [m1s1])
 		self.assertEqual(self.collection[s2].peek().get_priority(), 1)
 		t2_j = Transition(s2, 0, True)
-		self.assertTrue(self.collection.add(t2_j, m2s2))
+		self.assertTrue(self.collection.record_transition(t2_j, m2s2))
 		self.assertTrue(m2s2 in self.collection[s2].peek().get_parents())
 		self.assertEqual(self.collection[s2].peek().get_priority(), 0)
-	def test_add_invalid(self):
+	def test_record_invalid(self):
 		t2_j = Transition(s2, 1, True)
 		collection = _ExpansionCollection({s1: self.stack1, s2: _ExpansionStack([])})
-		self.assertFalse(collection.add(t2_j, m1s1))
+		self.assertFalse(collection.record_transition(t2_j, m1s1))
 		t1_j = Transition(s1, 0, True)
-		self.assertFalse(collection.add(t1_j, m1s1))
+		self.assertFalse(collection.record_transition(t1_j, m1s1))
