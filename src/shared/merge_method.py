@@ -23,6 +23,7 @@ class MergeMethod(Abstract):
 	@abstractmethod
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		pass
+
 class Concat(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:
@@ -43,6 +44,7 @@ class Concat(MergeMethod):
 		return largest_shape.to_locked(total_size // largest_shape.get_product())
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return ""
+
 class Add(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:

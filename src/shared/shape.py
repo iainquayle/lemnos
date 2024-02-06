@@ -112,7 +112,7 @@ class LockedShape(Shape):
 	def to_open(self) -> OpenShape:
 		return OpenShape(self._shape[1:])
 	def squash(self, dimensionality: int) -> LockedShape:
-		if dimensionality > self.dimensionality():
+		if dimensionality >= self.dimensionality():
 			return copy(self) 
 		else:
 			return LockedShape([prod(self._shape[:-(dimensionality - 1)])] + self._shape[-(dimensionality - 1):])
