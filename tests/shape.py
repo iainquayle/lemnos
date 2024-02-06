@@ -45,3 +45,13 @@ class TestShapeCommons(unittest.TestCase):
 		self.assertEqual(self.d.common(self.a), self.d)
 		self.assertIsNone(self.a.common(self.e))
 		self.assertIsNone(self.e.common(self.d))	
+
+class TestBounds(unittest.TestCase):
+	def setUp(self) -> None:
+		self.bound = Bound([(1, 10)])
+	def test_contains_in(self) -> None:
+		self.assertTrue(LockedShape.new(5) in self.bound)
+		self.assertTrue(LockedShape.new(1, 5) in self.bound)
+	def test_contains_out(self) -> None:
+		self.assertFalse(LockedShape.new(11) in self.bound)
+	

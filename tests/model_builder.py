@@ -17,49 +17,80 @@ m2s1 = ModelNode(Index(), 0, s1, shape, shape, [])
 m1s2 = ModelNode(Index(), 0, s2, shape, shape, [])
 m2s2 = ModelNode(Index(), 0, s2, shape, shape, [])
 
-class TestBuildTracker(unittest.TestCase):
+class TestBuildTrackerBuilding(unittest.TestCase):
+	def test_empty(self):
+		self.assertFalse(_BuildTracker.build_nodes({}, [Index()], 0))
+	def test_single(self):
+		input = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat())
+		input_shape = LockedShape.new(5)
+		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 0)
+		if nodes is not None:
+			self.assertEqual(len(nodes), 1)
+		else:
+			self.fail()
+	def test_double(self):
+		input = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat())
+		input_shape = LockedShape.new(5)
+		output = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat())
+		input.add_group(Bound([(1, 10)]), (output, 0, False))
+		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 0)
+		if nodes is not None:
+			self.assertEqual(len(nodes), 2)
+		else: 
+			self.fail()
+	def test_split_join(self):
+		input = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "in")
+		input_shape = LockedShape.new(5)
+		mid1 = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "mid1")
+		mid2 = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "mid2")
+		output = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "out")
+		input.add_group(Bound([(1, 10)]), (mid1, 0, False), (mid2, 1, False))
+		mid1.add_group(Bound([(1, 10)]), (output, 2, False))
+		mid2.add_group(Bound([(1, 10)]), (output, 2, True))
+		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 0)
+		if nodes is not None:
+			self.assertEqual(len(nodes), 4)
+		else:
+			self.fail()
+
+class TestBuildTrackerUtils(unittest.TestCase):
 	def setUp(self) -> None:
 		self.node1 = _BuildNode([m1s1], 5)
 		self.node2 = _BuildNode([m1s2], 10)
 		self.stack1 = _BuildStack([self.node1])
 		self.stack2 = _BuildStack([self.node2])
-		self.collection = _BuildTracker([], 0, {s1: self.stack1, s2: self.stack2})
-	def test_build_min_final(self):
-		pass
-	def test_build_min_fail_join_existing(self):
-		pass
-	def test_build_min_fail_parameters(self):
-		pass
-	def test_build_min_fail_child(self):
-		pass
+		self.tracker = _BuildTracker([], 0, {s1: self.stack1, s2: self.stack2})
 	def test_pop_min_full(self):
-		self.assertEqual(self.collection.pop_min(), (s1, self.node1))
-		self.assertEqual(self.collection.pop_min(), (s2, self.node2))
+		self.assertEqual(self.tracker.pop_min(), (s1, self.node1))
+		self.assertEqual(self.tracker.pop_min(), (s2, self.node2))
 	def test_pop_min_empty(self):
-		collection = _BuildTracker([], 0)
-		self.assertIsNone(collection.pop_min())
+		tracker = _BuildTracker([], 0)
+		self.assertIsNone(tracker.pop_min())
 	def test_copy(self):
-		new_collection = copy(self.collection) 
-		self.assertEqual(len(new_collection), len(self.collection))
-		self.assertEqual(new_collection[s1].peek().get_parents(), self.collection[s1].peek().get_parents())
-		self.assertEqual(new_collection[s2].peek().get_parents(), self.collection[s2].peek().get_parents())
-		self.assertNotEqual(id(new_collection[s1]), id(self.collection[s1]))
-		self.assertNotEqual(id(new_collection[s2]), id(self.collection[s2]))
-		self.assertNotEqual(id(new_collection[s1].peek()), id(self.collection[s1].peek()))
-		self.assertNotEqual(id(new_collection[s2].peek()), id(self.collection[s2].peek()))
+		new_tracker = copy(self.tracker) 
+		self.assertEqual(len(new_tracker), len(self.tracker))
+		self.assertEqual(new_tracker[s1].peek().get_parents(), self.tracker[s1].peek().get_parents())
+		self.assertEqual(new_tracker[s2].peek().get_parents(), self.tracker[s2].peek().get_parents())
+		self.assertNotEqual(id(new_tracker[s1]), id(self.tracker[s1]))
+		self.assertNotEqual(id(new_tracker[s2]), id(self.tracker[s2]))
+		self.assertNotEqual(id(new_tracker[s1].peek()), id(self.tracker[s1].peek()))
+		self.assertNotEqual(id(new_tracker[s2].peek()), id(self.tracker[s2].peek()))
 	def test_record_valid(self):
 		t2_nj = Transition(s2, 1)
-		self.assertTrue(self.collection.record_transition(t2_nj, m1s1))
-		self.assertEqual(self.collection[s2].peek().get_parents(), [m1s1])
-		self.assertEqual(self.collection[s2].peek().get_priority(), 1)
+		self.assertTrue(self.tracker.record_transition(t2_nj, m1s1))
+		self.assertEqual(self.tracker[s2].peek().get_parents(), [m1s1])
+		self.assertEqual(self.tracker[s2].peek().get_priority(), 1)
+		self.assertEqual(len(self.tracker[s2]), 2)
 		t2_j = Transition(s2, 0, True)
-		self.assertTrue(self.collection.record_transition(t2_j, m2s2))
-		self.assertTrue(m2s2 in self.collection[s2].peek().get_parents())
-		self.assertEqual(self.collection[s2].peek().get_priority(), 0)
+		self.assertTrue(self.tracker.record_transition(t2_j, m2s2))
+		self.assertTrue(m2s2 in self.tracker[s2].peek().get_parents())
+		self.assertEqual(self.tracker[s2].peek().get_priority(), 0)
+		self.assertEqual(len(self.tracker[s2]), 2)
 	def test_record_invalid(self):
 		t2_j = Transition(s2, 1, True)
 		tracker = _BuildTracker([], 0, {s1: self.stack1, s2: _BuildStack([])})
 		self.assertFalse(tracker.record_transition(t2_j, m1s1))
+		self.assertEqual(len(tracker[s2]), 0)
 		t1_j = Transition(s1, 0, True)
 		self.assertFalse(tracker.record_transition(t1_j, m1s1))
 

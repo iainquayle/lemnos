@@ -92,6 +92,8 @@ class Shape(Abstract):
 		pass
 	def get_product(self) -> int:
 		return self._product_cache
+	def __repr__(self) -> str:
+		return str(self)
 
 class LockedShape(Shape):
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
@@ -129,6 +131,8 @@ class LockedShape(Shape):
 		return other is not None and isinstance(other, LockedShape) and self._shape == other._shape
 	def __copy__(self) -> LockedShape:
 		return LockedShape(self._shape)
+	def __str__(self) -> str:
+		return f"LS({self._shape})"
 
 class OpenShape(Shape):
 	@staticmethod
@@ -163,7 +167,9 @@ class OpenShape(Shape):
 		return other is not None and isinstance(other, OpenShape) and self._shape == other._shape
 	def __copy__(self) -> OpenShape:
 		return OpenShape(self._shape)
-
+	def __str__(self) -> str:
+		return f"OS({self._shape})"
+	
 class Bound:
 	_LOWER_INDEX = 0
 	_UPPER_INDEX = 1
@@ -199,7 +205,7 @@ class Bound:
 		else:
 			return value
 	def __contains__(self, shape: Shape) -> bool:
-		for i in range(1, max(len(shape), len(self._bounds)) + 1):
+		for i in range(1, min(len(shape), len(self._bounds)) + 1):
 			element = self._bounds[-i]
 			if element is not None:
 				if shape[-i] < element[Bound._LOWER_INDEX] or shape[-i] > element[Bound._UPPER_INDEX]:

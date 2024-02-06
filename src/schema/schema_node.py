@@ -9,11 +9,12 @@ from typing_extensions import Self
 from copy import copy 
 
 class SchemaNode:
-	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method"]
-	def __init__(self, node_parameters: BaseParameters, merge_method: MergeMethod) -> None:
+	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method", "debug_name"]
+	def __init__(self, node_parameters: BaseParameters, merge_method: MergeMethod, debug_name: str = "") -> None:
 		self._transition_groups: List[TransitionGroup] = []
 		self._node_parameters: BaseParameters = node_parameters 
 		self._merge_method: MergeMethod = merge_method 
+		self.debug_name: str = debug_name 
 	def add_group(self, repetition_bounds: Bound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
 		return self
@@ -23,12 +24,12 @@ class SchemaNode:
 		return self._node_parameters
 	def get_merge_method(self) -> MergeMethod:
 		return self._merge_method
+	def get_transition_groups(self) -> List[TransitionGroup]:
+		return self._transition_groups
 	def __getitem__(self, index: int) -> TransitionGroup:
 		return self._transition_groups[index]
 	def __iter__(self) -> Iterable[TransitionGroup]:
 		return iter(self._transition_groups)
-	def __len__(self) -> int:
-		return len(self._transition_groups)
 
 class Transition:
 	_MAX_PRIORITY: int = 128 
