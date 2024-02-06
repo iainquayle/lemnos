@@ -21,7 +21,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_empty(self):
 		self.assertFalse(_BuildTracker.build_nodes({}, [Index()], 0))
 	def test_single(self):
-		input = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat())
+		input = SchemaNode(IdentityParameters(Bound((1, 10))), Concat())
 		input_shape = LockedShape.new(5)
 		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 0)
 		if nodes is not None:
@@ -29,37 +29,37 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		else:
 			self.fail()
 	def test_double(self):
-		input = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat())
+		input = SchemaNode(IdentityParameters(Bound((1, 10))), Concat())
 		input_shape = LockedShape.new(5)
-		output = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat())
-		input.add_group(Bound([(1, 10)]), (output, 0, False))
+		output = SchemaNode(IdentityParameters(Bound((1, 10))), Concat())
+		input.add_group(Bound((1, 10)), (output, 0, False))
 		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 2)
 		else: 
 			self.fail()
 	def test_split_join(self):
-		input = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "in")
+		input = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "in")
 		input_shape = LockedShape.new(5)
-		mid1 = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "mid1")
-		mid2 = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "mid2")
-		output = SchemaNode(IdentityParameters(Bound([(1, 10)])), Concat(), "out")
-		input.add_group(Bound([(1, 10)]), (mid1, 0, False), (mid2, 1, False))
+		mid1 = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "mid1")
+		mid2 = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "mid2")
+		output = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "out")
+		input.add_group(Bound((1, 10)), (mid1, 0, False), (mid2, 1, False))
 		self.assertEqual(input[0][0].get_next(), mid1)
 		self.assertEqual(input[0][1].get_next(), mid2)
-		mid1.add_group(Bound([(1, 10)]), (output, 2, False))
-		mid2.add_group(Bound([(1, 10)]), (output, 2, True))
+		mid1.add_group(Bound((1, 10)), (output, 2, False))
+		mid2.add_group(Bound((1, 10)), (output, 2, True))
 		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 4)
 		else:
 			self.fail()
 	def test_looped(self):
-		main = SchemaNode(ConvParameters(Bound([(1, 1), (1, 10)]), Range(.1, 2), kernel=2, stride=2), Concat(), "main")
+		main = SchemaNode(ConvParameters(Bound((1, 1), (1, 10)), Range(.1, 2), kernel=2, stride=2), Concat(), "main")
 		input_shape = LockedShape.new(1, 8)
-		output = SchemaNode(IdentityParameters(Bound([(1, 1), (1, 1)])), Concat(), "out")
-		main.add_group(Bound([(2, 10)]), (output, 0, False))
-		main.add_group(Bound([(2, 10)]), (main, 0, False))
+		output = SchemaNode(IdentityParameters(Bound((1, 1), (1, 1))), Concat(), "out")
+		main.add_group(Bound((2, 10)), (output, 0, False))
+		main.add_group(Bound((2, 10)), (main, 0, False))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
 		self.assertTrue(nodes)
 
@@ -71,11 +71,11 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		self.stack2 = _BuildStack([self.node2])
 		self.tracker = _BuildTracker([], 0, {s1: self.stack1, s2: self.stack2})
 	def test_pop_min_full(self):
-		self.assertEqual(self.tracker.pop_min(), (s1, self.node1))
-		self.assertEqual(self.tracker.pop_min(), (s2, self.node2))
+		self.assertEqual(self.tracker.pop_min_node(), (s1, self.node1))
+		self.assertEqual(self.tracker.pop_min_node(), (s2, self.node2))
 	def test_pop_min_empty(self):
 		tracker = _BuildTracker([], 0)
-		self.assertIsNone(tracker.pop_min())
+		self.assertIsNone(tracker.pop_min_node())
 	def test_copy(self):
 		new_tracker = copy(self.tracker) 
 		self.assertEqual(len(new_tracker), len(self.tracker))

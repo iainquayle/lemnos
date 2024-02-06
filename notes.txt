@@ -1,9 +1,0 @@
-lookahead will be required to make a larger portion of pattern graphs create valid outputs
-as of right now, technically the system will do a lookahead of one node, but to a limited extent, it does not take into account bounds
-in order to take into account both, further back in the pattern, an older idea will need to be brought back
-preprocessing of the pattern graph:
-	it will need to be walked, and have the merge points logged in nodes above
-	hard to do even then, as it will need to take into account whether a path ahead still has the ability to change the shape in the correct direction
-all of this doesnt necessarily need to be done right away,
-	as it is a real issue mainly around identity functions when combined with bounds
-	and when an identity function comes to an add merge that has already had one parent

@@ -17,7 +17,7 @@ class Model():
 
 class ModelNode():
 	__slots__ = ["_index", "_id", "_node_pattern", "_children", "_parents", "_output_shape", "_mould_shape"]
-	def __init__(self, index: Index, id: int, node_pattern: SchemaNode, output_shape: LockedShape, mould_shape: LockedShape, parents: Iterable[Self] | None) -> None:
+	def __init__(self, index: Index, id: int, node_pattern: SchemaNode, mould_shape: LockedShape, output_shape: LockedShape, parents: Iterable[Self] | None) -> None:
 		self._index: Index = index
 		self._id: int = id 
 		self._node_pattern: SchemaNode = node_pattern 
@@ -25,8 +25,8 @@ class ModelNode():
 		self._parents: List[Self] = []
 		if parents is not None:
 			self.set_parents(parents)
-		self._output_shape: LockedShape = output_shape
 		self._mould_shape: LockedShape = mould_shape 
+		self._output_shape: LockedShape = output_shape
 	def add_child(self, child: Self) -> None:
 		if child not in self._children:
 			self._children.append(child)

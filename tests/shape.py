@@ -48,7 +48,7 @@ class TestShapeCommons(unittest.TestCase):
 
 class TestBounds(unittest.TestCase):
 	def setUp(self) -> None:
-		self.bound = Bound([(1, 10)])
+		self.bound = Bound((1, 10))
 	def test_contains_in(self) -> None:
 		self.assertTrue(LockedShape.new(5) in self.bound)
 		self.assertTrue(LockedShape.new(1, 5) in self.bound)

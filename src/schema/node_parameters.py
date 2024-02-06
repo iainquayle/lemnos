@@ -18,7 +18,7 @@ from typing import List, Tuple
 class BaseParameters(Abstract):
 	__slots__ = ["_shape_bounds"]
 	def __init__(self) -> None:
-		self._shape_bounds = Bound([]) 
+		self._shape_bounds = Bound() 
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
@@ -42,7 +42,7 @@ class IdentityParameters(BaseParameters):
 	def _get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
 		return input_shape if output_conformance.compatible(input_shape) else None
 
-def fill_conv_tuple(val: Tuple | int, dimensionality: int) -> Tuple:
+def _fill_conv_tuple(val: Tuple | int, dimensionality: int) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val] * (dimensionality - 1))
 class ConvParameters(BaseParameters):
 	__slots__ = ["_shape_bounds", "_size_coefficents", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
@@ -59,10 +59,10 @@ class ConvParameters(BaseParameters):
 			raise Exception("shape_bounds must have at least two dimensions")
 		self._shape_bounds = shape_bounds
 		self._size_coefficents = size_coefficents 
-		self._kernel: Tuple = fill_conv_tuple(kernel, len(shape_bounds))
-		self._stride: Tuple = fill_conv_tuple(stride, len(shape_bounds))
-		self._dilation: Tuple = fill_conv_tuple(dilation, len(shape_bounds))
-		self._padding: Tuple = fill_conv_tuple(padding, len(shape_bounds))
+		self._kernel: Tuple = _fill_conv_tuple(kernel, len(shape_bounds))
+		self._stride: Tuple = _fill_conv_tuple(stride, len(shape_bounds))
+		self._dilation: Tuple = _fill_conv_tuple(dilation, len(shape_bounds))
+		self._padding: Tuple = _fill_conv_tuple(padding, len(shape_bounds))
 		if (len(self._kernel) != len(self._stride) 
 		  		or len(self._stride) != len(self._dilation) 
 		  		or len(self._dilation) != len(self._padding) 

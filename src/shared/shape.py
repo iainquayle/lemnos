@@ -66,10 +66,8 @@ class Shape(Abstract):
 		pass
 	@staticmethod
 	def reduce_common_lossless(shapes: Iterable[Shape]) -> Shape | None:
+		common = OpenShape.new()
 		shapes_iter = iter(shapes)
-		common = next(shapes_iter, None)
-		if common is None:
-			raise Exception("cannot reduce empty collection")
 		for shape in shapes_iter:
 			common = common.common_lossless(shape)
 			if common is None:
@@ -174,15 +172,15 @@ class Bound:
 	_LOWER_INDEX = 0
 	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
-	def __init__(self, bounds: List[Tuple[int, int] | None]= []) -> None:
-		self._bounds: List[Tuple[int, int] | None] = bounds
-		for i in range(len(bounds)):
-			element = bounds[i]
+	def __init__(self, *bounds: Tuple[int, int] | int | None) -> None:
+		self._bounds: List[Tuple[int, int] | None] = [(x, x) if isinstance(x, int) else x for x in bounds] 
+		for i in range(len(self._bounds)):
+			element = self._bounds[i]
 			if element is not None:
 				if element[Bound._LOWER_INDEX] > element[Bound._UPPER_INDEX]:
-					bounds[i] = element[Bound._UPPER_INDEX], element[Bound._LOWER_INDEX]
-				if element[Bound._LOWER_INDEX] <= 0:
-					raise Exception("lower bound less than 1")
+					self._bounds[i] = element[Bound._UPPER_INDEX], element[Bound._LOWER_INDEX]
+				if element[Bound._LOWER_INDEX] <= 0 or element[Bound._UPPER_INDEX] <= 0:
+					raise Exception("bound less than 1")
 	def __getitem__(self, index: int) -> Tuple[int, int] | None:
 		return self._bounds[index]
 	def lower(self, index: int) -> int | None:
