@@ -39,6 +39,7 @@ class ModelBuilder:
 		return None
 
 class _BuildTracker:
+	_MAX_NODES = 512 
 	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts"]
 	def __init__(self, indices: List[Index], max_nodes: int, stacks: Dict[SchemaNode, _BuildStack] = dict()) -> None:
 		#self._stacks: List[Tuple[SchemaNode, _BuildStack]] = [(schema, stack) for schema, stack in stacks.items()] 
@@ -48,6 +49,7 @@ class _BuildTracker:
 		self._indices: List[Index] = indices
 	@staticmethod
 	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: List[Index], max_nodes: int) -> List[ModelNode] | None:
+
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
 		tracker = _BuildTracker(indices, max_nodes, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()})
 		if isinstance((result := tracker._build_min(indices, 0)), List):
@@ -57,7 +59,7 @@ class _BuildTracker:
 		return None
 	def _build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
 		index = indices[0] #TODO: make this take into account the counts, and add salt
-		if (result := self.pop_min_node()) is not None:
+		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
 			parents = build_node.get_parents()
 			input_shape: LockedShape = schema_node.get_merge_method().get_output_shape([parent.get_output_shape() for parent in parents])
@@ -73,7 +75,7 @@ class _BuildTracker:
 							mould_shape, output_shape = shapes 
 							node = ModelNode(index, id, schema_node, mould_shape, output_shape, parents)
 							self._increment_count(schema_node)
-							if id < self._max_nodes and tracker_copy.record_transitions(iter(group), node) and isinstance(result := tracker_copy._build_min(indices, id + 1), List):
+							if id < self._max_nodes and tracker_copy._record_transitions(iter(group), node) and isinstance(result := tracker_copy._build_min(indices, id + 1), List):
 								return [node, *result]
 								#two options:
 								#	backtrack all the way to the creator of the node
@@ -105,19 +107,19 @@ class _BuildTracker:
 				else:
 					conformance_shape = None
 		return conformance_shape
-	def min_stack(self) -> Tuple[SchemaNode, _BuildStack] | None: 
+	def _min_stack(self) -> Tuple[SchemaNode, _BuildStack] | None: 
 		if len(self) == 0:
 			return None
 		min_schema = min(self.get_iter(), key=lambda item: item[1].get_priority()) 
 		if len(min_schema[1]) == 0:
 			return None
 		return min_schema
-	def pop_min_node(self) -> Tuple[SchemaNode, _BuildNode] | None:
-		if (result := self.min_stack()) is not None:
+	def _pop_min_node(self) -> Tuple[SchemaNode, _BuildNode] | None:
+		if (result := self._min_stack()) is not None:
 			schema, stack = result
 			return schema, stack.pop()
 		return None
-	def record_transitions(self, transitions: Iterable[Transition], parent: ModelNode) -> bool:
+	def _record_transitions(self, transitions: Iterable[Transition], parent: ModelNode) -> bool:
 		for transition in transitions:
 			if not self.record_transition(transition, parent):
 				return False

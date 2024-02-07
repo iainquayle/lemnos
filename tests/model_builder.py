@@ -62,6 +62,12 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		main.add_group(Bound((2, 10)), (main, 0, False))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
 		self.assertTrue(nodes)
+	def test_infinit_loop(self):
+		main = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "main")
+		input_shape = LockedShape.new(5)
+		main.add_group(Bound((1, 10)), (main, 0, False))
+		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
+		self.assertFalse(nodes)
 
 class TestBuildTrackerUtils(unittest.TestCase):
 	def setUp(self) -> None:
@@ -71,11 +77,11 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		self.stack2 = _BuildStack([self.node2])
 		self.tracker = _BuildTracker([], 0, {s1: self.stack1, s2: self.stack2})
 	def test_pop_min_full(self):
-		self.assertEqual(self.tracker.pop_min_node(), (s1, self.node1))
-		self.assertEqual(self.tracker.pop_min_node(), (s2, self.node2))
+		self.assertEqual(self.tracker._pop_min_node(), (s1, self.node1))
+		self.assertEqual(self.tracker._pop_min_node(), (s2, self.node2))
 	def test_pop_min_empty(self):
 		tracker = _BuildTracker([], 0)
-		self.assertIsNone(tracker.pop_min_node())
+		self.assertIsNone(tracker._pop_min_node())
 	def test_copy(self):
 		new_tracker = copy(self.tracker) 
 		self.assertEqual(len(new_tracker), len(self.tracker))

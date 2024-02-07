@@ -16,9 +16,11 @@ from typing import List, Tuple
 #	generate conforming shape, or none, from these
 
 class BaseParameters(Abstract):
-	__slots__ = ["_shape_bounds"]
+	__slots__ = ["_shape_bounds", "_batch_norm", "_dropout"]
 	def __init__(self) -> None:
-		self._shape_bounds = Bound() 
+		self._shape_bounds: Bound = Bound() 
+		self._batch_norm: bool = False
+		self._dropout: float | None = None
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
@@ -91,3 +93,12 @@ class ConvParameters(BaseParameters):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
+
+
+
+class Regularization(Abstract):
+	pass
+class Dropout(Regularization):
+	pass
+class BatchNormalization(Regularization):
+	pass

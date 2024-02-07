@@ -5,6 +5,8 @@ from abc import ABC as Abstract, abstractmethod
 from src.shared.shape import Shape, LockedShape, OpenShape
 from functools import reduce
 
+#TODO: consider moving this to schema? maybe?
+
 class MergeMethod(Abstract):
 	@abstractmethod
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
