@@ -4,15 +4,30 @@ from src.schema.schema_node import SchemaNode
 from src.shared.shape import LockedShape
 from src.shared.index import Index
 
-from typing import List, Tuple, Iterable
+from typing import List, Tuple, Iterable, Dict, Set
 from typing_extensions import Self
+
+	#tracking node evaluation progression
+		#need dict of nodes, w set of parents 
+		#walk through, expanding those which have full set of parents
+	#tracking register use
+		#need list of registers
+		#need dict of nodes, w set of children, and a register
+		#once a node has all children, can free register
 
 class Model():
 	_MAX_ITERATIONS = 1024 
 	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
-	def to_flat_source_module(self) -> Tuple[str, str]:
+	def to_torch_module_src(self) -> Tuple[str, str]:
+		registers: List[int] = []
+		register_count: int = 0
+		referenced_nodes: Dict[ModelNode, Set[ModelNode]] = {}
+		registered_nodes: Dict[ModelNode, Tuple[Set[ModelNode], int]] = {}
+		evaluation_tracker: List[Tuple[ModelNode, List[int], int]] = []
+		input_registers: List[int] = []
+		output_registers: List[int] = []
 		return "", ""
 
 class ModelNode():

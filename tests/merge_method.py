@@ -1,6 +1,6 @@
 import unittest
 
-from src.shared.merge_method import Add, Concat
+from src.schema.merge_method import Add, Concat
 from src.shared.shape import LockedShape, OpenShape 
 
 class TestMergeMethod(unittest.TestCase):

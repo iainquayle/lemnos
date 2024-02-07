@@ -16,11 +16,12 @@ from typing import List, Tuple
 #	generate conforming shape, or none, from these
 
 class BaseParameters(Abstract):
-	__slots__ = ["_shape_bounds", "_batch_norm", "_dropout"]
-	def __init__(self) -> None:
-		self._shape_bounds: Bound = Bound() 
+	__slots__ = ["_shape_bounds", "_batch_norm", "_dropout", "_regularization"]
+	def __init__(self, shape_bounds: Bound) -> None:
+		self._shape_bounds: Bound = shape_bounds 
 		self._batch_norm: bool = False
 		self._dropout: float | None = None
+		self._regularization: Regularization | None = None
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
@@ -38,7 +39,7 @@ class BaseParameters(Abstract):
 	
 class IdentityParameters(BaseParameters):
 	def __init__(self, shape_bounds: Bound) -> None:
-		self._shape_bounds = shape_bounds
+		super().__init__(shape_bounds)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in == shape_out
 	def _get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: Index = Index()) -> LockedShape | None:
@@ -57,9 +58,9 @@ class ConvParameters(BaseParameters):
 			padding: Tuple | int = 0,
 			depthwise: bool = False, #TODO: change this to a factor? or somthing else so filter groups can be a different size and a different number of groups
 			) -> None:
+		super().__init__(shape_bounds)
 		if len(shape_bounds) < 2:
 			raise Exception("shape_bounds must have at least two dimensions")
-		self._shape_bounds = shape_bounds
 		self._size_coefficents = size_coefficents 
 		self._kernel: Tuple = _fill_conv_tuple(kernel, len(shape_bounds))
 		self._stride: Tuple = _fill_conv_tuple(stride, len(shape_bounds))

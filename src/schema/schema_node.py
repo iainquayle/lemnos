@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from src.schema.node_parameters import BaseParameters  
 from src.shared.shape import Bound, LockedShape, Shape 
-from src.shared.merge_method import MergeMethod 
+from src.schema.merge_method import MergeMethod 
 
 from typing import List, Set, Iterable, Tuple
 from typing_extensions import Self
 from copy import copy 
 
 class SchemaNode:
-	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method", "debug_name"]
+	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method", "debug_name", "_activation"]
 	def __init__(self, node_parameters: BaseParameters, merge_method: MergeMethod, debug_name: str = "") -> None:
 		self._transition_groups: List[TransitionGroup] = []
 		self._node_parameters: BaseParameters = node_parameters 
 		self._merge_method: MergeMethod = merge_method 
+		#self._activation: Activation | None = None
 		self.debug_name: str = debug_name 
 	def add_group(self, repetition_bounds: Bound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
