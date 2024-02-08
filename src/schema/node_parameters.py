@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
-from src.schema.regularization import Regularization
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
 
@@ -10,11 +9,6 @@ class BaseParameters(Abstract):
 	__slots__ = ["_shape_bounds", "_batch_norm", "_dropout", "_regularization"]
 	def __init__(self, shape_bounds: Bound) -> None:
 		self._shape_bounds: Bound = shape_bounds 
-		#TODO: still should condider moving this out, just not sure how to deal with dimernsionality check apart from doing it at runtime
-		#	maybe just pass in the dimensionality at some point
-		#	infact, should shape bounds somehow be moved in schema node? kind of makes more sense, but maybe not, just leave it as is.
-		#	has lots to do with transformation
-		self._regularization: Regularization | None = None 
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod

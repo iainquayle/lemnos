@@ -3,18 +3,27 @@ from __future__ import annotations
 from src.schema.node_parameters import BaseParameters  
 from src.shared.shape import Bound, LockedShape, Shape 
 from src.schema.merge_method import MergeMethod 
+from src.schema.activation import Activation
+from src.schema.regularization import Regularization
 
 from typing import List, Set, Iterable, Tuple
 from typing_extensions import Self
 from copy import copy 
 
+#TODO: add shape bounds to schema node
+#	move mould shape calculation here
+#	use the conformance shape from the transforms to get the output shape 
+#		this will standardize the way in which the open dim is filled
+
 class SchemaNode:
-	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method", "debug_name", "_activation"]
+	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, node_parameters: BaseParameters, merge_method: MergeMethod, debug_name: str = "") -> None:
+		self._shape_bounds: Bound = Bound() 
 		self._transition_groups: List[TransitionGroup] = []
-		self._node_parameters: BaseParameters = node_parameters 
 		self._merge_method: MergeMethod = merge_method 
-		#self._activation: Activation | None = None
+		self._node_parameters: BaseParameters = node_parameters 
+		self._activation: Activation | None = None
+		self._regularization: Regularization | None = None
 		self.debug_name: str = debug_name 
 	def add_group(self, repetition_bounds: Bound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
