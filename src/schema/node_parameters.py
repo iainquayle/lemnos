@@ -2,26 +2,19 @@ from __future__ import annotations
 
 from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
+from src.schema.regularization import Regularization
 from abc import ABC as Abstract, abstractmethod 
 from typing import List, Tuple
-
-#TODO: make tokens for constants, ie conv, bn, rbrack, comma
-#or make functions, ie then can just use param list
-#to expand:
-#	get mould shape (dont need to validate, as validation happens when a new node is created and its shape made)
-#	fetch conformance shapes from children
-#		fetch from all possible children in a transition group
-#		conforming shape hold the total size of a conforming shape, and the upper shape that is required
-#		requires the dims and the siblings
-#	generate conforming shape, or none, from these
 
 class BaseParameters(Abstract):
 	__slots__ = ["_shape_bounds", "_batch_norm", "_dropout", "_regularization"]
 	def __init__(self, shape_bounds: Bound) -> None:
 		self._shape_bounds: Bound = shape_bounds 
-		self._batch_norm: bool = False
-		self._dropout: float | None = None
-		self._regularization: Regularization | None = None
+		#TODO: still should condider moving this out, just not sure how to deal with dimernsionality check apart from doing it at runtime
+		#	maybe just pass in the dimensionality at some point
+		#	infact, should shape bounds somehow be moved in schema node? kind of makes more sense, but maybe not, just leave it as is.
+		#	has lots to do with transformation
+		self._regularization: Regularization | None = None 
 	def validate_output_shape(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return self.validate_output_shape_transform(shape_in, shape_out) and shape_out in self._shape_bounds
 	@abstractmethod
@@ -97,9 +90,3 @@ class ConvParameters(BaseParameters):
 
 
 
-class Regularization(Abstract):
-	pass
-class Dropout(Regularization):
-	pass
-class BatchNormalization(Regularization):
-	pass
