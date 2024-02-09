@@ -32,8 +32,6 @@ class SchemaNode:
 		return self._merge_method.get_output_shape(input_shapes).squash(self.get_dimensionality())
 	def get_output_shape(self, mould_shape: LockedShape) -> LockedShape | None:
 		pass		
-	def get_mould_and_output_shapes(self, input_shapes: List[LockedShape]) -> Tuple[LockedShape, LockedShape] | None:
-		pass	
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		return self._merge_method.get_conformance_shape(input_shapes)
 	def get_parameters(self) -> BaseParameters:
