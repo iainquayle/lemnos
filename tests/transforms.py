@@ -3,7 +3,7 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from src.schema.node_parameters import ConvParameters 
+from src.schema.transform import ConvParameters 
 from src.shared.shape import LockedShape, OpenShape, Bound, Range
 from src.shared.index import Index
 

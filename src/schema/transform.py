@@ -3,9 +3,9 @@ from __future__ import annotations
 from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 from abc import ABC as Abstract, abstractmethod 
-from typing import List, Tuple
+from typing import Tuple
 
-class BaseParameters(Abstract):
+class TransformParameters(Abstract):
 	__slots__ = ["_size_coefficients"]
 	def __init__(self, size_coefficients: Range) -> None:
 		self._size_coefficients: Range = size_coefficients
@@ -23,7 +23,7 @@ def _fill_conv_tuple(val: Tuple | int) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val])
 def _resize_conv_tuple(val: Tuple, length: int) -> Tuple:
 	return val + (val[-1],) * (length - len(val))
-class ConvParameters(BaseParameters):
+class ConvParameters(TransformParameters):
 	__slots__ = ["_size_coefficients", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
 	def __init__(self,
 			size_coefficients: Range,

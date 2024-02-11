@@ -3,7 +3,7 @@ import unittest
 from src.model.model_builder import _BuildNode, _BuildStack, _BuildTracker
 from src.model.model import ModelNode
 from src.schema.schema_node import SchemaNode, Transition
-from src.schema.node_parameters import ConvParameters 
+from src.schema.transform import ConvParameters 
 from src.schema.merge_method import Concat
 from src.shared.shape import Bound, LockedShape, Range
 from src.shared.index import Index
