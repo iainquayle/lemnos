@@ -62,7 +62,7 @@ class _BuildTracker:
 		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
 			parents = build_node.get_parents()
-			input_shape: LockedShape = schema_node.get_merge_method().get_output_shape([parent.get_output_shape() for parent in parents])
+			mould_shape = schema_node.get_mould_shape([parent.get_output_shape() for parent in parents])
 			pivot = index.get_shuffled(len(schema_node.get_transition_groups()))
 			i = 0
 			while abs(i) <= max(len(schema_node.get_transition_groups()) - pivot, pivot):
@@ -71,8 +71,7 @@ class _BuildTracker:
 					conformance_shape = self._get_group_conformance_shape(group, schema_node)
 					if conformance_shape is not None:
 						tracker_copy = copy(self)
-						if (shapes := schema_node.get_parameters().get_mould_and_output_shapes(input_shape, conformance_shape, index)) is not None:
-							mould_shape, output_shape = shapes 
+						if (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None:
 							node = ModelNode(index, id, schema_node, mould_shape, output_shape, parents)
 							self._increment_count(schema_node)
 							if id < self._max_nodes and tracker_copy._record_transitions(iter(group), node) and isinstance(result := tracker_copy._build_min(indices, id + 1), List):
@@ -89,8 +88,8 @@ class _BuildTracker:
 								#would be benificial no matter which option, to do a preliminary bounds check on the transformed shape when the node is created
 				i = -i if i > 0 else -i + 1
 			if len(schema_node.get_transition_groups()) == 0:
-				if (shapes := schema_node.get_parameters().get_mould_and_output_shapes(input_shape, OpenShape.new(), index)) is not None:
-					return [ModelNode(index, id, schema_node, *shapes, parents)]
+				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape.new(), index)) is not None:
+					return [ModelNode(index, id, schema_node, mould_shape, output_shape, parents)]
 			return schema_node
 		return []
 	def _increment_count(self, schema_node: SchemaNode) -> None:

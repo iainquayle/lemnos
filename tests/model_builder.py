@@ -3,14 +3,14 @@ import unittest
 from src.model.model_builder import _BuildNode, _BuildStack, _BuildTracker
 from src.model.model import ModelNode
 from src.schema.schema_node import SchemaNode, Transition
-from src.schema.node_parameters import IdentityParameters, ConvParameters 
+from src.schema.node_parameters import ConvParameters 
 from src.schema.merge_method import Concat
 from src.shared.shape import Bound, LockedShape, Range
 from src.shared.index import Index
 from copy import copy
 
-s1 = SchemaNode(IdentityParameters(Bound()), Concat())
-s2 = SchemaNode(IdentityParameters(Bound()), Concat())
+s1 = SchemaNode(Bound(), Concat())
+s2 = SchemaNode(Bound(), Concat())
 shape = LockedShape.new(1)
 m1s1 = ModelNode(Index(), 0, s1, shape, shape, [])
 m2s1 = ModelNode(Index(), 0, s1, shape, shape, [])
@@ -21,7 +21,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_empty(self):
 		self.assertFalse(_BuildTracker.build_nodes({}, [Index()], 0))
 	def test_single(self):
-		input = SchemaNode(IdentityParameters(Bound((1, 10))), Concat())
+		input = SchemaNode(Bound((1, 10)), Concat())
 		input_shape = LockedShape.new(5)
 		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 0)
 		if nodes is not None:
@@ -29,9 +29,9 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		else:
 			self.fail()
 	def test_double(self):
-		input = SchemaNode(IdentityParameters(Bound((1, 10))), Concat())
+		input = SchemaNode(Bound((1, 10)), Concat())
 		input_shape = LockedShape.new(5)
-		output = SchemaNode(IdentityParameters(Bound((1, 10))), Concat())
+		output = SchemaNode(Bound((1, 10)), Concat())
 		input.add_group(Bound((1, 10)), (output, 0, False))
 		nodes = _BuildTracker.build_nodes({input: input_shape}, [Index()], 10)
 		if nodes is not None:
@@ -39,11 +39,11 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		else: 
 			self.fail()
 	def test_split_join(self):
-		input = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "in")
+		input = SchemaNode(Bound((1, 10)), Concat(), None, "in")
 		input_shape = LockedShape.new(5)
-		mid1 = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "mid1")
-		mid2 = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "mid2")
-		output = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "out")
+		mid1 = SchemaNode(Bound((1, 10)), Concat(), None, "mid1")
+		mid2 = SchemaNode(Bound((1, 10)), Concat(), None, "mid2")
+		output = SchemaNode(Bound((1, 10)), Concat(), None, "out")
 		input.add_group(Bound((1, 10)), (mid1, 0, False), (mid2, 1, False))
 		self.assertEqual(input[0][0].get_next(), mid1)
 		self.assertEqual(input[0][1].get_next(), mid2)
@@ -55,15 +55,15 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		else:
 			self.fail()
 	def test_looped(self):
-		main = SchemaNode(ConvParameters(Bound((1, 1), (1, 10)), Range(.1, 2), kernel=2, stride=2), Concat(), "main")
+		main = SchemaNode(Bound((1, 1), (1, 10)), Concat(), ConvParameters( Range(.1, 2), kernel=2, stride=2), "main")
 		input_shape = LockedShape.new(1, 8)
-		output = SchemaNode(IdentityParameters(Bound((1, 1), (1, 1))), Concat(), "out")
+		output = SchemaNode(Bound((1, 1), (1, 1)), Concat(), None, "out")
 		main.add_group(Bound((2, 10)), (output, 0, False))
 		main.add_group(Bound((2, 10)), (main, 0, False))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
 		self.assertTrue(nodes)
 	def test_infinit_loop(self):
-		main = SchemaNode(IdentityParameters(Bound((1, 10))), Concat(), "main")
+		main = SchemaNode(Bound((1, 10)), Concat(), None, "main")
 		input_shape = LockedShape.new(5)
 		main.add_group(Bound((1, 10)), (main, 0, False))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
@@ -112,7 +112,7 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		self.assertFalse(tracker.record_transition(t1_j, m1s1))
 	def test_in(self):
 		self.assertTrue(s1 in self.tracker)
-		self.assertFalse(SchemaNode(IdentityParameters(Bound()), Concat()) in self.tracker)
+		self.assertFalse(SchemaNode(Bound(), Concat()) in self.tracker)
 
 class TestBuildNode(unittest.TestCase):
 	def setUp(self) -> None:

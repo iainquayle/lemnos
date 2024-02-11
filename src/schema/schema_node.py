@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.schema.node_parameters import BaseParameters  
 from src.shared.shape import Bound, LockedShape, Shape 
+from src.shared.index import Index
 from src.schema.merge_method import MergeMethod 
 from src.schema.activation import Activation
 from src.schema.regularization import Regularization
@@ -17,24 +18,30 @@ from copy import copy
 
 class SchemaNode:
 	__slots__ = ["_node_parameters", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
-	def __init__(self, node_parameters: BaseParameters, merge_method: MergeMethod, debug_name: str = "") -> None:
-		self._shape_bounds: Bound = Bound() 
+	def __init__(self, shape_bounds: Bound, merge_method: MergeMethod, node_parameters: BaseParameters | None = None, debug_name: str = "") -> None:
+		self._shape_bounds: Bound = shape_bounds 
 		self._transition_groups: List[TransitionGroup] = []
 		self._merge_method: MergeMethod = merge_method 
-		self._node_parameters: BaseParameters = node_parameters 
+		self._node_parameters: BaseParameters | None = node_parameters 
 		self._activation: Activation | None = None
 		self._regularization: Regularization | None = None
 		self.debug_name: str = debug_name 
+		if self._node_parameters is not None and not self._node_parameters.validate_dimensionality(self.get_dimensionality()):
+			raise ValueError("dimensioanlity not correct for node parameters")
 	def add_group(self, repetition_bounds: Bound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
 		return self
 	def get_mould_shape(self, input_shapes: List[LockedShape]) -> LockedShape:
 		return self._merge_method.get_output_shape(input_shapes).squash(self.get_dimensionality())
-	def get_output_shape(self, mould_shape: LockedShape) -> LockedShape | None:
-		pass		
+	def get_output_shape(self, mould_shape: LockedShape, output_conformance: Shape, index: Index) -> LockedShape | None:
+		output_shape = self._node_parameters.get_output_shape(mould_shape, output_conformance, self._shape_bounds, index) if self._node_parameters is not None else mould_shape
+		if output_shape is not None and output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
+			return output_shape 
+		else:
+			return None
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		return self._merge_method.get_conformance_shape(input_shapes)
-	def get_parameters(self) -> BaseParameters:
+	def get_parameters(self) -> BaseParameters | None:
 		return self._node_parameters
 	def get_merge_method(self) -> MergeMethod:
 		return self._merge_method
