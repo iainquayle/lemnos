@@ -21,13 +21,34 @@ class Model():
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
 	def to_torch_module_src(self) -> Tuple[str, str]:
-		registers: List[int] = []
-		register_count: int = 0
-		referenced_nodes: Dict[ModelNode, Set[ModelNode]] = {}
-		registered_nodes: Dict[ModelNode, Tuple[Set[ModelNode], int]] = {}
-		evaluation_tracker: List[Tuple[ModelNode, List[int], int]] = []
-		input_registers: List[int] = []
+		registered_nodes: Dict[SchemaNode, List[ModelNode]] = {} #holds nodes in order that they are to be initialized in, which is also their id number
+
+		referenced_nodes: Dict[ModelNode, Set[ModelNode]] = {} #nodes that have been referenced, but have not yet been evaluated
+		evaluation_tracker: Dict[ModelNode, List[int]] = {} #supposed to hold what register a node was evaluated in?
 		output_registers: List[int] = []
+
+		available_registers: List[int] = []
+		register_count = len(self._input_nodes)
+		for i, node in enumerate(self._input_nodes):
+			registered_nodes[node.get_pattern()] = [node]
+			evaluation_tracker[node] = [i]
+			evaluated_node: bool = True 
+			while evaluated_node:
+				evaluated_node = False
+				for node, registers in list(evaluation_tracker.items()):
+					if len(node.get_parents()) == len(registers):
+						del evaluation_tracker[node]
+						evaluated_node = True
+						for child in node.get_children():
+							if child in evaluation_tracker:
+								evaluation_tracker[child].append(0)
+							else:
+								evaluation_tracker[child] = [0]
+						pass
+
+			available_registers.append(i)
+			pass
+
 		return "", ""
 
 class ModelNode():
@@ -54,8 +75,10 @@ class ModelNode():
 		self._parents = [] 
 		for parent in parents:
 			self.add_parent(parent)
-	def get_output_shape(self) -> LockedShape:
-		return self._output_shape
+	def get_parents(self) -> List[Self]:
+		return self._parents
+	def get_children(self) -> List[Self]:
+		return self._children
 	def unbind(self) -> None:
 		if len(self._children) > 0:
 			raise Exception("Cannot unbind node with children")
@@ -76,4 +99,6 @@ class ModelNode():
 			parent.unbind_child(self)
 	def get_pattern(self) -> SchemaNode:
 		return self._node_pattern
+	def is_leaf(self) -> bool:
+		return len(self._children) == 0
 

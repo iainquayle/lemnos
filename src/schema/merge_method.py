@@ -47,7 +47,7 @@ class Concat(MergeMethod):
 	def get_merge_src(self, registers: List[str]) -> str | None:
 		return ""
 
-class Add(MergeMethod):
+class Sum(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:
 			return OpenShape.new()
