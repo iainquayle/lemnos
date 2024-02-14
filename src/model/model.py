@@ -21,35 +21,50 @@ class Model():
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
 	def to_torch_module_src(self) -> Tuple[str, str]:
-		registered_nodes: Dict[SchemaNode, List[ModelNode]] = {} #holds nodes in order that they are to be initialized in, which is also their id number
-
-		referenced_nodes: Dict[ModelNode, Set[ModelNode]] = {} #nodes that have been referenced, but have not yet been evaluated
-		evaluation_tracker: Dict[ModelNode, List[int]] = {} #supposed to hold what register a node was evaluated in?
+		forward_info: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []
-
+		evaluation_tracker: Dict[ModelNode, List[int]] = {} #node and the registers it is using
+		register_commitments: Dict[int, int] = {} #register and nodes it still needs to be used for
 		available_registers: List[int] = []
 		register_count = len(self._input_nodes)
 		for i, node in enumerate(self._input_nodes):
-			registered_nodes[node.get_pattern()] = [node]
 			evaluation_tracker[node] = [i]
+			register_commitments[i] = 1
 			evaluated_node: bool = True 
 			while evaluated_node:
 				evaluated_node = False
-				for node, registers in list(evaluation_tracker.items()):
-					if len(node.get_parents()) == len(registers):
+				for node, registers_in in list(evaluation_tracker.items()):
+					if len(node.get_parents()) == len(registers_in):
 						del evaluation_tracker[node]
 						evaluated_node = True
+						for register in registers_in:
+							if register_commitments[register] > 1:
+								register_commitments[register] -= 1
+							else:
+								if len(node.get_children()) == 0:
+									output_registers.append(register)
+								else:
+									available_registers.append(register)
+						register_out = -1
+						if len(available_registers) > 0:
+							register_out = available_registers.pop()
+						else:
+							register_out = register_count
+							register_count += 1
 						for child in node.get_children():
 							if child in evaluation_tracker:
-								evaluation_tracker[child].append(0)
+								evaluation_tracker[child].append(register_out)
 							else:
-								evaluation_tracker[child] = [0]
-						pass
-
-			available_registers.append(i)
-			pass
-
-		return "", ""
+								evaluation_tracker[child] = [register_out]
+							if register_out in register_commitments:
+								register_commitments[register_out] += 1
+							else:
+								register_commitments[register_out] = 1
+						forward_info.append((node, register_out, registers_in))
+		module_src = ""
+		for i, (node, register_out, registers_in) in enumerate(forward_info):
+			module_src += f"r{register_out} = m{i}" + "".join([f"r{register_in}, " for register_in in registers_in]) + "\n"
+		return "", module_src 
 
 class ModelNode():
 	__slots__ = ["_index", "_id", "_node_pattern", "_children", "_parents", "_output_shape", "_mould_shape"]
@@ -79,6 +94,10 @@ class ModelNode():
 		return self._parents
 	def get_children(self) -> List[Self]:
 		return self._children
+	def get_output_shape(self) -> LockedShape:
+		return self._output_shape
+	def get_mould_shape(self) -> LockedShape:
+		return self._mould_shape
 	def unbind(self) -> None:
 		if len(self._children) > 0:
 			raise Exception("Cannot unbind node with children")
