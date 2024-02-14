@@ -20,7 +20,7 @@ class Model():
 	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
-	def to_torch_module_src(self) -> Tuple[str, str]:
+	def to_torch_module_src(self, name: str | None = None) -> Tuple[str, str]:
 		forward_info: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []
 		evaluation_tracker: Dict[ModelNode, List[int]] = {} #node and the registers it is using
@@ -61,17 +61,18 @@ class Model():
 							else:
 								register_commitments[register_out] = 1
 						forward_info.append((node, register_out, registers_in))
-		module_src = ""
+		forward_src = ""
+		init_src = ""
 		for i, (node, register_out, registers_in) in enumerate(forward_info):
-			module_src += f"r{register_out} = m{i}" + "".join([f"r{register_in}, " for register_in in registers_in]) + "\n"
-		return "", module_src 
+			forward_src += f"r{register_out} = m{i}" + "".join([f"r{register_in}, " for register_in in registers_in]) + "\n"
+		return "", "" 
 
 class ModelNode():
-	__slots__ = ["_index", "_id", "_node_pattern", "_children", "_parents", "_output_shape", "_mould_shape"]
+	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape"]
 	def __init__(self, index: Index, id: int, node_pattern: SchemaNode, mould_shape: LockedShape, output_shape: LockedShape, parents: Iterable[Self] | None) -> None:
 		self._index: Index = index
 		self._id: int = id 
-		self._node_pattern: SchemaNode = node_pattern 
+		self._schema_node: SchemaNode = node_pattern 
 		self._children: List[Self] = []
 		self._parents: List[Self] = []
 		if parents is not None:
@@ -116,8 +117,11 @@ class ModelNode():
 		if parent in self._parents:
 			self._parents.remove(parent)
 			parent.unbind_child(self)
-	def get_pattern(self) -> SchemaNode:
-		return self._node_pattern
+	def get_schema_node(self) -> SchemaNode:
+		return self._schema_node
 	def is_leaf(self) -> bool:
 		return len(self._children) == 0
+	def get_components_src(self) -> Tuple[str | None, str | None, str | None]:
 
+		#transform, activation, and batch norm
+		return "", "", ""

@@ -1,6 +1,6 @@
 import unittest   
 
-from src.model.model_builder import _BuildNode, _BuildStack, _BuildTracker
+from src.model.model_builder import _BuildNode, _BuildStack, _BuildTracker, ModelBuilder
 from src.model.model import ModelNode
 from src.schema.schema_node import SchemaNode, Transition
 from src.schema.transform import ConvParameters 
@@ -16,6 +16,21 @@ m1s1 = ModelNode(Index(), 0, s1, shape, shape, [])
 m2s1 = ModelNode(Index(), 0, s1, shape, shape, [])
 m1s2 = ModelNode(Index(), 0, s2, shape, shape, [])
 m2s2 = ModelNode(Index(), 0, s2, shape, shape, [])
+
+class TestModelBuilder(unittest.TestCase):
+	def test_model_builder(self):
+		main = SchemaNode(Bound((1, 1), (1, 10)), Concat(), ConvParameters( Range(.1, 2), kernel=2, stride=2), "main")
+		input_shape = LockedShape.new(1, 8)
+		output = SchemaNode(Bound((1, 1), (1, 1)), Concat(), None, "out")
+		main.add_group(Bound((2, 10)), (output, 0, False))
+		main.add_group(Bound((2, 10)), (main, 0, False))
+		builder = ModelBuilder([main], [output])
+		model = builder.build([input_shape], [Index()])
+		if model is not None:
+			self.assertEqual(model._input_nodes[0].get_schema_node(), main)
+			self.assertEqual(model._output_nodes[0].get_schema_node(), output)
+		else:
+			self.fail()
 
 class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_empty(self):
@@ -61,8 +76,11 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		main.add_group(Bound((2, 10)), (output, 0, False))
 		main.add_group(Bound((2, 10)), (main, 0, False))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
-		self.assertTrue(nodes)
-	def test_infinit_loop(self):
+		if nodes is not None:
+			self.assertEqual(nodes[0].get_output_shape(), LockedShape.new(1, 4))
+		else:
+			self.fail()
+	def test_infinit_loop_stop(self):
 		main = SchemaNode(Bound((1, 10)), Concat(), None, "main")
 		input_shape = LockedShape.new(5)
 		main.add_group(Bound((1, 10)), (main, 0, False))

@@ -17,7 +17,7 @@ from copy import copy
 #TODO: items that need to be added:
 #	macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
 class ModelBuilder:
-	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int) -> None:
+	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
 			raise ValueError("No start or end patterns")
 		self.inputs: List[SchemaNode] = inputs 
@@ -31,9 +31,9 @@ class ModelBuilder:
 		if len(input_shapes) != len(self.inputs):
 			raise ValueError("Incorrect number of input shapes")
 		nodes = _BuildTracker.build_nodes({input_schema: shape for input_schema, shape in zip(self.inputs, input_shapes)}, indices, self.max_nodes)
-		if nodes is not None:
-			input_nodes = [node for node in nodes if node.get_pattern() in self.inputs]
-			output_nodes = [node for node in nodes if node.get_pattern() in self.outputs]
+		if nodes is not None: #TODO: this needs to be checked
+			input_nodes = [node for node in nodes if node.get_schema_node() in self.inputs and len(node.get_parents()) == 0]
+			output_nodes = [node for node in nodes if node.get_schema_node() in self.outputs and len(node.get_children()) == 0]
 			if len(input_nodes) == len(self.inputs) and len(output_nodes) == len(self.outputs):
 				return Model(input_nodes, output_nodes)
 		return None
@@ -42,7 +42,6 @@ class _BuildTracker:
 	_MAX_NODES = 512 
 	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts"]
 	def __init__(self, indices: List[Index], max_nodes: int, stacks: Dict[SchemaNode, _BuildStack] = dict()) -> None:
-		#self._stacks: List[Tuple[SchemaNode, _BuildStack]] = [(schema, stack) for schema, stack in stacks.items()] 
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
 		self._node_counts: Dict[SchemaNode, int] = {}
 		self._max_nodes: int = max_nodes
@@ -173,7 +172,7 @@ class _BuildTracker:
 class _BuildNode:
 	__slots__ = ["_parents", "_priority"]
 	def __init__(self, parents: List[ModelNode], priority: int) -> None:
-		self._parents: Dict[SchemaNode, ModelNode] = {parent.get_pattern(): parent for parent in parents} #may be quicker to make this a dict again
+		self._parents: Dict[SchemaNode, ModelNode] = {parent.get_schema_node(): parent for parent in parents} 
 		self._priority: int = priority 
 	def get_parent_shapes(self) -> List[LockedShape]:
 		return [parent.get_output_shape() for parent in self._parents.values()]
@@ -181,14 +180,14 @@ class _BuildNode:
 		return list(self._parents.values())
 	def get_priority(self) -> int:
 		return self._priority
-	def add_parent(self, parent: ModelNode, priority: int) -> bool: #TODO: condider making this just return a bool
+	def add_parent(self, parent: ModelNode, priority: int) -> bool: 
 		if not self.available(parent):
 			return False
-		self._parents[parent.get_pattern()] = parent
+		self._parents[parent.get_schema_node()] = parent
 		self._priority = min(self._priority, priority) 
 		return True
 	def available(self, parent: ModelNode | SchemaNode) -> bool:
-		return (parent.get_pattern() if isinstance(parent, ModelNode) else parent) not in self._parents 
+		return (parent.get_schema_node() if isinstance(parent, ModelNode) else parent) not in self._parents 
 	def __copy__(self) -> _BuildNode:
 		return _BuildNode(copy(self.get_parents()), self._priority)
 class _BuildStack:
