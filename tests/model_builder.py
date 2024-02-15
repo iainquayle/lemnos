@@ -31,6 +31,7 @@ class TestModelBuilder(unittest.TestCase):
 			self.assertEqual(model._output_nodes[0].get_schema_node(), output)
 		else:
 			self.fail()
+		print(model.to_torch_module_src()[1])
 
 class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_empty(self):
@@ -70,7 +71,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		else:
 			self.fail()
 	def test_looped(self):
-		main = SchemaNode(Bound((1, 1), (1, 10)), Concat(), ConvParameters( Range(.1, 2), kernel=2, stride=2), "main")
+		main = SchemaNode(Bound((1, 1), (1, 16)), Concat(), ConvParameters( Range(.1, 2), kernel=2, stride=2), "main")
 		input_shape = LockedShape.new(1, 8)
 		output = SchemaNode(Bound((1, 1), (1, 1)), Concat(), None, "out")
 		main.add_group(Bound((2, 10)), (output, 0, False))
@@ -78,6 +79,9 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		nodes = _BuildTracker.build_nodes({main: input_shape}, [Index()], 10)
 		if nodes is not None:
 			self.assertEqual(nodes[0].get_output_shape(), LockedShape.new(1, 4))
+			self.assertEqual(len(nodes), 4)
+			for node in nodes[:-1]:
+				self.assertEqual(len(node.get_children()), 1)
 		else:
 			self.fail()
 	def test_infinit_loop_stop(self):

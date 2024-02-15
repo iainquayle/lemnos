@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import traceback
+
 from src.model.model import ModelNode, Model
 from src.shared.shape import LockedShape, OpenShape, Shape
 from src.shared.index import Index
@@ -48,7 +50,6 @@ class _BuildTracker:
 		self._indices: List[Index] = indices
 	@staticmethod
 	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: List[Index], max_nodes: int) -> List[ModelNode] | None:
-
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
 		tracker = _BuildTracker(indices, max_nodes, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()})
 		if isinstance((result := tracker._build_min(indices, 0)), List):
@@ -85,6 +86,8 @@ class _BuildTracker:
 								#		guaranteed to find all valid graphs currently feasibly reachable
 								#		definitely easier
 								#would be benificial no matter which option, to do a preliminary bounds check on the transformed shape when the node is created
+							else:
+								node.unbind()	
 				i = -i if i > 0 else -i + 1
 			if len(schema_node.get_transition_groups()) == 0:
 				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape.new(), index)) is not None:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import traceback
+
 from src.schema.schema_node import SchemaNode
 from src.shared.shape import LockedShape
 from src.shared.index import Index
@@ -34,17 +36,13 @@ class Model():
 			while evaluated_node:
 				evaluated_node = False
 				for node, registers_in in list(evaluation_tracker.items()):
-					if len(node.get_parents()) == len(registers_in):
+					if len(node.get_parents()) <= len(registers_in):
 						del evaluation_tracker[node]
 						evaluated_node = True
 						for register in registers_in:
-							if register_commitments[register] > 1:
-								register_commitments[register] -= 1
-							else:
-								if len(node.get_children()) == 0:
-									output_registers.append(register)
-								else:
-									available_registers.append(register)
+							register_commitments[register] -= 1
+							if register_commitments[register] == 0:
+								available_registers.append(register)
 						register_out = -1
 						if len(available_registers) > 0:
 							register_out = available_registers.pop()
@@ -60,12 +58,31 @@ class Model():
 								register_commitments[register_out] += 1
 							else:
 								register_commitments[register_out] = 1
+						if len(node.get_children()) == 0:
+							output_registers.append(register_out)
+							register_commitments[register_out] = 1
 						forward_info.append((node, register_out, registers_in))
 		forward_src = ""
 		init_src = ""
 		for i, (node, register_out, registers_in) in enumerate(forward_info):
-			forward_src += f"r{register_out} = m{i}" + "".join([f"r{register_in}, " for register_in in registers_in]) + "\n"
-		return "", "" 
+			transform_src, activation_src, regularization_src = node.get_components_src()
+			if transform_src is not None:
+				init_src += f"\t\tt{i} = {transform_src}\n"
+			if activation_src is not None:
+				init_src += f"\t\ta{i} = {activation_src}\n"
+			if regularization_src is not None:
+				init_src += f"\t\tb{i} = {regularization_src}\n"
+
+			forward_src += f"\t\tr{register_out} = m{i}\n"
+		src = "import torch\nimport torch.nn as nn\n" + \
+			f"class {name if name is not None else 'Model'}(nn.Module):\n" + \
+			"\tdef __init__(self):\n" + \
+			"\t\tsuper().__init__()\n" + \
+			f"{init_src}" + \
+			f"\tdef forward(self, r{'r,'.join([str(r) for r in range(len(self._input_nodes))])})\n" + \
+			f"{forward_src}" + \
+			f"\t\treturn r{'r,'.join([str(r) for r in output_registers])}\n"
+		return "",src 
 
 class ModelNode():
 	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape"]
@@ -99,6 +116,8 @@ class ModelNode():
 		return self._output_shape
 	def get_mould_shape(self) -> LockedShape:
 		return self._mould_shape
+	def unbind_children(self) -> None:#TODO: refactor unbinding
+		self._children = []
 	def unbind(self) -> None:
 		if len(self._children) > 0:
 			raise Exception("Cannot unbind node with children")
@@ -121,7 +140,9 @@ class ModelNode():
 		return self._schema_node
 	def is_leaf(self) -> bool:
 		return len(self._children) == 0
+	def get_id(self) -> int:
+		return self._id
 	def get_components_src(self) -> Tuple[str | None, str | None, str | None]:
-
+		
 		#transform, activation, and batch norm
 		return "", "", ""
