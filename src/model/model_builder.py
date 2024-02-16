@@ -54,7 +54,7 @@ class _BuildTracker:
 		tracker = _BuildTracker(indices, max_nodes, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()})
 		if isinstance((result := tracker._build_min(indices, 0)), List):
 			for node in dummy_nodes.values():
-				node.unbind_all()
+				node.unbind()
 			return result
 		return None
 	def _build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:

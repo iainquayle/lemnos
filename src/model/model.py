@@ -64,6 +64,8 @@ class Model():
 						forward_info.append((node, register_out, registers_in))
 		forward_src = ""
 		init_src = ""
+		def format_registers(registers: List[int]) -> List[str]:
+			return [f"r{r}" for r in registers]
 		for i, (node, register_out, registers_in) in enumerate(forward_info):
 			transform_src, activation_src, regularization_src = node.get_components_src()
 			if transform_src is not None:
@@ -73,7 +75,7 @@ class Model():
 			if regularization_src is not None:
 				init_src += f"\t\tb{i} = {regularization_src}\n"
 
-			forward_src += f"\t\tr{register_out} = m{i}\n"
+			forward_src += f"\t\tr{register_out} = {node.get_eval_src(format_registers(registers_in))}\n"
 		src = "import torch\nimport torch.nn as nn\n" + \
 			f"class {name if name is not None else 'Model'}(nn.Module):\n" + \
 			"\tdef __init__(self):\n" + \
@@ -116,14 +118,7 @@ class ModelNode():
 		return self._output_shape
 	def get_mould_shape(self) -> LockedShape:
 		return self._mould_shape
-	def unbind_children(self) -> None:#TODO: refactor unbinding
-		self._children = []
 	def unbind(self) -> None:
-		if len(self._children) > 0:
-			raise Exception("Cannot unbind node with children")
-		for parent in self._parents:
-			parent.unbind_child(self)
-	def unbind_all(self) -> None:
 		for child in self._children:
 			child.unbind_parent(self)
 		for parent in self._parents:
@@ -138,11 +133,16 @@ class ModelNode():
 			parent.unbind_child(self)
 	def get_schema_node(self) -> SchemaNode:
 		return self._schema_node
+	def get_dimensionality(self) -> int:
+		return len(self._mould_shape) 
 	def is_leaf(self) -> bool:
 		return len(self._children) == 0
 	def get_id(self) -> int:
 		return self._id
 	def get_components_src(self) -> Tuple[str | None, str | None, str | None]:
-		
 		#transform, activation, and batch norm
 		return "", "", ""
+	#consider allowing an optional 0th dimension, other wise just -1
+	def get_eval_src(self, registers: List[str]) -> str | None:
+		src = f"{self._schema_node.get_merge_method().get_merge_src(registers)}"
+		return (src + f".view(-1, {self._output_shape.get_product()})") if len(self._children) > 0 else src

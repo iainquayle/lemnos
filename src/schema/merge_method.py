@@ -22,9 +22,17 @@ class MergeMethod(Abstract):
 	@abstractmethod
 	def get_total_merged_size(self, input_shapes: List[LockedShape]) -> int:
 		pass
+	def get_merge_src(self, exprs: List[str]) -> str:
+		if len(exprs) == 0:
+			raise Exception("cannot get merge src from empty exprs")
+		elif len(exprs) == 1:
+			return exprs[0]
+		else:
+			return self._get_merge_src(exprs)
 	@abstractmethod
-	def get_merge_src(self, registers: List[str]) -> str | None:
+	def _get_merge_src(self, exprs: List[str]) -> str:
 		pass
+
 
 class Concat(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
@@ -44,8 +52,8 @@ class Concat(MergeMethod):
 			total_size += largest_shape.get_product()
 		largest_shape = largest_shape.to_open()
 		return largest_shape.to_locked(total_size // largest_shape.get_product())
-	def get_merge_src(self, registers: List[str]) -> str | None:
-		return ""
+	def _get_merge_src(self, exprs: List[str]) -> str | None:
+		return f"torch.cat([{', '.join(exprs)}], dim=1)"
 
 class Sum(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
@@ -57,5 +65,5 @@ class Sum(MergeMethod):
 		return shapes[0].get_product()
 	def _get_output_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		return reduce(lambda x, y: x if len(x) > len(y) else y, input_shapes)
-	def get_merge_src(self, registers: List[str]) -> str | None:
-		return ""
+	def _get_merge_src(self, exprs: List[str]) -> str | None:
+		return f"({' + '.join(exprs)})"

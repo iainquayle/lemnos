@@ -19,6 +19,7 @@ class TransformParameters(Abstract):
 	def validate_dimensionality(self, dimensionality: int) -> bool:
 		pass
 	
+	
 def _fill_conv_tuple(val: Tuple | int) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val])
 def _resize_conv_tuple(val: Tuple, length: int) -> Tuple:

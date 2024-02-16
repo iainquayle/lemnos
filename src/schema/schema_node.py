@@ -58,6 +58,10 @@ class SchemaNode:
 		regularization_src: str | None = None
 		activation_src: str | None = None
 		return transform_src, regularization_src, activation_src
+	def get_eval_src(self, expr: str) -> str:
+		src: str = ""
+		#if self.
+		return src
 
 class Transition:
 	_MAX_PRIORITY: int = 128 

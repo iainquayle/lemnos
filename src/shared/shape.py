@@ -92,6 +92,9 @@ class Shape(Abstract):
 		return self._product_cache
 	def __repr__(self) -> str:
 		return str(self)
+	@abstractmethod
+	def get_listed_source(self) -> str:
+		pass
 
 class LockedShape(Shape):
 	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
@@ -131,6 +134,9 @@ class LockedShape(Shape):
 		return LockedShape(self._shape)
 	def __str__(self) -> str:
 		return f"LS({self._shape})"
+	def get_listed_source(self) -> str:
+		return f"({', '.join([str(x) for x in self._shape])})"
+		
 
 class OpenShape(Shape):
 	@staticmethod
@@ -167,6 +173,8 @@ class OpenShape(Shape):
 		return OpenShape(self._shape)
 	def __str__(self) -> str:
 		return f"OS({self._shape})"
+	def get_listed_source(self) -> str:
+		return f"(-1, {', '.join([str(x) for x in self._shape])})"
 	
 class Bound:
 	_LOWER_INDEX = 0
