@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from src.schema.component_src import ComponentSrc
 from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 from abc import ABC as Abstract, abstractmethod 
 from typing import Tuple
 
-class TransformParameters(Abstract):
+class TransformParameters(ComponentSrc, Abstract):
 	__slots__ = ["_size_coefficients"]
 	def __init__(self, size_coefficients: Range) -> None:
 		self._size_coefficients: Range = size_coefficients
@@ -18,7 +19,8 @@ class TransformParameters(Abstract):
 	@abstractmethod
 	def validate_dimensionality(self, dimensionality: int) -> bool:
 		pass
-	
+	def get_component_name_src(self, id: int) -> str:
+		return f"t{id}"
 	
 def _fill_conv_tuple(val: Tuple | int) -> Tuple:
 	return val if isinstance(val, tuple) else tuple([val])
@@ -70,6 +72,5 @@ class ConvParameters(TransformParameters):
 		self._dilation = _resize_conv_tuple(self._dilation, dimensionality - 1)
 		self._padding = _resize_conv_tuple(self._padding, dimensionality - 1)
 		return dimensionality >= 2
-
-
-
+	def _get_component_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
+		return f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {self._kernel}, {self._stride}, {self._stride}, {self._padding})"
