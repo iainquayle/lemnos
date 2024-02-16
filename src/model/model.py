@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import traceback
 
 from src.schema.schema_node import SchemaNode
 from src.shared.shape import LockedShape
 from src.shared.index import Index
 
-from typing import List, Tuple, Iterable, Dict, Set
+from typing import List, Tuple, Iterable, Dict 
 from typing_extensions import Self
 
 	#tracking node evaluation progression
