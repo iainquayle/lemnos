@@ -22,10 +22,6 @@ class TransformParameters(ComponentSrc, Abstract):
 	def get_component_name_src(self, id: int) -> str:
 		return f"t{id}"
 	
-def _fill_conv_tuple(val: Tuple | int) -> Tuple:
-	return val if isinstance(val, tuple) else tuple([val])
-def _resize_conv_tuple(val: Tuple, length: int) -> Tuple:
-	return val + (val[-1],) * (length - len(val))
 class ConvParameters(TransformParameters):
 	__slots__ = ["_size_coefficients", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
 	def __init__(self,
@@ -37,10 +33,12 @@ class ConvParameters(TransformParameters):
 			depthwise: bool = False, #TODO: change this to a factor? or somthing else so filter groups can be a different size and a different number of groups
 			) -> None:
 		super().__init__(size_coefficients)
-		self._kernel: Tuple = _fill_conv_tuple(kernel)
-		self._stride: Tuple = _fill_conv_tuple(stride)
-		self._dilation: Tuple = _fill_conv_tuple(dilation)
-		self._padding: Tuple = _fill_conv_tuple(padding)
+		def fill_conv_tuple(val: Tuple | int) -> Tuple:
+			return val if isinstance(val, tuple) else tuple([val])
+		self._kernel: Tuple = fill_conv_tuple(kernel)
+		self._stride: Tuple = fill_conv_tuple(stride)
+		self._dilation: Tuple = fill_conv_tuple(dilation)
+		self._padding: Tuple = fill_conv_tuple(padding)
 		if ((len(self._kernel) != len(self._stride) and min(len(self._kernel), len(self._stride)) != 1)
 		  		or (len(self._stride) != len(self._dilation) and min(len(self._stride), len(self._dilation)) != 1)
 				or (len(self._dilation) != len(self._padding) and min(len(self._dilation), len(self._padding)) != 1)):
@@ -67,10 +65,12 @@ class ConvParameters(TransformParameters):
 			i += 1
 		return i == len(shape_out) and (not self.depthwise or shape_out[0] == shape_in[0])
 	def validate_dimensionality(self, dimensionality: int) -> bool:
-		self._kernel = _resize_conv_tuple(self._kernel, dimensionality - 1)
-		self._stride = _resize_conv_tuple(self._stride, dimensionality - 1)
-		self._dilation = _resize_conv_tuple(self._dilation, dimensionality - 1)
-		self._padding = _resize_conv_tuple(self._padding, dimensionality - 1)
+		def resize_conv_tuple(val: Tuple, length: int) -> Tuple:
+			return val + (val[-1],) * (length - len(val))
+		self._kernel = resize_conv_tuple(self._kernel, dimensionality - 1)
+		self._stride = resize_conv_tuple(self._stride, dimensionality - 1)
+		self._dilation = resize_conv_tuple(self._dilation, dimensionality - 1)
+		self._padding = resize_conv_tuple(self._padding, dimensionality - 1)
 		return dimensionality >= 2
 	def _get_component_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
 		return f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {self._kernel}, {self._stride}, {self._stride}, {self._padding})"
