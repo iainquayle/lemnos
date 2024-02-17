@@ -63,6 +63,9 @@ class Model():
 						forward_info.append((node, register_out, registers_in))
 		forward_src = ""
 		init_src = ""
+		#for the list
+		#	get the inits, which will return a list. no special names for different types of components? or it can pass some prefix or something back
+		#	then, add the components to the forward pass 
 		def format_registers(registers: List[int]) -> List[str]:
 			return [f"r{r}" for r in registers]
 		for i, (node, register_out, registers_in) in enumerate(forward_info):
