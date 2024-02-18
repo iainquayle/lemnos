@@ -53,15 +53,16 @@ class SchemaNode:
 		return self._transition_groups[index]
 	def __iter__(self) -> Iterable[TransitionGroup]:
 		return iter(self._transition_groups)
-	def get_components_src(self, mould_shape: LockedShape, output_shape: LockedShape) -> Tuple[str | None, str | None, str | None]:
-		transform_src: str | None = None
-		regularization_src: str | None = None
-		activation_src: str | None = None
-		return transform_src, regularization_src, activation_src
-	def get_eval_src(self, expr: str) -> str:
-		src: str = ""
-		#if self.
+	def get_inits_src(self, mould_shape: LockedShape, output_shape: LockedShape) -> List[str]:
+		src: List[str] = []
+		if self._transform is not None:
+			src.append("")
+		if self._activation is not None:
+			src.append("")
+		if self._regularization is not None:
+			src.append("")
 		return src
+	#def get_output_view_src()
 
 class Transition:
 	_MAX_PRIORITY: int = 128 

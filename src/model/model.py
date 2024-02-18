@@ -4,6 +4,7 @@ from __future__ import annotations
 from src.schema.schema_node import SchemaNode
 from src.shared.shape import LockedShape
 from src.shared.index import Index
+from src.schema.src_generation import * 
 
 from typing import List, Tuple, Iterable, Dict 
 from typing_extensions import Self
@@ -22,7 +23,7 @@ class Model():
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
 	def to_torch_module_src(self, name: str | None = None) -> Tuple[str, str]:
-		forward_info: List[Tuple[ModelNode, int, List[int]]] = []
+		forward_data: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []
 		evaluation_tracker: Dict[ModelNode, List[int]] = {} #node and the registers it is using
 		register_commitments: Dict[int, int] = {} #register and nodes it still needs to be used for
@@ -60,24 +61,40 @@ class Model():
 						if len(node.get_children()) == 0:
 							output_registers.append(register_out)
 							register_commitments[register_out] = 1
-						forward_info.append((node, register_out, registers_in))
+						forward_data.append((node, register_out, registers_in))
 		forward_src = ""
 		init_src = ""
+		init_statements: List[str] = []
+		forward_statements: List[str] = []
 		#for the list
 		#	get the inits, which will return a list. no special names for different types of components? or it can pass some prefix or something back
 		#	then, add the components to the forward pass 
+		def format_component(component: int | Tuple[int, int]) -> str:
+			if isinstance(component, int):
+				return f"c{component}"
+			else:
+				return f"c{component[0]}_{component[1]}"
+		def format_components(components: List[int | Tuple[int, int]]) -> List[str]:
+			return [format_component(c) for c in components]
+		def format_register(register: int) -> str:
+			return f"r{register}"
 		def format_registers(registers: List[int]) -> List[str]:
-			return [f"r{r}" for r in registers]
-		for i, (node, register_out, registers_in) in enumerate(forward_info):
-			transform_src, activation_src, regularization_src = node.get_components_src()
-			if transform_src is not None:
-				init_src += f"\t\tt{i} = {transform_src}\n"
-			if activation_src is not None:
-				init_src += f"\t\ta{i} = {activation_src}\n"
-			if regularization_src is not None:
-				init_src += f"\t\tb{i} = {regularization_src}\n"
+			return [format_register(r) for r in registers]
+		for i, (node, register_out, registers_in) in enumerate(forward_data):
+			forward_statment: str = node.get_schema_node().get_merge_method().get_merge_src(format_registers(registers_in))
+			inits = node.get_schema_node().get_inits_src(node.get_mould_shape(), node.get_output_shape())
+			if len(inits) > 0:
+				components = [format_component((i, j)) for j in range(len(inits))]
+				for component, init in zip(components, inits):
+					init_statements.append(assign_(component, init))
+				forward_statment = node.get_mould_view_src(forward_statment)
+				for component in components:
+					forward_statment = call_(component, forward_statment)
+				forward_statment = node.get_output_view_src(forward_statment)
+			forward_statements.append(assign_(format_register(register_out), forward_statment))
 
-			forward_src += f"\t\tr{register_out} = {node.get_eval_src(format_registers(registers_in))}\n"
+				
+
 		src = "import torch\nimport torch.nn as nn\n" + \
 			f"class {name if name is not None else 'Model'}(nn.Module):\n" + \
 			"\tdef __init__(self):\n" + \
@@ -144,7 +161,7 @@ class ModelNode():
 	def get_components_src(self) -> Tuple[str | None, str | None, str | None]:
 		#transform, activation, and batch norm
 		return "", "", ""
-	#consider allowing an optional 0th dimension, other wise just -1
-	def get_eval_src(self, registers: List[str]) -> str | None:
-		src = f"{self._schema_node.get_merge_method().get_merge_src(registers)}"
-		return (src + f".view(-1, {self._output_shape.get_product()})") if len(self._children) > 0 else src
+	def get_output_view_src(self, tensor: str) -> str:
+		return flatten_view_(tensor, self._output_shape)
+	def get_mould_view_src(self, tensor: str) -> str:
+		return view_(tensor, self._mould_shape)

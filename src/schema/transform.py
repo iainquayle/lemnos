@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.schema.component_src import ComponentSrc
+from src.schema.src_generation import * 
 from src.shared.index import Index
 from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 from abc import ABC as Abstract, abstractmethod 
@@ -19,8 +19,6 @@ class TransformParameters(ComponentSrc, Abstract):
 	@abstractmethod
 	def validate_dimensionality(self, dimensionality: int) -> bool:
 		pass
-	def get_component_name_src(self, id: int) -> str:
-		return f"t{id}"
 	
 class ConvParameters(TransformParameters):
 	__slots__ = ["_size_coefficients", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
@@ -73,4 +71,4 @@ class ConvParameters(TransformParameters):
 		self._padding = resize_conv_tuple(self._padding, dimensionality - 1)
 		return dimensionality >= 2
 	def _get_component_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
-		return f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {self._kernel}, {self._stride}, {self._stride}, {self._padding})"
+		return ""
