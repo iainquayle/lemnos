@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC as Abstract, abstractmethod
 from src.shared.shape import LockedShape
 
-from typing import Tuple, List
+from typing import Tuple, List, Iterable, Any
 
 #src generation responsibilities
 #	model
@@ -16,14 +16,15 @@ from typing import Tuple, List
 #		init
 
 class ComponentSrc(Abstract):
-	def get_component_init_src(self, shape_in: LockedShape, shape_out: LockedShape, id: int) -> str:
-		return f"{self.get_component_name_src(id)} = {self._get_component_init_src(shape_in, shape_out)}"
 	@abstractmethod
 	def get_component_name_src(self, id: int) -> str:
 		pass
 	@abstractmethod
-	def _get_component_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
+	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
 		pass
+
+def _to_str_list(iterable: Iterable[Any]) -> List[str]:
+	return [str(i) for i in iterable]
 
 def arg_list_(*exprs: str) -> str:
 	return f"{', '.join(exprs)}"
@@ -42,8 +43,13 @@ def class_(name: str, super_classes: List[str], members: List[str]) -> List[str]
 def concat_lines_(*lines: str) -> str:
 	return "\n".join(lines)
 
+def pytorch_module_(name: str, init_statements: List[str], forward_args: List[str], forward_statments: List[str]) -> str:
+	return concat_lines_(*class_(name, ["nn.Module"], 
+		function_("__init__", ["self"], ["super().__init__()"] + init_statements) +
+		function_("forward", ["self"] + forward_args, forward_statments)))
+
 def view_(expr: str, shape: LockedShape) -> str:
-	return f"{expr}.view(-1, {arg_list_(*shape)})"
+	return f"{expr}.view(-1, {arg_list_(*_to_str_list(iter(shape)))})"
 def flatten_view_(expr: str, size: int | LockedShape) -> str:
 	return f"{expr}.view(-1, {size if isinstance(size, int) else size.get_product()})"
 
@@ -53,7 +59,7 @@ def cat_(*exprs: str) -> str:
 	return f"torch.cat(({arg_list_(*exprs)}), dim=1)"
 
 def conv_(shape_in: LockedShape, shape_out: LockedShape, kernel: Tuple[int, ...], stride: Tuple[int, ...], padding: Tuple[int, ...], group: int) -> str:
-	return f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')"
+	return f"nn.Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')"
 
 def relu_() -> str:
 	return "nn.ReLU()"

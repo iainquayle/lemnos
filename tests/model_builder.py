@@ -31,7 +31,7 @@ class TestModelBuilder(unittest.TestCase):
 			self.assertEqual(model._output_nodes[0].get_schema_node(), output)
 		else:
 			self.fail()
-		print(model.to_torch_module_src()[1])
+		print(model.to_torch_module_src("Test"))
 
 class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_empty(self):

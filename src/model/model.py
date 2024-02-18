@@ -6,7 +6,7 @@ from src.shared.shape import LockedShape
 from src.shared.index import Index
 from src.schema.src_generation import * 
 
-from typing import List, Tuple, Iterable, Dict 
+from typing import List, Tuple, Iterable, Dict, Type
 from typing_extensions import Self
 
 	#tracking node evaluation progression
@@ -22,7 +22,7 @@ class Model():
 	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
-	def to_torch_module_src(self, name: str | None = None) -> Tuple[str, str]:
+	def to_torch_module_src(self, name: str) -> str:
 		forward_data: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []
 		evaluation_tracker: Dict[ModelNode, List[int]] = {} #node and the registers it is using
@@ -62,13 +62,8 @@ class Model():
 							output_registers.append(register_out)
 							register_commitments[register_out] = 1
 						forward_data.append((node, register_out, registers_in))
-		forward_src = ""
-		init_src = ""
 		init_statements: List[str] = []
 		forward_statements: List[str] = []
-		#for the list
-		#	get the inits, which will return a list. no special names for different types of components? or it can pass some prefix or something back
-		#	then, add the components to the forward pass 
 		def format_component(component: int | Tuple[int, int]) -> str:
 			if isinstance(component, int):
 				return f"c{component}"
@@ -92,18 +87,11 @@ class Model():
 					forward_statment = call_(component, forward_statment)
 				forward_statment = node.get_output_view_src(forward_statment)
 			forward_statements.append(assign_(format_register(register_out), forward_statment))
-
-				
-
-		src = "import torch\nimport torch.nn as nn\n" + \
-			f"class {name if name is not None else 'Model'}(nn.Module):\n" + \
-			"\tdef __init__(self):\n" + \
-			"\t\tsuper().__init__()\n" + \
-			f"{init_src}" + \
-			f"\tdef forward(self, r{'r,'.join([str(r) for r in range(len(self._input_nodes))])})\n" + \
-			f"{forward_src}" + \
-			f"\t\treturn r{'r,'.join([str(r) for r in output_registers])}\n"
-		return "",src 
+		src = pytorch_module_(name, init_statements, format_registers(list(range(len(self._input_nodes)))), forward_statements)
+		return src 
+	def get_model_handle(self, name: str) -> Type:
+		return eval(self.to_torch_module_src(name))
+		
 
 class ModelNode():
 	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape"]

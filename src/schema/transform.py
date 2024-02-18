@@ -6,7 +6,7 @@ from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 from abc import ABC as Abstract, abstractmethod 
 from typing import Tuple
 
-class TransformParameters(ComponentSrc, Abstract):
+class TransformParameters(Abstract):
 	__slots__ = ["_size_coefficients"]
 	def __init__(self, size_coefficients: Range) -> None:
 		self._size_coefficients: Range = size_coefficients
@@ -70,5 +70,5 @@ class ConvParameters(TransformParameters):
 		self._dilation = resize_conv_tuple(self._dilation, dimensionality - 1)
 		self._padding = resize_conv_tuple(self._padding, dimensionality - 1)
 		return dimensionality >= 2
-	def _get_component_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
-		return ""
+	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
+		return conv_(shape_in, shape_out, self._kernel, self._stride, self._padding, shape_in[0] if self.depthwise else 1)

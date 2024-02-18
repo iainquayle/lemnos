@@ -56,13 +56,12 @@ class SchemaNode:
 	def get_inits_src(self, mould_shape: LockedShape, output_shape: LockedShape) -> List[str]:
 		src: List[str] = []
 		if self._transform is not None:
-			src.append("")
+			src.append(self._transform.get_init_src(mould_shape, output_shape))
 		if self._activation is not None:
 			src.append("")
 		if self._regularization is not None:
 			src.append("")
 		return src
-	#def get_output_view_src()
 
 class Transition:
 	_MAX_PRIORITY: int = 128 

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import traceback
-
 from src.model.model import ModelNode, Model
 from src.shared.shape import LockedShape, OpenShape, Shape
 from src.shared.index import Index
