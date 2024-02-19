@@ -4,12 +4,12 @@ from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
 
 class TestShapeCommons(unittest.TestCase):
 	def setUp(self) -> None:
-		self.a = LockedShape.new(2, 3)
-		self.b = OpenShape.new(3)
-		self.c = OpenShape.new(2, 3)
-		self.d = LockedShape.new(1, 2, 3)
-		self.e = LockedShape.new(4, 3)
-		self.f = LockedShape.new(3, 3)
+		self.a = LockedShape(2, 3)
+		self.b = OpenShape(3)
+		self.c = OpenShape(2, 3)
+		self.d = LockedShape(1, 2, 3)
+		self.e = LockedShape(4, 3)
+		self.f = LockedShape(3, 3)
 	def test_length(self) -> None:
 		self.assertEqual(len(self.a), 2)
 	def test_upper_length(self) -> None:
@@ -45,13 +45,16 @@ class TestShapeCommons(unittest.TestCase):
 		self.assertEqual(self.d.common(self.a), self.d)
 		self.assertIsNone(self.a.common(self.e))
 		self.assertIsNone(self.e.common(self.d))	
+	def test_reverse_index(self) -> None: #something weird happening
+		self.assertTrue(isinstance(self.a[-1], int))
+		self.assertEqual(self.a[-1], 3)
 
 class TestBounds(unittest.TestCase):
 	def setUp(self) -> None:
 		self.bound = Bound((1, 10))
 	def test_contains_in(self) -> None:
-		self.assertTrue(LockedShape.new(5) in self.bound)
-		self.assertTrue(LockedShape.new(1, 5) in self.bound)
+		self.assertTrue(LockedShape(5) in self.bound)
+		self.assertTrue(LockedShape(1, 5) in self.bound)
 	def test_contains_out(self) -> None:
-		self.assertFalse(LockedShape.new(11) in self.bound)
+		self.assertFalse(LockedShape(11) in self.bound)
 	

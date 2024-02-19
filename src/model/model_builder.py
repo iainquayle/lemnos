@@ -56,7 +56,7 @@ class _BuildTracker:
 			return result
 		return None
 	def _build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
-		index = indices[0] #TODO: make this take into account the counts, and add salt
+		index = indices[id % len(indices)] #need to figure out how to handle
 		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
 			parents = build_node.get_parents()
@@ -72,23 +72,15 @@ class _BuildTracker:
 						if (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None:
 							node = ModelNode(index, id, schema_node, mould_shape, output_shape, parents)
 							self._increment_count(schema_node)
-							if id < self._max_nodes and tracker_copy._record_transitions(iter(group), node) and isinstance(result := tracker_copy._build_min(indices, id + 1), List):
+							if (id < self._max_nodes 
+			   						and tracker_copy._record_transitions(iter(group), node) 
+			   						and isinstance(result := tracker_copy._build_min(indices, id + 1), List)):
 								return [node, *result]
-								#two options:
-								#	backtrack all the way to the creator of the node
-								#		suppose node will always create shape out of bounds 
-								#		quicker likely
-								#		may miss some valid graphs?
-								#	backtrack to the previous and try next option
-								#		likely slower
-								#		guaranteed to find all valid graphs currently feasibly reachable
-								#		definitely easier
-								#would be benificial no matter which option, to do a preliminary bounds check on the transformed shape when the node is created
 							else:
 								node.unbind()	
 				i = -i if i > 0 else -i + 1
 			if len(schema_node.get_transition_groups()) == 0:
-				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape.new(), index)) is not None:
+				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape(), index)) is not None:
 					return [ModelNode(index, id, schema_node, mould_shape, output_shape, parents)]
 			return schema_node
 		return []
@@ -98,7 +90,7 @@ class _BuildTracker:
 		return self._node_counts.get(schema_node, 0)
 	def _get_group_conformance_shape(self, group: TransitionGroup, schema_node: SchemaNode) -> Shape | None:
 		transition_iter = iter(group)
-		conformance_shape = OpenShape.new()
+		conformance_shape = OpenShape()
 		while (transition := next(transition_iter, None)) is not None and conformance_shape is not None: #TODO: simplify somehow, fugly
 			if transition.get_join_existing():
 				if (join_node := self[transition.get_next()].get_available(schema_node)) is not None: 

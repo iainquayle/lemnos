@@ -19,7 +19,10 @@ class TransformParameters(Abstract):
 	@abstractmethod
 	def validate_dimensionality(self, dimensionality: int) -> bool:
 		pass
-	
+	@abstractmethod
+	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:	
+		pass
+
 class ConvParameters(TransformParameters):
 	__slots__ = ["_size_coefficients", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
 	def __init__(self,
@@ -50,7 +53,7 @@ class ConvParameters(TransformParameters):
 		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: Bound, index: Index) -> LockedShape | None:
 		#consider making it return none is the output shape does not result in a perfect fit for the input shape
-		open_shape = OpenShape([self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
+		open_shape = OpenShape(*[self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
 		if output_conformance.is_locked():
 			return open_shape.to_locked(output_conformance.get_product() // open_shape.get_product())
 		else:

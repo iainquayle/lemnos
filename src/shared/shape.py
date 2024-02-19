@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from torch import Size
-from typing import List, Iterable, Tuple
-from typing_extensions import Self
+from typing import List, Iterable, Tuple, Any
 from copy import copy
 from math import prod
 from abc import ABC as Abstract, abstractmethod
@@ -23,13 +22,9 @@ from abc import ABC as Abstract, abstractmethod
 #TODO: consider renaming locked to fixed, or sized
 class Shape(Abstract):
 	__slots__ = ("_shape", "_product_cache")
-	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
-		self._shape: List[int] = list(shape) if not isinstance(shape, List) else shape
+	def __init__(self, *shape: int) -> None:
+		self._shape: List[int] = list(shape)
 		self._product_cache: int = prod(self._shape)
-	@staticmethod
-	@abstractmethod
-	def new(*values: int) -> Shape:
-		pass
 	@abstractmethod
 	def upper_length(self) -> int:
 		pass
@@ -66,7 +61,7 @@ class Shape(Abstract):
 		pass
 	@staticmethod
 	def reduce_common_lossless(shapes: Iterable[Shape]) -> Shape | None:
-		common = OpenShape.new()
+		common = OpenShape()
 		shapes_iter = iter(shapes)
 		for shape in shapes_iter:
 			common = common.common_lossless(shape)
@@ -83,7 +78,7 @@ class Shape(Abstract):
 	def __iter__(self) -> Iterable[int]:
 		return iter(self._shape)
 	@abstractmethod
-	def __eq__(self, other: Self) -> bool:
+	def __eq__(self, other: Any) -> bool:
 		pass
 	@abstractmethod
 	def __copy__(self) -> Shape:
@@ -97,26 +92,23 @@ class Shape(Abstract):
 		pass
 
 class LockedShape(Shape):
-	def __init__(self, shape: Tuple[int, ...] | List[int] | Size) -> None:
+	def __init__(self, *shape: int) -> None:
 		if len(shape) == 0:
 			raise Exception("locked shape cannot be empty")
-		super().__init__(shape)
-	@staticmethod
-	def new(*values: int) -> LockedShape:
-		return LockedShape(values)
+		super().__init__(*shape)
 	def upper_length(self) -> int:
 		return len(self) - 1
 	def dimensionality(self) -> int:
 		return len(self)
 	def to_locked(self, dimension: int) -> LockedShape:
-		return LockedShape(self._shape)
+		return LockedShape(*self._shape)
 	def to_open(self) -> OpenShape:
-		return OpenShape(self._shape[1:])
+		return OpenShape(*self._shape[1:])
 	def squash(self, dimensionality: int) -> LockedShape:
 		if dimensionality >= self.dimensionality():
 			return copy(self) 
 		else:
-			return LockedShape([prod(self._shape[:-(dimensionality - 1)])] + self._shape[-(dimensionality - 1):])
+			return LockedShape(*[prod(self._shape[:-(dimensionality - 1)])] + self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
 		common = copy(self)
 		reverse_index = min(self.upper_length(), other.upper_length())
@@ -128,33 +120,29 @@ class LockedShape(Shape):
 		return common if self.reverse_upper_equal(reverse_index, other) else None 
 	def to_tuple(self) -> Tuple[int, ...]:
 		return tuple(self._shape)
-	def __eq__(self, other: Self) -> bool:
+	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, LockedShape) and self._shape == other._shape
 	def __copy__(self) -> LockedShape:
-		return LockedShape(self._shape)
+		return LockedShape(*self._shape)
 	def __str__(self) -> str:
 		return f"LS({self._shape})"
 	def get_listed_source(self) -> str:
 		return f"({', '.join([str(x) for x in self._shape])})"
 		
-
 class OpenShape(Shape):
-	@staticmethod
-	def new(*values: int) -> OpenShape:
-		return OpenShape(values)
 	def upper_length(self) -> int:
 		return len(self)
 	def dimensionality(self) -> int:
 		return len(self) + 1
 	def to_locked(self, dimension: int) -> LockedShape:
-		return LockedShape([dimension] + self._shape)
+		return LockedShape(*([dimension] + self._shape))
 	def to_open(self) -> OpenShape:
-		return OpenShape(self._shape)
+		return OpenShape(*self._shape)
 	def squash(self, dimensionality: int) -> OpenShape:
 		if dimensionality > self.dimensionality():
 			return copy(self)
 		else:
-			return OpenShape(self._shape[-(dimensionality - 1):])
+			return OpenShape(*self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
 		common = copy(self)
 		reverse_index = min(self.upper_length(), other.upper_length())
@@ -167,10 +155,10 @@ class OpenShape(Shape):
 		return common if self.reverse_upper_equal(reverse_index, other) else None 
 	def to_tuple(self) -> Tuple[int, ...]:
 		return tuple([-1] + self._shape)
-	def __eq__(self, other: Self) -> bool:
+	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, OpenShape) and self._shape == other._shape
 	def __copy__(self) -> OpenShape:
-		return OpenShape(self._shape)
+		return OpenShape(*self._shape)
 	def __str__(self) -> str:
 		return f"OS({self._shape})"
 	def get_listed_source(self) -> str:

@@ -11,23 +11,23 @@ from typing import List, Set, Iterable, Tuple
 from typing_extensions import Self
 from copy import copy 
 
-#TODO: add shape bounds to schema node
-#	move mould shape calculation here
-#	use the conformance shape from the transforms to get the output shape 
-#		this will standardize the way in which the open dim is filled
-
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
-	def __init__(self, shape_bounds: Bound, merge_method: MergeMethod, node_parameters: TransformParameters | None = None, debug_name: str = "") -> None:
+	def __init__(self, shape_bounds: Bound,
+			merge_method: MergeMethod,
+			transform: TransformParameters | None = None,
+			activation: Activation | None = None,
+			regularization: Regularization | None = None,
+			debug_name: str = "") -> None:
 		self._shape_bounds: Bound = shape_bounds 
 		self._transition_groups: List[TransitionGroup] = []
 		self._merge_method: MergeMethod = merge_method 
-		self._transform: TransformParameters | None = node_parameters 
-		self._activation: Activation | None = None
-		self._regularization: Regularization | None = None
+		self._transform: TransformParameters | None = transform 
+		self._activation: Activation | None = activation 
+		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
 		if self._transform is not None and not self._transform.validate_dimensionality(self.get_dimensionality()):
-			raise ValueError("dimensioanlity not correct for node parameters")
+			raise ValueError("dimensionality not correct for transform")
 	def add_group(self, repetition_bounds: Bound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
 		return self
@@ -35,6 +35,8 @@ class SchemaNode:
 		return self._merge_method.get_output_shape(input_shapes).squash(self.get_dimensionality())
 	def get_output_shape(self, mould_shape: LockedShape, output_conformance: Shape, index: Index) -> LockedShape | None:
 		output_shape = self._transform.get_output_shape(mould_shape, output_conformance, self._shape_bounds, index) if self._transform is not None else mould_shape
+		#if not isinstance(output_shape, LockedShape):
+		#	raise ValueError("output shape is not locked shape")
 		if output_shape is not None and output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
 			return output_shape 
 		else:
@@ -58,9 +60,9 @@ class SchemaNode:
 		if self._transform is not None:
 			src.append(self._transform.get_init_src(mould_shape, output_shape))
 		if self._activation is not None:
-			src.append("")
+			src.append(self._activation.get_init_src(mould_shape))
 		if self._regularization is not None:
-			src.append("")
+			src.append(self._regularization.get_init_src(mould_shape))
 		return src
 
 class Transition:

@@ -22,6 +22,8 @@ class Model():
 	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
+	def get_index_list(self) -> List[Index]: #could cache this???
+		pass
 	def to_torch_module_src(self, name: str) -> str:
 		forward_data: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []
@@ -64,22 +66,22 @@ class Model():
 						forward_data.append((node, register_out, registers_in))
 		init_statements: List[str] = []
 		forward_statements: List[str] = []
-		def format_component(component: int | Tuple[int, int]) -> str:
-			if isinstance(component, int):
-				return f"c{component}"
+		def format_component(node: int, component: int | None = None) -> str:
+			if component is None:
+				return f"c{node}"
 			else:
-				return f"c{component[0]}_{component[1]}"
-		def format_components(components: List[int | Tuple[int, int]]) -> List[str]:
-			return [format_component(c) for c in components]
+				return f"c{node}_{component}"
 		def format_register(register: int) -> str:
 			return f"r{register}"
 		def format_registers(registers: List[int]) -> List[str]:
 			return [format_register(r) for r in registers]
 		for i, (node, register_out, registers_in) in enumerate(forward_data):
+			#TODO: look at moving more of the forware statment generation into the node
+			#	in the normal course it would be its responsibility for evaluation
 			forward_statment: str = node.get_schema_node().get_merge_method().get_merge_src(format_registers(registers_in))
-			inits = node.get_schema_node().get_inits_src(node.get_mould_shape(), node.get_output_shape())
+			inits = node.get_inits_src()
 			if len(inits) > 0:
-				components = [format_component((i, j)) for j in range(len(inits))]
+				components = [format_component(i, j) for j in range(len(inits))]
 				for component, init in zip(components, inits):
 					init_statements.append(assign_(component, init))
 				forward_statment = node.get_mould_view_src(forward_statment)
@@ -87,11 +89,11 @@ class Model():
 					forward_statment = call_(component, forward_statment)
 				forward_statment = node.get_output_view_src(forward_statment)
 			forward_statements.append(assign_(format_register(register_out), forward_statment))
-		src = pytorch_module_(name, init_statements, format_registers(list(range(len(self._input_nodes)))), forward_statements)
+		src = torch_module_(name, init_statements, format_registers(list(range(len(self._input_nodes)))), forward_statements)
 		return src 
-	def get_model_handle(self, name: str) -> Type:
-		return eval(self.to_torch_module_src(name))
-		
+	def get_torch_module_handle(self, name: str) -> Type:
+		exec(self.to_torch_module_src(name))
+		return eval(name)
 
 class ModelNode():
 	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape"]
@@ -146,9 +148,8 @@ class ModelNode():
 		return len(self._children) == 0
 	def get_id(self) -> int:
 		return self._id
-	def get_components_src(self) -> Tuple[str | None, str | None, str | None]:
-		#transform, activation, and batch norm
-		return "", "", ""
+	def get_inits_src(self) -> List[str]:
+		return self._schema_node.get_inits_src(self._mould_shape, self._output_shape)
 	def get_output_view_src(self, tensor: str) -> str:
 		return flatten_view_(tensor, self._output_shape)
 	def get_mould_view_src(self, tensor: str) -> str:

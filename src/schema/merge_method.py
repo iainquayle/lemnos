@@ -37,11 +37,11 @@ class MergeMethod(Abstract):
 class Concat(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:
-			return OpenShape.new()
+			return OpenShape()
 		else:
 			return input_shapes[0].to_open()
-	def get_total_merged_size(self, shapes: List[LockedShape]) -> int:
-		return sum([shape.get_product() for shape in shapes])
+	def get_total_merged_size(self, input_shapes: List[LockedShape]) -> int:
+		return sum([shape.get_product() for shape in input_shapes])
 	def _get_output_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		inputs_iter = iter(input_shapes)
 		largest_shape = next(inputs_iter) 
@@ -52,18 +52,18 @@ class Concat(MergeMethod):
 			total_size += largest_shape.get_product()
 		largest_shape = largest_shape.to_open()
 		return largest_shape.to_locked(total_size // largest_shape.get_product())
-	def _get_merge_src(self, exprs: List[str]) -> str | None:
+	def _get_merge_src(self, exprs: List[str]) -> str:
 		return f"torch.cat([{', '.join(exprs)}], dim=1)"
 
 class Sum(MergeMethod):
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:
-			return OpenShape.new()
+			return OpenShape()
 		else:
 			return input_shapes[0]
-	def get_total_merged_size(self, shapes: List[LockedShape]) -> int:
-		return shapes[0].get_product()
+	def get_total_merged_size(self, input_shapes: List[LockedShape]) -> int:
+		return input_shapes[0].get_product()
 	def _get_output_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		return reduce(lambda x, y: x if len(x) > len(y) else y, input_shapes)
-	def _get_merge_src(self, exprs: List[str]) -> str | None:
+	def _get_merge_src(self, exprs: List[str]) -> str:
 		return f"({' + '.join(exprs)})"
