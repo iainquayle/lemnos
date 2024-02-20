@@ -9,21 +9,44 @@ from src.schema.src_generation import *
 from typing import List, Tuple, Iterable, Dict, Type
 from typing_extensions import Self
 
-	#tracking node evaluation progression
-		#need dict of nodes, w set of parents 
-		#walk through, expanding those which have full set of parents
-	#tracking register use
-		#need list of registers
-		#need dict of nodes, w set of children, and a register
-		#once a node has all children, can free register
+from copy import copy
 
 class Model():
 	_MAX_ITERATIONS = 1024 
-	def __init__(self, input_nodes: List[ModelNode] = [], output_nodes: List[ModelNode] = list()) -> None:
+	def __init__(self, input_nodes: List[ModelNode], output_nodes: List[ModelNode]) -> None:
 		self._input_nodes: List[ModelNode] = input_nodes 
 		self._output_nodes: List[ModelNode] = output_nodes 
-	def get_index_list(self) -> List[Index]: #could cache this???
-		pass
+		self._ordered_node_cache: List[ModelNode] | None = []
+	def get_ordered_nodes(self) -> List[ModelNode]:
+		#TODO: change the ordering of nodes so that the input nodes are all first
+		#	can reuse it for the forward pass then
+		#	shouldnt change any of the caching for the actual evaluation of the model?
+		if self._ordered_node_cache is not None:
+			return self._ordered_node_cache
+		else:
+			evaluation_tracker: Dict[ModelNode, int] = {}
+			ordered_nodes: List[ModelNode] = []
+			for node in self._input_nodes:
+				evaluation_tracker[node] = 0
+				evaluated_node: bool = True
+				while evaluated_node:
+					evaluated_node = False
+					for node, visits in list(evaluation_tracker.items()):
+						if visits == len(node.get_parents()):
+							del evaluation_tracker[node]
+							ordered_nodes.append(node)
+							evaluated_node = True
+							for child in node.get_children():
+								if child in evaluation_tracker:
+									evaluation_tracker[child] += 1
+								else:
+									evaluation_tracker[child] = 1
+			self._ordered_node_cache = ordered_nodes
+			return copy(ordered_nodes) 
+	def get_index_list(self) -> List[Index]:
+		return [node._index for node in self.get_ordered_nodes()]
+	def get_index_schema_list(self) -> List[Tuple[Index, SchemaNode]]:
+		return [(node._index, node.get_schema_node()) for node in self.get_ordered_nodes()]
 	def to_torch_module_src(self, name: str) -> str:
 		forward_data: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []

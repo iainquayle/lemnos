@@ -73,6 +73,8 @@ class Shape(Abstract):
 		pass
 	def __getitem__(self, index: int) -> int:
 		return self._shape[index]
+	#def reverse_get(self, index: int) -> int:
+	#	return self._shape[len(self) - index - 1]
 	def __len__(self) -> int:
 		return len(self._shape)
 	def __iter__(self) -> Iterable[int]:

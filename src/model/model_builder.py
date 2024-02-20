@@ -9,13 +9,12 @@ from typing import List, Dict, Tuple, Iterable
 
 from copy import copy
 
-#TODO: perhaps add a flag that switches whether the indices should be atModelNodeted in order, or just used at random for breeding,
-#	could use a random seed, that can also effectivley work as a flag
-#	only real option for capturing input and output nodes in current setup is to return a list of nodes and find them after
 #TODO: consider adding ordering to input nodes to it 
 #TODO: consider making turning join existing into enum
 #TODO: items that need to be added:
 #	macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
+#		technically could scrap this, and just rely on the and search to find valid model 
+#		would be vastly more simple, not as efficient though
 class ModelBuilder:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
@@ -27,6 +26,19 @@ class ModelBuilder:
 		self.inputs.append(pattern)
 	def add_end(self, pattern: SchemaNode) -> None:
 		self.outputs.append(pattern)
+	#options
+	#	always have a pool of indices available when not building entirley from a known list
+	#		always should have schema nodes attached
+	#		if starting fresh then guess they need to be optional then
+	#	pass singular list of indices, and a pool to choose from when the list is exhausted
+	#		this case would not need the schema nodes attached
+	#		unless it wanted to be allowed to split the list and use the schema nodes to line them back up
+	#		decent option, would technically work
+	#	pass in multiple lists, mix and match sequences as best as possible
+	#		need to have schema nodes attached, try and line them back up 
+	#		likely the best option for breeding, gives the most flexibility
+	#		the pool could be not matched with schema nodes, and be the functionality of mutation and gap filling
+	#		List[List[Tuple[Index, SchemaNode]]] 
 	def build(self, input_shapes: List[LockedShape], indices: List[Index]) -> Model | None:
 		if len(input_shapes) != len(self.inputs):
 			raise ValueError("Incorrect number of input shapes")
