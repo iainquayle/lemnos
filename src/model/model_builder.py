@@ -15,6 +15,28 @@ from copy import copy
 #	macro parameters, only a certain number of these can be used? maybe in a chain, somehow relate to other nodes
 #		technically could scrap this, and just rely on the and search to find valid model 
 #		would be vastly more simple, not as efficient though
+class BuildIndices:
+	__slots__ = ["_indices", "_pool"]
+	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode]]] = [], pool: List[Tuple[Index, SchemaNode | None]] = []) -> None:
+		self._indices: List[List[Tuple[Index, SchemaNode]]] = sequences 
+		self._pool: List[Tuple[Index, SchemaNode | None]] = pool
+	def get_index(self, sequence: int, id: int, schema_node: SchemaNode) -> Index:
+		if sequence < len(self._indices) and id < len(self._indices[sequence]) and self._indices[sequence][id][1] == schema_node:
+			#TODO: add some flexibilty, allow it to search within a range for a schema node that matches
+			#TODO: figure out how to handle deciding the sequence used
+			#	it may be smart to make a wrapper around this that holds the state of the build?
+			#	could also be the struct that holds more overarching build data
+			#	otherwise building would just thrash the inidices and lose all coherence
+			#	or maybe make this hold state, and make the copy functions merely copy the state
+			#		have all that hidden
+			return self._indices[sequence][id][0]
+		else:
+			pass
+class _BuildIndicesTracker:
+	__slots__ = ["_indices"]
+	def __init__(self, indices: BuildIndices) -> None:
+		self._indices: BuildIndices = indices
+
 class ModelBuilder:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
@@ -67,8 +89,8 @@ class _BuildTracker:
 				node.unbind()
 			return result
 		return None
-	def _build_min(self, indices: List[Index], id: int) -> List[ModelNode] | SchemaNode:
-		index = indices[id % len(indices)] #need to figure out how to handle
+	def _build_min(self, indices: List[Index], depth: int) -> List[ModelNode] | SchemaNode:
+		index = indices[depth % len(indices)] #need to figure out how to handle
 		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
 			parents = build_node.get_parents()
@@ -82,18 +104,18 @@ class _BuildTracker:
 					if conformance_shape is not None:
 						tracker_copy = copy(self)
 						if (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None:
-							node = ModelNode(index, id, schema_node, mould_shape, output_shape, parents)
+							node = ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)
 							self._increment_count(schema_node)
-							if (id < self._max_nodes 
+							if (depth < self._max_nodes 
 			   						and tracker_copy._record_transitions(iter(group), node) 
-			   						and isinstance(result := tracker_copy._build_min(indices, id + 1), List)):
+			   						and isinstance(result := tracker_copy._build_min(indices, depth + 1), List)):
 								return [node, *result]
 							else:
 								node.unbind()	
 				i = -i if i > 0 else -i + 1
 			if len(schema_node.get_transition_groups()) == 0:
 				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape(), index)) is not None:
-					return [ModelNode(index, id, schema_node, mould_shape, output_shape, parents)]
+					return [ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)]
 			return schema_node
 		return []
 	def _increment_count(self, schema_node: SchemaNode) -> None:

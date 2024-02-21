@@ -2,7 +2,6 @@ from typing import Tuple
 import random
 
 class Index:
-	MAX_INDEX = 2**16 -1
 	def __init__(self, index: int =0) -> None:
 		self._index = index
 	def get_shuffled(self, bounds: Tuple[int, int] | int, salt: int = 0) -> int:
