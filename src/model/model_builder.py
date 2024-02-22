@@ -13,23 +13,22 @@ from copy import copy
 #	this will make the schema and model more parallel in structure
 
 #TODO: consider making turning join existing into enum
+class OtherBuildIndices:
+	__slots__ = ["_sequences"]
+	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = []) -> None:
+		self._sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = sequences
+
 class BuildIndices:
 	__slots__ = ["_indices", "_pool"]
-	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode]]] = [], pool: List[Tuple[Index, SchemaNode | None]] = []) -> None:
+	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode]]] = [], pool: List[Tuple[Index, SchemaNode]] = []) -> None:
 		self._indices: List[List[Tuple[Index, SchemaNode]]] = sequences 
-		self._pool: List[Tuple[Index, SchemaNode | None]] = pool
+		self._pool: List[Tuple[Index, SchemaNode]] = pool
 	def get_index(self, sequence: int, id: int, schema_node: SchemaNode) -> Index:
 		if sequence < len(self._indices) and id < len(self._indices[sequence]): 
 			#TODO: add some flexibilty, allow it to search within a range for a schema node that matches
-			#TODO: figure out how to handle deciding the sequence used
-			#	it may be smart to make a wrapper around this that holds the state of the build?
-			#	could also be the struct that holds more overarching build data
-			#	otherwise building would just thrash the inidices and lose all coherence
-			#	or maybe make this hold state, and make the copy functions merely copy the state
-			#		have all that hidden
 			return self._indices[sequence][id][0]
 		else:
-			pass
+			return Index()
 
 class ModelBuilder:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
@@ -55,7 +54,10 @@ class ModelBuilder:
 	#		likely the best option for breeding, gives the most flexibility
 	#		the pool could be not matched with schema nodes, and be the functionality of mutation and gap filling
 	#		List[List[Tuple[Index, SchemaNode]]] 
-	def build(self, input_shapes: List[LockedShape], indices: List[Index]) -> Model | None:
+	#	pass only a pool, paired with model nodes or atleast a size
+	#		if the size is somewhat the same, then it may be be a better means of carrying across traits from one model to another
+	#could implement a number of these?
+	def build(self, input_shapes: List[LockedShape], indices: BuildIndices) -> Model | None:
 		if len(input_shapes) != len(self.inputs):
 			raise ValueError("Incorrect number of input shapes")
 		nodes = _BuildTracker.build_nodes({input_schema: shape for input_schema, shape in zip(self.inputs, input_shapes)}, indices, self.max_nodes)
@@ -68,18 +70,20 @@ class ModelBuilder:
 
 class _BuildTracker:
 	_MAX_NODES = 512 
-	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts"]
-	def __init__(self, indices: List[Index], max_nodes: int, stacks: Dict[SchemaNode, _BuildStack] = dict()) -> None:
+	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence", "_sequence_offset"]
+	def __init__(self, indices: BuildIndices, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack] = dict()) -> None:
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
 		self._node_counts: Dict[SchemaNode, int] = {}
 		self._max_nodes: int = max_nodes
-		self._indices: List[Index] = indices
+		self._indices: BuildIndices = indices
+		self._sequence: int = 0
+		self._sequence_offset: int = 0
+		#perhaps change the index schema node pairing to use a model node, to keep track of the size
 		#move depth to tracking here
 		#track sequence used currently
 		#perhaps also track the offset of the depth required to find an index that fits
-		#self._new_indices: BuildIndices = BuildIndices()
 	@staticmethod
-	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: List[Index], max_nodes: int) -> List[ModelNode] | None:
+	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: BuildIndices, max_nodes: int) -> List[ModelNode] | None:
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
 		tracker = _BuildTracker(indices, max_nodes, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()})
 		if isinstance((result := tracker._build_min(indices, 0)), List):
@@ -87,10 +91,10 @@ class _BuildTracker:
 				node.unbind()
 			return result
 		return None
-	def _build_min(self, indices: List[Index], depth: int) -> List[ModelNode] | SchemaNode:
-		index = indices[depth % len(indices)] #need to figure out how to handle
+	def _build_min(self, indices: BuildIndices, depth: int) -> List[ModelNode] | SchemaNode:
 		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
+			index = Index()
 			parents = build_node.get_parents()
 			mould_shape = schema_node.get_mould_shape([parent.get_output_shape() for parent in parents])
 			pivot = index.get_shuffled(len(schema_node.get_transition_groups()))
