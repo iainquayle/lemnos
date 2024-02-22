@@ -14,9 +14,18 @@ from copy import copy
 
 #TODO: consider making turning join existing into enum
 class OtherBuildIndices:
+	#while this may seem the best, how would mutation work?
+	#	perhaps have hyperparam that dictates the likelihood of mutation
+	#	much like the likelihood of a jump to a different sequence
 	__slots__ = ["_sequences"]
 	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = []) -> None:
+		#index, schema, shape in
 		self._sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = sequences
+	def get_index(self, sequence: int, id: int, schema_node: SchemaNode, shape: Shape) -> Index:
+		if sequence < len(self._sequences) and id < len(self._sequences[sequence]):
+			pass
+		return Index()
+
 
 class BuildIndices:
 	__slots__ = ["_indices", "_pool"]
