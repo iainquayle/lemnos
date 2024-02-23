@@ -8,6 +8,8 @@ from src.schema.transform import ConvParameters
 from src.schema.activation import ReLU
 from src.schema.regularization import BatchNormalization 
 
+from torch import zeros
+
 class TestModel(unittest.TestCase):
 	def test_generated_module(self):
 		main = SchemaNode( Bound((1, 1), (1, 8)), Sum())
@@ -32,5 +34,16 @@ class TestModel(unittest.TestCase):
 		if model is None:
 			self.fail("Model is None")
 		else:
-			print(model.to_torch_module_src("Test"))
-		pass
+			ordered_nodes = model.get_ordered_nodes()
+			node_set = set()
+			for node in ordered_nodes:
+				if node in node_set:
+					self.fail("Duplicate node in ordered list")
+				node_set.add(node)
+			self.assertEqual(len(ordered_nodes), 11)
+			#print(model.to_torch_module_src("Test"))
+			return
+			module = model.get_torch_module_handle("Test")()
+			input = zeros(1, 1, 8)
+			output = module(input)
+			self.assertEqual(output.shape, (1, 1, 1))

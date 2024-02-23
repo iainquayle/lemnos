@@ -21,26 +21,26 @@ class Model():
 		#TODO: change the ordering of nodes so that the input nodes are all first
 		#	can reuse it for the forward pass then
 		#	shouldnt change any of the caching for the actual evaluation of the model?
-		if self._ordered_node_cache is not None:
+		if self._ordered_node_cache is not None and len(self._ordered_node_cache) > 0:
 			return self._ordered_node_cache
 		else:
 			evaluation_tracker: Dict[ModelNode, int] = {}
 			ordered_nodes: List[ModelNode] = []
 			for node in self._input_nodes:
 				evaluation_tracker[node] = 0
-				evaluated_node: bool = True
-				while evaluated_node:
-					evaluated_node = False
-					for node, visits in list(evaluation_tracker.items()):
-						if visits == len(node.get_parents()):
-							del evaluation_tracker[node]
-							ordered_nodes.append(node)
-							evaluated_node = True
-							for child in node.get_children():
-								if child in evaluation_tracker:
-									evaluation_tracker[child] += 1
-								else:
-									evaluation_tracker[child] = 1
+			evaluated_node: bool = True
+			while evaluated_node:
+				evaluated_node = False
+				for node, visits in list(evaluation_tracker.items()):
+					if visits == len(node.get_parents()):
+						del evaluation_tracker[node]
+						ordered_nodes.append(node)
+						evaluated_node = True
+						for child in node.get_children():
+							if child in evaluation_tracker:
+								evaluation_tracker[child] += 1
+							else:
+								evaluation_tracker[child] = 1
 			self._ordered_node_cache = ordered_nodes
 			return copy(ordered_nodes) 
 	def get_index_list(self) -> List[Index]:
@@ -111,7 +111,7 @@ class Model():
 				for component in components:
 					forward_statment = call_(component, forward_statment)
 				forward_statment = node.get_output_view_src(forward_statment)
-			forward_statements.append(assign_(format_register(register_out), forward_statment))
+			forward_statements.append(assign_(format_register(register_out), forward_statment) + f"\t#{node.get_id()}")
 		src = torch_module_(name, init_statements, format_registers(list(range(len(self._input_nodes)))), forward_statements)
 		return src 
 	def get_torch_module_handle(self, name: str) -> Type:

@@ -106,6 +106,13 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		nodes = _BuildTracker.build_nodes({main: input_shape}, BuildIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 11)
+			id_set = set()
+			for node in nodes:
+				print(node.get_id())
+				for child in node.get_children():
+					print("\t", child.get_id())
+				self.assertNotIn(node.get_id(), id_set)
+				id_set.add(node.get_id())
 		else:
 			self.fail()
 	def test_infinite_loop_stop(self):

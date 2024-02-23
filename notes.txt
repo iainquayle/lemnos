@@ -1,0 +1,18 @@
+changes:
+	guarenteed:
+		make builder indices abstract
+			make one version for building a specific model from on sequence only requiring index
+			make one for mutation and iteration
+	possible:
+		move model builder back to schema
+			seperate schema nodes and model nodes from schema and model
+			could make methods on a schema to make nodes, simplifying the importation
+		move all node components to a single file
+			transforms, activations, regularizers
+			simplify the importation
+		turn join existing into enum
+			three: join on, make new, auto
+
+problems:
+	no hint as to why a schema is not solvable
+	if a join existing is set where there is none to join on, it will crash with no reason

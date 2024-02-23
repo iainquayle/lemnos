@@ -10,13 +10,7 @@ import random
 
 from copy import copy
 
-#TODO: move builder into schema, and seperate model and model nodes into their own files
-#	this will make the schema and model more parallel in structure
-
 class BuildIndices:
-	#while this may seem the best, how would mutation work?
-	#	perhaps have hyperparam that dictates the likelihood of mutation
-	#	much like the likelihood of a jump to a different sequence
 	__slots__ = ["_sequences"]
 	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = []) -> None:
 		#index, schema, shape in
