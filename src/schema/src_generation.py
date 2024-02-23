@@ -34,11 +34,11 @@ def class_(name: str, super_classes: List[str], members: List[str]) -> List[str]
 def concat_lines_(*lines: str) -> str:
 	return "\n".join(lines)
 
-def torch_imports_() -> str:
-	return "import torch\nimport torch.nn as nn\n"
+def torch_imports_() -> List[str]:
+	return ["import torch", "import torch.nn as nn"]
 def torch_module_(name: str, init_statements: List[str], forward_args: List[str], forward_statments: List[str]) -> str:
-	return torch_imports_() + concat_lines_(*(class_(name, ["nn.Module"], 
-		function_("__init__", ["self"], ["super().__init__()"] + init_statements) +
+	return concat_lines_(*(torch_imports_() + class_(name, ["nn.Module"], 
+		function_("__init__", ["self"],["super().__init__()"] + torch_imports_() + init_statements) +
 		function_("forward", ["self"] + forward_args, forward_statments))))
 
 def view_(expr: str, shape: LockedShape) -> str:

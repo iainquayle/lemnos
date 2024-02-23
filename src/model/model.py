@@ -47,7 +47,7 @@ class Model():
 		return [node._index for node in self.get_ordered_nodes()]
 	def get_index_schema_list(self) -> List[Tuple[Index, SchemaNode]]:
 		return [(node._index, node.get_schema_node()) for node in self.get_ordered_nodes()]
-	def to_torch_module_src(self, name: str) -> str:
+	def get_torch_module_src(self, name: str) -> str:
 		forward_data: List[Tuple[ModelNode, int, List[int]]] = []
 		output_registers: List[int] = []
 		evaluation_tracker: Dict[ModelNode, List[int]] = {} #node and the registers it is using
@@ -106,16 +106,19 @@ class Model():
 			if len(inits) > 0:
 				components = [format_component(i, j) for j in range(len(inits))]
 				for component, init in zip(components, inits):
-					init_statements.append(assign_(component, init))
+					init_statements.append(self_(assign_(component, init)))
 				forward_statment = node.get_mould_view_src(forward_statment)
 				for component in components:
-					forward_statment = call_(component, forward_statment)
+					forward_statment = self_(call_(component, forward_statment))
 				forward_statment = node.get_output_view_src(forward_statment)
+			if len(node.get_children()) == 0:
+				forward_statment = node.get_final_view_shape(forward_statment) 
 			forward_statements.append(assign_(format_register(register_out), forward_statment))
+		forward_statements.append(return_(*format_registers(output_registers)))
 		src = torch_module_(name, init_statements, format_registers(list(range(len(self._input_nodes)))), forward_statements)
 		return src 
 	def get_torch_module_handle(self, name: str) -> Type:
-		exec(self.to_torch_module_src(name))
+		exec(self.get_torch_module_src(name))
 		return eval(name)
 
 class ModelNode():
@@ -177,3 +180,5 @@ class ModelNode():
 		return flatten_view_(tensor, self._output_shape)
 	def get_mould_view_src(self, tensor: str) -> str:
 		return view_(tensor, self._mould_shape)
+	def get_final_view_shape(self, tensor: str) -> str:
+		return view_(tensor, self._output_shape)
