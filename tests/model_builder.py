@@ -4,7 +4,9 @@ from src.model.model_builder import _BuildNode, _BuildStack, _BuildTracker, Mode
 from src.model.model import ModelNode
 from src.schema.schema_node import SchemaNode, Transition
 from src.schema.transform import ConvParameters 
-from src.schema.merge_method import Concat
+from src.schema.merge_method import Concat, Sum
+from src.schema.activation import ReLU
+from src.schema.regularization import BatchNormalization
 from src.shared.shape import Bound, LockedShape, Range
 from src.shared.index import Index
 from copy import copy
@@ -81,6 +83,29 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 			self.assertEqual(len(nodes), 4)
 			for node in nodes[:-1]:
 				self.assertEqual(len(node.get_children()), 1)
+		else:
+			self.fail()
+	def test_split_looped(self):
+		main = SchemaNode( Bound((1, 1), (1, 8)), Sum())
+		split_1 = SchemaNode( Bound((1, 1), (1, 8)), 
+			Concat(), 
+			ConvParameters(Range(.1, 2.0), kernel=2, stride=2),
+			ReLU(), 
+			BatchNormalization())
+		split_2 = SchemaNode( Bound((1, 10), (1, 8)), 
+			Concat(), 
+			ConvParameters(Range(.1, 2.0), kernel=2, stride=2),
+			ReLU(), 
+			BatchNormalization())
+		end_node = SchemaNode( Bound((1, 1), (1, 1)), Concat())
+		main.add_group(Bound(), (split_1, 0, False), (split_2, 1, False))
+		split_1.add_group(Bound(), (main, 2, False))
+		split_2.add_group(Bound(), (main, 2, True))
+		main.add_group(Bound(), (end_node, 0, False))
+		input_shape = LockedShape(1, 8)
+		nodes = _BuildTracker.build_nodes({main: input_shape}, BuildIndices(), 10)
+		if nodes is not None:
+			self.assertEqual(len(nodes), 11)
 		else:
 			self.fail()
 	def test_infinite_loop_stop(self):

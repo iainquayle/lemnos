@@ -1,10 +1,36 @@
 import unittest
 
 from src.schema.schema_node import SchemaNode
-from src.schema.transform import TransformParameters
-from src.model.model import Model
-from src.model.model_builder import ModelBuilder
+from src.model.model_builder import ModelBuilder, BuildIndices
+from src.shared.shape import Bound, Range, LockedShape
+from src.schema.merge_method import Sum, Concat
+from src.schema.transform import ConvParameters
+from src.schema.activation import ReLU
+from src.schema.regularization import BatchNormalization 
 
 class TestModel(unittest.TestCase):
 	def test_generated_module(self):
+		main = SchemaNode( Bound((1, 1), (1, 8)), Sum())
+		split_1 = SchemaNode( Bound((1, 1), (1, 8)), 
+			Concat(), 
+			ConvParameters(Range(.1, 2.0), kernel=2, stride=2),
+			ReLU(), 
+			BatchNormalization())
+		split_2 = SchemaNode( Bound((1, 10), (1, 8)), 
+			Concat(), 
+			ConvParameters(Range(.1, 2.0), kernel=2, stride=2),
+			ReLU(), 
+			BatchNormalization())
+		end_node = SchemaNode( Bound((1, 1), (1, 1)), Concat())
+		main.add_group(Bound(), (split_1, 0, False), (split_2, 1, False))
+		split_1.add_group(Bound(), (main, 2, False))
+		split_2.add_group(Bound(), (main, 2, True))
+		main.add_group(Bound(), (end_node, 0, False))
+		#when one of the split transitions is set to join on, it crashes, should atleast give reason
+		builder = ModelBuilder([main], [end_node])
+		model = builder.build([LockedShape(1, 8)], BuildIndices())
+		if model is None:
+			self.fail("Model is None")
+		else:
+			print(model.to_torch_module_src("Test"))
 		pass

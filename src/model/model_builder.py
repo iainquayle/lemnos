@@ -6,14 +6,14 @@ from src.shared.index import Index
 from src.schema.schema_node import SchemaNode, Transition, TransitionGroup
 
 from typing import List, Dict, Tuple, Iterable
+import random
 
 from copy import copy
 
 #TODO: move builder into schema, and seperate model and model nodes into their own files
 #	this will make the schema and model more parallel in structure
 
-#TODO: consider making turning join existing into enum
-class OtherBuildIndices:
+class BuildIndices:
 	#while this may seem the best, how would mutation work?
 	#	perhaps have hyperparam that dictates the likelihood of mutation
 	#	much like the likelihood of a jump to a different sequence
@@ -21,28 +21,21 @@ class OtherBuildIndices:
 	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = []) -> None:
 		#index, schema, shape in
 		self._sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = sequences
-	def get_index(self, sequence: int, id: int, schema_node: SchemaNode, shape: Shape) -> Index:
-		if sequence < len(self._sequences) and id < len(self._sequences[sequence]):
+	def get_index(self, sequence: Index, schema_node: SchemaNode, shape: Shape, mutate_probability: float, sequence_change_probability: float, shape_flexibility: float) -> Index:
+		if random.random() < mutate_probability:
+			pass	
+		else:
 			pass
 		return Index()
 
-
-class BuildIndices:
-	__slots__ = ["_indices", "_pool"]
-	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode]]] = [], pool: List[Tuple[Index, SchemaNode]] = []) -> None:
-		self._indices: List[List[Tuple[Index, SchemaNode]]] = sequences 
-		self._pool: List[Tuple[Index, SchemaNode]] = pool
-	def get_index(self, sequence: int, id: int, schema_node: SchemaNode) -> Index:
-		if sequence < len(self._indices) and id < len(self._indices[sequence]): 
-			#TODO: add some flexibilty, allow it to search within a range for a schema node that matches
-			return self._indices[sequence][id][0]
-		else:
-			return Index()
-
+#TODO: consider making turning join existing into enum
 class ModelBuilder:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
 			raise ValueError("No start or end patterns")
+		for output in outputs:
+			if len(output.get_transition_groups()) > 0:
+				raise ValueError("End patterns should not have transition groups")
 		self.inputs: List[SchemaNode] = inputs 
 		self.outputs: List[SchemaNode] = outputs 
 		self.max_nodes: int = max_nodes
