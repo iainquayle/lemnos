@@ -74,10 +74,6 @@ class _BuildTracker:
 		self._indices: BuildIndices = indices
 		self._sequence: int = 0
 		self._sequence_offset: int = 0
-		#perhaps change the index schema node pairing to use a model node, to keep track of the size
-		#move depth to tracking here
-		#track sequence used currently
-		#perhaps also track the offset of the depth required to find an index that fits
 	@staticmethod
 	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: BuildIndices, max_nodes: int) -> List[ModelNode] | None:
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
@@ -107,6 +103,7 @@ class _BuildTracker:
 							if (depth < self._max_nodes 
 			   						and tracker_copy._record_transitions(iter(group), node) 
 			   						and isinstance(result := tracker_copy._build_min(indices, depth + 1), List)):
+								print(depth, len(node.get_parents()), len(node.get_children()))
 								return [node, *result]
 							else:
 								node.unbind()	
