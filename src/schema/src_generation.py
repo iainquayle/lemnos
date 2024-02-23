@@ -34,12 +34,16 @@ def class_(name: str, super_classes: List[str], members: List[str]) -> List[str]
 def concat_lines_(*lines: str) -> str:
 	return "\n".join(lines)
 
-def torch_imports_() -> List[str]:
-	return ["import torch", "import torch.nn as nn"]
+def import_torch_() -> str:
+	return "import torch"
+def torch_(expr: str) -> str:
+	return f"torch.{expr}"
+def torch_nn_(expr: str) -> str:
+	return f"torch.nn.{expr}"
 def torch_module_(name: str, init_statements: List[str], forward_args: List[str], forward_statments: List[str]) -> str:
-	return concat_lines_(*(torch_imports_() + class_(name, ["nn.Module"], 
-		function_("__init__", ["self"],["super().__init__()"] + torch_imports_() + init_statements) +
-		function_("forward", ["self"] + forward_args, forward_statments))))
+	return concat_lines_(*([import_torch_()] + class_(name, [torch_nn_("Module")], 
+		function_("__init__", ["self"],["super().__init__()"] + [import_torch_()] + init_statements) +
+		function_("forward", ["self"] + forward_args, [import_torch_()] + forward_statments))))
 
 def view_(expr: str, shape: LockedShape) -> str:
 	return f"{expr}.view(-1, {arg_list_(*_to_str_list(iter(shape)))})"
@@ -49,22 +53,22 @@ def flatten_view_(expr: str, size: int | LockedShape) -> str:
 def sum_(*exprs: str) -> str:
 	return f"({' + '.join(exprs)})"
 def cat_(*exprs: str) -> str:
-	return f"torch.cat(({arg_list_(*exprs)}), dim=1)"
+	return torch_(f"cat({arg_list_(*exprs)}, dim=1)")
 
 def conv_(shape_in: LockedShape, shape_out: LockedShape, kernel: Tuple[int, ...], stride: Tuple[int, ...], padding: Tuple[int, ...], group: int) -> str:
-	return f"nn.Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')"
+	return torch_nn_(f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')")
 
 def relu_() -> str:
-	return "nn.ReLU()"
+	return torch_nn_("ReLU()")
 def relu6_() -> str:
-	return "nn.ReLU6()"
+	return torch_nn_("ReLU6()")
 def softmax_() -> str:
-	return "nn.Softmax(dim=1)"
+	return torch_nn_("Softmax(dim=1)")
 
 def batch_norm_(shape_in: LockedShape) -> str:
-	return f"nn.BatchNorm{len(shape_in) - 1}d({shape_in[0]})"
+	return torch_nn_(f"BatchNorm{len(shape_in) - 1}d({shape_in[0]})")
 def dropout_(p: float) -> str:
-	return f"nn.Dropout(p={p})"
+	return torch_nn_(f"Dropout(p={p})")
 def channel_dropout_(p: float, shape_in: LockedShape) -> str:
-	return f"nn.Dropout{len(shape_in) - 1}d(p={p})"
+	return torch_nn_(f"Dropout{len(shape_in) - 1}d(p={p})")
 
