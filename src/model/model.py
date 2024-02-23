@@ -111,7 +111,7 @@ class Model():
 				for component in components:
 					forward_statment = call_(component, forward_statment)
 				forward_statment = node.get_output_view_src(forward_statment)
-			forward_statements.append(assign_(format_register(register_out), forward_statment) + f"\t#{node.get_id()}")
+			forward_statements.append(assign_(format_register(register_out), forward_statment))
 		src = torch_module_(name, init_statements, format_registers(list(range(len(self._input_nodes)))), forward_statements)
 		return src 
 	def get_torch_module_handle(self, name: str) -> Type:
@@ -151,18 +151,18 @@ class ModelNode():
 	def get_mould_shape(self) -> LockedShape:
 		return self._mould_shape
 	def unbind(self) -> None:
-		for child in self._children:
-			child.unbind_parent(self)
-		for parent in self._parents:
-			parent.unbind_child(self)
-	def unbind_child(self, child: Self) -> None:
+		for child in copy(self._children):
+			child._unbind_parent(self)
+		for parent in copy(self._parents):
+			parent._unbind_child(self)
+	def _unbind_child(self, child: Self) -> None:
 		if child in self._children:
 			self._children.remove(child)
-			child.unbind_parent(self)
-	def unbind_parent(self, parent: Self) -> None:
+			child._unbind_parent(self)
+	def _unbind_parent(self, parent: Self) -> None:
 		if parent in self._parents:
 			self._parents.remove(parent)
-			parent.unbind_child(self)
+			parent._unbind_child(self)
 	def get_schema_node(self) -> SchemaNode:
 		return self._schema_node
 	def get_dimensionality(self) -> int:

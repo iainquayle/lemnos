@@ -108,9 +108,6 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 			self.assertEqual(len(nodes), 11)
 			id_set = set()
 			for node in nodes:
-				#print(node.get_id())
-				#for child in node.get_children():
-				#	print("\t", child.get_id())
 				self.assertNotIn(node.get_id(), id_set)
 				id_set.add(node.get_id())
 		else:

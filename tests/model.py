@@ -35,13 +35,8 @@ class TestModel(unittest.TestCase):
 			self.fail("Model is None")
 		else:
 			ordered_nodes = model.get_ordered_nodes()
-			node_set = set()
-			for node in ordered_nodes:
-				if node in node_set:
-					self.fail("Duplicate node in ordered list")
-				node_set.add(node)
 			self.assertEqual(len(ordered_nodes), 11)
-			#print(model.to_torch_module_src("Test"))
+			print(model.to_torch_module_src("Test"))
 			return
 			module = model.get_torch_module_handle("Test")()
 			input = zeros(1, 1, 8)

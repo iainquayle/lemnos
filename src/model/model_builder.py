@@ -99,11 +99,11 @@ class _BuildTracker:
 						tracker_copy = copy(self)
 						if (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None:
 							node = ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)
+							#print(depth, len(node.get_parents()))
 							self._increment_count(schema_node)
 							if (depth < self._max_nodes 
 			   						and tracker_copy._record_transitions(iter(group), node) 
 			   						and isinstance(result := tracker_copy._build_min(indices, depth + 1), List)):
-								print(depth, len(node.get_parents()), len(node.get_children()))
 								return [node, *result]
 							else:
 								node.unbind()	
