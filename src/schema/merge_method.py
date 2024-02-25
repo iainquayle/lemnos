@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from src.shared import LockedShape, OpenShape, Shape
+
 from typing import List, Iterable
 from abc import ABC as Abstract, abstractmethod
-from src.shared.shape import Shape, LockedShape, OpenShape
 from functools import reduce
 
 #TODO: consider moving this to schema? maybe?

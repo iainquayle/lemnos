@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.schema.src_generation import * 
-from src.shared.index import Index
-from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
+from src.shared import Shape, LockedShape, OpenShape, Bound, Range, Index
+from .src_generation import * 
+
 from abc import ABC as Abstract, abstractmethod 
 from typing import Tuple
 

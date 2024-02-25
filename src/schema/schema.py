@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from .schema_node import SchemaNode
 
-from src.shared import LockedShape, OpenShape, Shape, Index
-from src.model.model import Model 
-from sec.model.model_node import ModelNode
-from src.schema.schema_node import SchemaNode, Transition, TransitionGroup
+from src.shared import Shape, LockedShape, OpenShape, Index
+from src.model.model import Model
+from src.model.model_node import ModelNode
+from .schema_node import SchemaNode, Transition, TransitionGroup
 
 from typing import List, Dict, Tuple, Iterable
 import random
@@ -24,7 +25,7 @@ class BuildIndices:
 		return Index()
 
 #TODO: consider making turning join existing into enum
-class ModelBuilder:
+class Schema:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
 			raise ValueError("No start or end patterns")

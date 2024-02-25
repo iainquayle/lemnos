@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from src.schema.transform import TransformParameters  
-from src.shared.shape import Bound, LockedShape, Shape 
-from src.shared.index import Index
-from src.schema.merge_method import MergeMethod 
-from src.schema.activation import Activation
-from src.schema.regularization import Regularization
+from src.shared import LockedShape, Shape, Index, Bound
+from .merge_method import MergeMethod 
+from .activation import Activation
+from .regularization import Regularization
+from .transform import TransformParameters  
 
 from typing import List, Set, Iterable, Tuple
 from typing_extensions import Self

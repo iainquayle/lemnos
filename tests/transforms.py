@@ -3,9 +3,8 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from src.schema.transform import ConvParameters 
-from src.shared.shape import LockedShape, OpenShape, Bound, Range
-from src.shared.index import Index
+from src.schema import ConvParameters
+from src.shared import LockedShape, OpenShape, Bound, Range, Index
 
 #TODO: splits these tests up
 class TestConvParameters(unittest.TestCase):

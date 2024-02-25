@@ -1,7 +1,7 @@
 import unittest
 
-from src.schema.merge_method import Sum, Concat
-from src.shared.shape import LockedShape, OpenShape 
+from src.schema import Sum, Concat
+from src.shared import LockedShape, OpenShape 
 
 class TestMergeMethod(unittest.TestCase):
 	def setUp(self) -> None:

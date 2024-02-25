@@ -1,6 +1,6 @@
 import unittest
 
-from src.shared.shape import Shape, LockedShape, OpenShape, Bound, Range
+from src.shared import Shape, LockedShape, OpenShape, Bound 
 
 class TestShapeCommons(unittest.TestCase):
 	def setUp(self) -> None:

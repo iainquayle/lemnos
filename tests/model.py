@@ -2,11 +2,8 @@ import unittest
 
 from src.schema.schema_node import SchemaNode
 from src.model.model_builder import ModelBuilder, BuildIndices
-from src.shared.shape import Bound, Range, LockedShape
-from src.schema.merge_method import Sum, Concat
-from src.schema.transform import ConvParameters
-from src.schema.activation import ReLU
-from src.schema.regularization import BatchNormalization 
+from src.shared import Bound, Range, LockedShape
+from src.schema import Sum, Concat, ConvParameters, ReLU, BatchNormalization
 
 from torch import zeros
 
