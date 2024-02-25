@@ -1,13 +1,8 @@
 import unittest   
 
-#from src.model.model_builder import _BuildNode, _BuildStack, _BuildTracker, Schema, BuildIndices
-from src.schema.schema import _BuildNode, _BuildStack, _BuildTracker, Schema, BuildIndices
+from src.schema.schema import _BuildNode, _BuildStack, _BuildTracker
 from src.model.model import ModelNode
-from src.schema.schema_node import SchemaNode, Transition
-from src.schema.transform import ConvParameters 
-from src.schema.merge_method import Concat, Sum
-from src.schema.activation import ReLU
-from src.schema.regularization import BatchNormalization
+from src.schema import Schema, BuildIndices, SchemaNode, Transition, ConvParameters, Concat, Sum, ReLU, BatchNormalization
 from src.shared import Bound, LockedShape, Range, Index
 from copy import copy
 

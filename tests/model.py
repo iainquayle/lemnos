@@ -1,9 +1,7 @@
 import unittest
 
-from src.schema.schema_node import SchemaNode
-from src.model.model_builder import ModelBuilder, BuildIndices
 from src.shared import Bound, Range, LockedShape
-from src.schema import Sum, Concat, ConvParameters, ReLU, BatchNormalization
+from src.schema import Schema, SchemaNode, BuildIndices, Sum, Concat, ConvParameters, ReLU, BatchNormalization 
 
 from torch import zeros
 
@@ -11,7 +9,7 @@ class TestModel(unittest.TestCase):
 	def test_generate_simple_module(self):
 		main = SchemaNode(Bound((1, 10)), Concat())
 		input_shape = LockedShape(5)
-		builder = ModelBuilder([main], [main])
+		builder = Schema([main], [main])
 		model = builder.build([input_shape], BuildIndices())
 		if model is not None:
 			module_handle = model.get_torch_module_handle("Test")
@@ -26,7 +24,7 @@ class TestModel(unittest.TestCase):
 		main.add_group(Bound((2, 10)), (output, 0, False))
 		main.add_group(Bound((2, 10)), (main, 0, False))
 		input_shape = LockedShape(1, 8)
-		builder = ModelBuilder([main], [output])
+		builder = Schema([main], [output])
 		model = builder.build([input_shape], BuildIndices())
 		if model is not None:
 			module_handle = model.get_torch_module_handle("Test")
@@ -54,7 +52,7 @@ class TestModel(unittest.TestCase):
 		split_2.add_group(Bound(), (main, 2, True))
 		main.add_group(Bound(), (end_node, 0, False))
 		#when one of the split transitions is set to join on, it crashes, should atleast give reason
-		builder = ModelBuilder([main], [end_node])
+		builder = Schema([main], [end_node])
 		model = builder.build([LockedShape(1, 8)], BuildIndices())
 		if model is None:
 			self.fail("Model is None")
