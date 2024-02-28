@@ -7,10 +7,16 @@ from src.model.model import Model
 from src.model.model_node import ModelNode
 from .schema_node import SchemaNode, Transition, TransitionGroup
 
-from typing import List, Dict, Tuple, Iterable
 import random
-
+from typing import List, Dict, Tuple, Iterable
 from copy import copy
+from abc import ABC as Abstract, abstractmethod
+
+
+class Indices(Abstract):
+	@abstractmethod
+	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: Shape, mutate_probability: float, sequence_change_probability: float, shape_flexibility: float) -> Index:	
+		pass
 
 class BuildIndices:
 	__slots__ = ["_sequences"]
