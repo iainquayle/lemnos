@@ -15,19 +15,21 @@ from abc import ABC as Abstract, abstractmethod
 
 class Indices(Abstract):
 	@abstractmethod
-	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: Shape, mutate_probability: float, sequence_change_probability: float, shape_flexibility: float) -> Index:	
+	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float, shape_size_flexibility: float) -> Tuple[Index, int]:	
 		pass
 
-class BuildIndices:
+class BuildIndices(Indices):
 	__slots__ = ["_sequences"]
-	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = []) -> None:
+	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = []) -> None:
 		#index, schema, shape in
-		self._sequences: List[List[Tuple[Index, SchemaNode, Shape]]] = sequences
-	def get_index(self, sequence: Index, schema_node: SchemaNode, shape: Shape, mutate_probability: float, sequence_change_probability: float, shape_flexibility: float) -> Index:
+		self._sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = sequences
+	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float, shape_size_flexibility: float) -> Tuple[Index, int]:
 		if random.random() < mutate_probability:
-			pass	
-		else:
 			pass
+		else:
+			for index, node, shape in self._sequences[sequence]:
+				if node == schema_node and shape == shape:
+					return index
 		return Index()
 
 #TODO: consider making turning join existing into enum
@@ -107,7 +109,6 @@ class _BuildTracker:
 						tracker_copy = copy(self)
 						if (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None:
 							node = ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)
-							#print(depth, len(node.get_parents()))
 							self._increment_count(schema_node)
 							if (depth < self._max_nodes 
 			   						and tracker_copy._record_transitions(iter(group), node) 

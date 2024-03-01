@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from torch import Size
 from typing import List, Iterable, Tuple, Any
 from copy import copy
 from math import prod
@@ -102,6 +101,11 @@ class LockedShape(Shape):
 		return len(self) - 1
 	def dimensionality(self) -> int:
 		return len(self)
+	def get_upper_diff(self, other: LockedShape) -> int:
+		accumulator = 1
+		for i in range(1, min(len(self), len(other))):
+			accumulator *= max(1, abs(self[i] - other[i]))
+		return accumulator
 	def to_locked(self, dimension: int) -> LockedShape:
 		return LockedShape(*self._shape)
 	def to_open(self) -> OpenShape:
@@ -122,6 +126,8 @@ class LockedShape(Shape):
 		return common if self.reverse_upper_equal(reverse_index, other) else None 
 	def to_tuple(self) -> Tuple[int, ...]:
 		return tuple(self._shape)
+	def get(self, index: int) -> int:
+		return self._shape[index]
 	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, LockedShape) and self._shape == other._shape
 	def __copy__(self) -> LockedShape:
@@ -157,6 +163,11 @@ class OpenShape(Shape):
 		return common if self.reverse_upper_equal(reverse_index, other) else None 
 	def to_tuple(self) -> Tuple[int, ...]:
 		return tuple([-1] + self._shape)
+	def get(self, index: int) -> int:
+		if index == 0:
+			return -1
+		else:
+			return self._shape[index - 1]
 	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, OpenShape) and self._shape == other._shape
 	def __copy__(self) -> OpenShape:
@@ -165,6 +176,8 @@ class OpenShape(Shape):
 		return f"OS({self._shape})"
 	def get_listed_source(self) -> str:
 		return f"(-1, {', '.join([str(x) for x in self._shape])})"
+	def get_upper_diff(self, other: Shape) -> int:
+		return 0
 	
 class Bound:
 	_LOWER_INDEX = 0
