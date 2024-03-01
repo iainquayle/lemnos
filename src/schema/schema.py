@@ -15,7 +15,7 @@ from abc import ABC as Abstract, abstractmethod
 
 class Indices(Abstract):
 	@abstractmethod
-	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float, shape_size_flexibility: float) -> Tuple[Index, int]:	
+	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float) -> Tuple[Index, int]:	
 		pass
 
 class BuildIndices(Indices):
@@ -23,7 +23,7 @@ class BuildIndices(Indices):
 	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = []) -> None:
 		#index, schema, shape in
 		self._sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = sequences
-	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float, shape_size_flexibility: float) -> Tuple[Index, int]:
+	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float) -> Tuple[Index, int]:
 		if random.random() < mutate_probability:
 			pass
 		else:

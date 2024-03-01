@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.shared import LockedShape, Shape, Index, Bound
+from src.shared import LockedShape, Shape, Index, ShapeBound
 from .merge_method import MergeMethod 
 from .activation import Activation
 from .regularization import Regularization
-from .transform import TransformParameters  
+from .transform import Transform  
 
 from typing import List, Set, Iterable, Tuple
 from typing_extensions import Self
@@ -12,26 +12,26 @@ from copy import copy
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
-	def __init__(self, shape_bounds: Bound,
+	def __init__(self, shape_bounds: ShapeBound,
 			merge_method: MergeMethod,
-			transform: TransformParameters | None = None,
+			transform: Transform | None = None,
 			activation: Activation | None = None,
 			regularization: Regularization | None = None,
 			debug_name: str = "") -> None:
-		self._shape_bounds: Bound = shape_bounds 
+		self._shape_bounds: ShapeBound = shape_bounds 
 		self._transition_groups: List[TransitionGroup] = []
 		self._merge_method: MergeMethod = merge_method 
-		self._transform: TransformParameters | None = transform 
+		self._transform: Transform | None = transform 
 		self._activation: Activation | None = activation 
 		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
-		if self._transform is not None and not self._transform.validate_dimensionality(self.get_dimensionality()):
+		if self._transform is not None and not self._transform.validate_dimensionality(self.dimensionality()):
 			raise ValueError("dimensionality not correct for transform")
-	def add_group(self, repetition_bounds: Bound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
+	def add_group(self, repetition_bounds: ShapeBound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
 		return self
 	def get_mould_shape(self, input_shapes: List[LockedShape]) -> LockedShape:
-		return self._merge_method.get_output_shape(input_shapes).squash(self.get_dimensionality())
+		return self._merge_method.get_output_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, mould_shape: LockedShape, output_conformance: Shape, index: Index) -> LockedShape | None:
 		output_shape = self._transform.get_output_shape(mould_shape, output_conformance, self._shape_bounds, index) if self._transform is not None else mould_shape
 		#if not isinstance(output_shape, LockedShape):
@@ -42,13 +42,13 @@ class SchemaNode:
 			return None
 	def get_conformance_shape(self, input_shapes: List[LockedShape]) -> Shape:
 		return self._merge_method.get_conformance_shape(input_shapes)
-	def get_transform(self) -> TransformParameters | None:
+	def get_transform(self) -> Transform | None:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod:
 		return self._merge_method
 	def get_transition_groups(self) -> List[TransitionGroup]:
 		return self._transition_groups
-	def get_dimensionality(self) -> int:
+	def dimensionality(self) -> int:
 		return len(self._shape_bounds)
 	def __getitem__(self, index: int) -> TransitionGroup:
 		return self._transition_groups[index]
@@ -92,9 +92,9 @@ class Transition:
 
 class TransitionGroup:
 	__slots__ = ["_transitions", "_repetition_bounds"]
-	def __init__(self, repetition_bounds: Bound, transitions: List[Transition]) -> None:
+	def __init__(self, repetition_bounds: ShapeBound, transitions: List[Transition]) -> None:
 		self._transitions: List[Transition] = copy(transitions)
-		self._repetition_bounds: Bound = repetition_bounds
+		self._repetition_bounds: ShapeBound = repetition_bounds
 	def set_transitions(self, transitions: List[Transition]) -> None:
 		pattern_set: Set[SchemaNode] = set()
 		for transition in transitions:
@@ -102,7 +102,7 @@ class TransitionGroup:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.get_next())
 		self._transitions = transitions
-	def get_bounds(self) -> Bound:
+	def get_bounds(self) -> ShapeBound:
 		return self._repetition_bounds
 	def __getitem__(self, index: int) -> Transition:
 		return self._transitions[index]

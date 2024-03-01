@@ -1,20 +1,23 @@
 from __future__ import annotations
 
-from src.shared import Shape, LockedShape, OpenShape, Bound, Range, Index
+from src.shared import Shape, LockedShape, OpenShape, ShapeBound, Range, Index
 from .src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 
 from typing import Tuple
 
-class TransformParameters(Abstract):
+#maybe just dont even use a range class
+
+class Transform(Abstract):
 	__slots__ = ["_size_coefficients"]
+	#size_delta_coeffs: int | Tuple[int, int] 
 	def __init__(self, size_coefficients: Range) -> None:
 		self._size_coefficients: Range = size_coefficients
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
 	@abstractmethod
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: Bound, index: Index) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
 		pass
 	@abstractmethod
 	def validate_dimensionality(self, dimensionality: int) -> bool:
@@ -23,7 +26,7 @@ class TransformParameters(Abstract):
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:	
 		pass
 
-class ConvParameters(TransformParameters):
+class Conv(Transform):
 	__slots__ = ["_size_coefficients", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "depthwise"]
 	def __init__(self,
 			size_coefficients: Range,
@@ -51,7 +54,7 @@ class ConvParameters(TransformParameters):
 	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: Bound, index: Index) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
 		#consider making it return none is the output shape does not result in a perfect fit for the input shape
 		open_shape = OpenShape(*[self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
 		if output_conformance.is_locked():

@@ -1,6 +1,6 @@
 import unittest
 
-from src.shared import Shape, LockedShape, OpenShape, Bound 
+from src.shared import Shape, LockedShape, OpenShape, ShapeBound 
 
 class TestShapeCommons(unittest.TestCase):
 	def setUp(self) -> None:
@@ -49,9 +49,9 @@ class TestShapeCommons(unittest.TestCase):
 		self.assertTrue(isinstance(self.a[-1], int))
 		self.assertEqual(self.a[-1], 3)
 
-class TestBounds(unittest.TestCase):
+class TestShapeBounds(unittest.TestCase):
 	def setUp(self) -> None:
-		self.bound = Bound((1, 10))
+		self.bound = ShapeBound((1, 10))
 	def test_contains_in(self) -> None:
 		self.assertTrue(LockedShape(5) in self.bound)
 		self.assertTrue(LockedShape(1, 5) in self.bound)

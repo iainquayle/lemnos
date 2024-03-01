@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC as Abstract, abstractmethod
 from src.shared import LockedShape
 
 from typing import Tuple, List, Iterable, Any

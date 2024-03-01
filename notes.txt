@@ -5,6 +5,7 @@ changes:
 			make one for mutation and iteration
 		move away from using magic functions where not required
 			number of instances where the magic function's use is not clearly defined by its name
+		change name of range and move to transforms
 	possible:
 		move model builder back to schema
 			seperate schema nodes and model nodes from schema and model
@@ -16,6 +17,7 @@ changes:
 			three: join on, make new, auto
 		make open shape return -1 for 0
 			could also make a methods get and get_upper and get_reverse
+		change bound name to shape bound
 
 problems:
 	no hint as to why a schema is not solvable
