@@ -2,7 +2,7 @@ import unittest
 
 from src.schema.schema import _BuildNode, _BuildStack, _BuildTracker
 from src.model.model import ModelNode
-from src.schema import Schema, BuildIndices, SchemaNode, Transition, Conv, Concat, Sum, ReLU, BatchNormalization
+from src.schema import Schema, BreedIndices, SchemaNode, Transition, Conv, Concat, Sum, ReLU, BatchNormalization
 from src.shared import ShapeBound, LockedShape, Range, Index
 from copy import copy
 
@@ -22,7 +22,7 @@ class TestSchema(unittest.TestCase):
 		main.add_group(ShapeBound((2, 10)), (output, 0, False))
 		main.add_group(ShapeBound((2, 10)), (main, 0, False))
 		builder = Schema([main], [output])
-		model = builder.build([input_shape], BuildIndices())
+		model = builder.build([input_shape], BreedIndices())
 		if model is not None:
 			self.assertEqual(model._input_nodes[0].get_schema_node(), main)
 			self.assertEqual(model._output_nodes[0].get_schema_node(), output)
@@ -31,11 +31,11 @@ class TestSchema(unittest.TestCase):
 
 class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_empty(self):
-		self.assertFalse(_BuildTracker.build_nodes({}, BuildIndices(), 0))
+		self.assertFalse(_BuildTracker.build_nodes({}, BreedIndices(), 0))
 	def test_single(self):
 		input = SchemaNode(ShapeBound((1, 10)), Concat())
 		input_shape = LockedShape(5)
-		nodes = _BuildTracker.build_nodes({input: input_shape}, BuildIndices(), 0)
+		nodes = _BuildTracker.build_nodes({input: input_shape}, BreedIndices(), 0)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 1)
 		else:
@@ -45,7 +45,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		input_shape = LockedShape(5)
 		output = SchemaNode(ShapeBound((1, 10)), Concat())
 		input.add_group(ShapeBound((1, 10)), (output, 0, False))
-		nodes = _BuildTracker.build_nodes({input: input_shape}, BuildIndices(), 10)
+		nodes = _BuildTracker.build_nodes({input: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 2)
 		else: 
@@ -61,7 +61,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		self.assertEqual(input[0][1].get_next(), mid2)
 		mid1.add_group(ShapeBound((1, 10)), (output, 2, False))
 		mid2.add_group(ShapeBound((1, 10)), (output, 2, True))
-		nodes = _BuildTracker.build_nodes({input: input_shape}, BuildIndices(), 10)
+		nodes = _BuildTracker.build_nodes({input: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 4)
 		else:
@@ -72,7 +72,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		output = SchemaNode(ShapeBound((1, 1), (1, 1)), Concat(), None)
 		main.add_group(ShapeBound((2, 10)), (output, 0, False))
 		main.add_group(ShapeBound((2, 10)), (main, 0, False))
-		nodes = _BuildTracker.build_nodes({main: input_shape}, BuildIndices(), 10)
+		nodes = _BuildTracker.build_nodes({main: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(nodes[0].get_output_shape(), LockedShape(1, 4))
 			self.assertEqual(len(nodes), 4)
@@ -98,7 +98,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		split_2.add_group(ShapeBound(), (main, 2, True))
 		main.add_group(ShapeBound(), (end_node, 0, False))
 		input_shape = LockedShape(1, 8)
-		nodes = _BuildTracker.build_nodes({main: input_shape}, BuildIndices(), 10)
+		nodes = _BuildTracker.build_nodes({main: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 11)
 			id_set = set()
@@ -111,7 +111,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		main = SchemaNode(ShapeBound((1, 10)), Concat(), None)
 		input_shape = LockedShape(5)
 		main.add_group(ShapeBound((1, 10)), (main, 0, False))
-		nodes = _BuildTracker.build_nodes({main: input_shape}, BuildIndices(), 10)
+		nodes = _BuildTracker.build_nodes({main: input_shape}, BreedIndices(), 10)
 		self.assertFalse(nodes)
 
 class TestBuildTrackerUtils(unittest.TestCase):
@@ -120,12 +120,12 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		self.node2 = _BuildNode([m1s2], 10)
 		self.stack1 = _BuildStack([self.node1])
 		self.stack2 = _BuildStack([self.node2])
-		self.tracker = _BuildTracker(BuildIndices(), 0, {s1: self.stack1, s2: self.stack2})
+		self.tracker = _BuildTracker(BreedIndices(), 0, {s1: self.stack1, s2: self.stack2})
 	def test_pop_min_full(self):
 		self.assertEqual(self.tracker._pop_min_node(), (s1, self.node1))
 		self.assertEqual(self.tracker._pop_min_node(), (s2, self.node2))
 	def test_pop_min_empty(self):
-		tracker = _BuildTracker(BuildIndices(), 0)
+		tracker = _BuildTracker(BreedIndices(), 0)
 		self.assertIsNone(tracker._pop_min_node())
 	def test_copy(self):
 		new_tracker = copy(self.tracker) 
@@ -150,7 +150,7 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		#t3_nj = Transition()
 	def test_record_invalid(self):
 		t2_j = Transition(s2, 1, True)
-		tracker = _BuildTracker(BuildIndices(), 0, {s1: self.stack1, s2: _BuildStack([])})
+		tracker = _BuildTracker(BreedIndices(), 0, {s1: self.stack1, s2: _BuildStack([])})
 		self.assertFalse(tracker.record_transition(t2_j, m1s1))
 		self.assertEqual(len(tracker[s2]), 0)
 		t1_j = Transition(s1, 0, True)

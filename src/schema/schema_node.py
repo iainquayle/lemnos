@@ -25,8 +25,6 @@ class SchemaNode:
 		self._activation: Activation | None = activation 
 		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
-		if self._transform is not None and not self._transform.validate_dimensionality(self.dimensionality()):
-			raise ValueError("dimensionality not correct for transform")
 	def add_group(self, repetition_bounds: ShapeBound, *transitions: Tuple[SchemaNode, int, bool] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(repetition_bounds, [transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
 		return self

@@ -13,26 +13,53 @@ from copy import copy
 from abc import ABC as Abstract, abstractmethod
 
 
-class Indices(Abstract):
+class BuildIndices(Abstract):
 	@abstractmethod
-	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float) -> Tuple[Index, int]:	
+	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:	
 		pass
 
-class BuildIndices(Indices):
-	__slots__ = ["_sequences"]
-	def __init__(self, sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = []) -> None:
-		#index, schema, shape in
-		self._sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = sequences
-	def get_index(self, id: int, sequence: int, schema_node: SchemaNode, shape: LockedShape, mutate_probability: float, sequence_change_probability: float) -> Tuple[Index, int]:
-		if random.random() < mutate_probability:
-			pass
-		else:
-			for index, node, shape in self._sequences[sequence]:
-				if node == schema_node and shape == shape:
-					return index
-		return Index()
+class StaticIndices(BuildIndices):
+	__slots__ = ["_indices"]
+	def __init__(self, indices: List[Index]) -> None:
+		self._indices: List[Index] = indices
+	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:
+		return self._indices[id], 0 
 
-#TODO: consider making turning join existing into enum
+class BreedIndices(BuildIndices):
+	__slots__ = ["_sequences", "_sequence_change_prod", "_mutate_prod"]
+	def __init__(self, sequence_change_prod: float = 0, mutate_prod: float = 0, sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = []) -> None:
+		if sequence_change_prod < 0 or sequence_change_prod > 1 or mutate_prod < 0 or mutate_prod > 1:
+			raise ValueError("Invalid probabilities")
+		self._sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = sequences
+		self._sequence_change_prod: float = sequence_change_prod
+		self._mutate_prod: float = mutate_prod
+	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:
+		def search_sequence(sequence_index: int) -> Tuple[Index, int] | None:
+			sequence_index %= len(self._sequences)
+			min_diff: int = 2**32
+			result: Index | None = None
+			for index, node, shape in self._sequences[sequence_index]:
+				if node == schema_node and (diff := shape.get_upper_diff(shape_in)) < min_diff:
+					min_diff = diff 
+					result = index 
+			if result is not None:
+				return result, min_diff 
+			else:
+				return None
+		if random.random() > self._mutate_prod and len(self._sequences) != 0:
+			if random.random() > self._sequence_change_prod:
+				if (result := search_sequence(sequence_index)) is not None:
+					index, _ = result
+					return index, sequence_index
+			sequence_indices: List[int] = list(range(len(self._sequences)))
+			random.shuffle(sequence_indices)
+			for sequence in sequence_indices:
+				if (result := search_sequence(sequence)) is not None:
+					index, _ = result
+					return index, sequence 
+		return Index.random(), sequence_index 
+
+#TODO: consider turning join existing into enum
 class Schema:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
@@ -47,22 +74,6 @@ class Schema:
 		self.inputs.append(pattern)
 	def add_end(self, pattern: SchemaNode) -> None:
 		self.outputs.append(pattern)
-	#options
-	#	always have a pool of indices available when not building entirley from a known list
-	#		always should have schema nodes attached
-	#		if starting fresh then guess they need to be optional then
-	#	pass singular list of indices, and a pool to choose from when the list is exhausted
-	#		this case would not need the schema nodes attached
-	#		unless it wanted to be allowed to split the list and use the schema nodes to line them back up
-	#		decent option, would technically work
-	#	pass in multiple lists, mix and match sequences as best as possible
-	#		need to have schema nodes attached, try and line them back up 
-	#		likely the best option for breeding, gives the most flexibility
-	#		the pool could be not matched with schema nodes, and be the functionality of mutation and gap filling
-	#		List[List[Tuple[Index, SchemaNode]]] 
-	#	pass only a pool, paired with model nodes or atleast a size
-	#		if the size is somewhat the same, then it may be be a better means of carrying across traits from one model to another
-	#could implement a number of these?
 	def build(self, input_shapes: List[LockedShape], indices: BuildIndices) -> Model | None:
 		if len(input_shapes) != len(self.inputs):
 			raise ValueError("Incorrect number of input shapes")
@@ -76,14 +87,13 @@ class Schema:
 
 class _BuildTracker:
 	_MAX_NODES = 512 
-	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence", "_sequence_offset"]
+	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence_index"]
 	def __init__(self, indices: BuildIndices, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack] = dict()) -> None:
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
 		self._node_counts: Dict[SchemaNode, int] = {}
 		self._max_nodes: int = max_nodes
 		self._indices: BuildIndices = indices
-		self._sequence: int = 0
-		self._sequence_offset: int = 0
+		self._sequence_index: int = 0
 	@staticmethod
 	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: BuildIndices, max_nodes: int) -> List[ModelNode] | None:
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
@@ -96,9 +106,11 @@ class _BuildTracker:
 	def _build_min(self, indices: BuildIndices, depth: int) -> List[ModelNode] | SchemaNode:
 		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
-			index = Index()
 			parents = build_node.get_parents()
 			mould_shape = schema_node.get_mould_shape([parent.get_output_shape() for parent in parents])
+			#index = Index()
+			#TODO: this one here chief, gotta get the proper index
+			index, self._sequence_index = indices.get_index(depth, self._sequence_index, schema_node, mould_shape)
 			pivot = index.get_shuffled(len(schema_node.get_transition_groups()))
 			i = 0
 			while abs(i) <= max(len(schema_node.get_transition_groups()) - pivot, pivot):

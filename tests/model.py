@@ -1,7 +1,7 @@
 import unittest
 
 from src.shared import ShapeBound, Range, LockedShape
-from src.schema import Schema, SchemaNode, BuildIndices, Sum, Concat, Conv, ReLU, BatchNormalization 
+from src.schema import Schema, SchemaNode, BreedIndices, Sum, Concat, Conv, ReLU, BatchNormalization 
 
 from torch import zeros
 
@@ -10,7 +10,7 @@ class TestModel(unittest.TestCase):
 		main = SchemaNode(ShapeBound((1, 10)), Concat())
 		input_shape = LockedShape(5)
 		builder = Schema([main], [main])
-		model = builder.build([input_shape], BuildIndices())
+		model = builder.build([input_shape], BreedIndices())
 		if model is not None:
 			module_handle = model.get_torch_module_handle("Test")
 			module = module_handle()
@@ -25,7 +25,7 @@ class TestModel(unittest.TestCase):
 		main.add_group(ShapeBound((2, 10)), (main, 0, False))
 		input_shape = LockedShape(1, 8)
 		builder = Schema([main], [output])
-		model = builder.build([input_shape], BuildIndices())
+		model = builder.build([input_shape], BreedIndices())
 		if model is not None:
 			module_handle = model.get_torch_module_handle("Test")
 			module = module_handle()
@@ -53,7 +53,7 @@ class TestModel(unittest.TestCase):
 		main.add_group(ShapeBound(), (end_node, 0, False))
 		#when one of the split transitions is set to join on, it crashes, should atleast give reason
 		builder = Schema([main], [end_node])
-		model = builder.build([LockedShape(1, 8)], BuildIndices())
+		model = builder.build([LockedShape(1, 8)], BreedIndices())
 		if model is None:
 			self.fail("Model is None")
 		else:

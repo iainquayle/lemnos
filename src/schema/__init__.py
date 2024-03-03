@@ -1,4 +1,4 @@
-from .schema import Schema, BuildIndices
+from .schema import Schema, BreedIndices, StaticIndices 
 from .schema_node import SchemaNode, Transition
 from .activation import * 
 from .transform import * 
