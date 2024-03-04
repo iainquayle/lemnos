@@ -99,10 +99,10 @@ class LockedShape(Shape):
 		return len(self) - 1
 	def dimensionality(self) -> int:
 		return len(self)
-	def get_upper_diff(self, other: LockedShape) -> int:
+	def upper_difference(self, other: LockedShape) -> int:
 		accumulator = 1
 		for i in range(1, min(len(self), len(other))):
-			accumulator *= max(1, abs(self[i] - other[i]))
+			accumulator *= abs(self[i] - other[i]) + 1 
 		return accumulator
 	def to_locked(self, dimension: int) -> LockedShape:
 		return LockedShape(*self._shape)
@@ -113,7 +113,6 @@ class LockedShape(Shape):
 			return copy(self) 
 		else:
 			return LockedShape(self.reverse_lower_product(dimensionality - 1), *self._shape[-(dimensionality - 1):])
-			#return LockedShape(*[prod(self._shape[:-(dimensionality - 1)])] + self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
 		common = copy(self)
 		reverse_index = min(self.upper_length(), other.upper_length())

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple 
+from typing import Tuple, Any 
 import random
 
 class Index:
@@ -14,7 +14,12 @@ class Index:
 			bounds = (0, bounds)
 		elif bounds[0] > bounds[1]:
 			bounds = (bounds[1], bounds[0])
-		#TODO: may need to change this, so that the bounding is done after the num is generated?
 		return random.Random(self._index + salt).randint(*bounds)
 	def get(self) -> int:
 		return self._index
+	def __eq__(self, other: Any) -> bool:
+		return isinstance(other, Index) and self._index == other._index
+	def __str__(self) -> str:
+		return str(self._index)
+	def __repr__(self) -> str:
+		return f"Index({self._index})"

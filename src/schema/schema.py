@@ -39,7 +39,7 @@ class BreedIndices(BuildIndices):
 			min_diff: int = 2**32
 			result: Index | None = None
 			for index, node, shape in self._sequences[sequence_index]:
-				if node == schema_node and (diff := shape.get_upper_diff(shape_in)) < min_diff:
+				if node == schema_node and (diff := shape.upper_difference(shape_in)) < min_diff:
 					min_diff = diff 
 					result = index 
 			if result is not None:
@@ -47,16 +47,17 @@ class BreedIndices(BuildIndices):
 			else:
 				return None
 		if random.random() > self._mutate_prod and len(self._sequences) != 0:
-			if random.random() > self._sequence_change_prod:
+			if random.random() > self._sequence_change_prod or len(self._sequences) == 1:
 				if (result := search_sequence(sequence_index)) is not None:
 					index, _ = result
 					return index, sequence_index
-			sequence_indices: List[int] = list(range(len(self._sequences)))
-			random.shuffle(sequence_indices)
-			for sequence in sequence_indices:
-				if (result := search_sequence(sequence)) is not None:
-					index, _ = result
-					return index, sequence 
+			if len(self._sequences) > 1:
+				sequence_indices: List[int] = list(range(sequence_index)) + list(range(sequence_index + 1, len(self._sequences)))
+				random.shuffle(sequence_indices)
+				for sequence in sequence_indices:
+					if (result := search_sequence(sequence)) is not None:
+						index, _ = result
+						return index, sequence 
 		return Index.random(), sequence_index 
 
 #TODO: consider turning join existing into enum

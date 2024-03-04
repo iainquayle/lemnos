@@ -4,19 +4,9 @@ changes:
 			make specific copy for recursion
 				make the depth auto increment, and be a parameter?
 		change name of range and move to transforms
-		move away from using magic functions where not required
-			number of instances where the magic function's use is not clearly defined by its name
 	possible:
-		move model builder back to schema
-			seperate schema nodes and model nodes from schema and model
-			could make methods on a schema to make nodes, simplifying the importation
-		move all node components to a single file
-			transforms, activations, regularizers
-			simplify the importation
 		turn join existing into enum
 			three: join on, make new, auto
-		make open shape return -1 for 0
-			could also make a methods get and get_upper and get_reverse
 		change bound name to shape bound
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
 problems:

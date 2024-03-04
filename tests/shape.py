@@ -48,6 +48,8 @@ class TestShapeCommons(unittest.TestCase):
 	def test_reverse_index(self) -> None: #something weird happening
 		self.assertTrue(isinstance(self.a[-1], int))
 		self.assertEqual(self.a[-1], 3)
+	def test_diff(self) -> None:
+		self.assertEqual(LockedShape(1, 1).upper_difference(LockedShape(1, 2)), 2)
 
 class TestShapeBounds(unittest.TestCase):
 	def setUp(self) -> None:

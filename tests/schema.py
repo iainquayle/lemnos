@@ -4,6 +4,8 @@ from src.schema.schema import _BuildNode, _BuildStack, _BuildTracker
 from src.model.model import ModelNode
 from src.schema import Schema, BreedIndices, SchemaNode, Transition, Conv, Concat, Sum, ReLU, BatchNormalization
 from src.shared import ShapeBound, LockedShape, Range, Index
+
+from typing import List, Tuple
 from copy import copy
 
 s1 = SchemaNode(ShapeBound(), Concat())
@@ -184,3 +186,31 @@ class TestBuildStack(unittest.TestCase):
 		self.assertEqual(len(self.stack), 2)
 		self.stack.pop()
 		self.assertEqual(len(self.stack), 1)
+
+class TestBreedIndices(unittest.TestCase):
+	def setUp(self) -> None:
+		self.sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = [
+			[(Index(1), s2, LockedShape(1, 1)), (Index(2), s2, LockedShape(1, 2))],
+			[(Index(3), s1, LockedShape(1, 1)), (Index(4), s1, LockedShape(1, 2))],
+		]
+	def test_no_mutate(self):
+		indices = BreedIndices(0, 0, self.sequences)
+		index, _ = indices.get_index(0, 0, s2, LockedShape(1, 1))
+		self.assertEqual(index, Index(1))
+		index, _ = indices.get_index(0, 0, s2, LockedShape(1, 2))
+		self.assertEqual(index, Index(2))
+		index, sequence = indices.get_index(0, 0, s1, LockedShape(1, 1))
+		self.assertEqual(index, Index(3))
+		self.assertEqual(sequence, 1)
+	def test_random_index(self):
+		indices = BreedIndices(0, 1, self.sequences)
+		index, _ = indices.get_index(0, 0, s2, LockedShape(1, 1))
+		#could technically fail sometimes, but very unlikely
+		for i in range(1, 5):
+			self.assertNotEqual(index, Index(i))
+	def test_sequence_switch(self):
+		indices = BreedIndices(1, 0, self.sequences + [[(Index(5), s2, LockedShape(1, 1))]])
+		index, _ = indices.get_index(0, 0, s2, LockedShape(1, 1))
+		self.assertEqual(index, Index(5))
+		
+		
