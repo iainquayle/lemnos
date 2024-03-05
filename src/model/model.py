@@ -97,8 +97,6 @@ class Model():
 		def format_registers(registers: List[int]) -> List[str]:
 			return [format_register(r) for r in registers]
 		for i, (node, register_out, registers_in) in enumerate(forward_data):
-			#TODO: look at moving more of the forware statment generation into the node
-			#	in the normal course it would be its responsibility for evaluation
 			forward_statment: str = node.get_schema_node().get_merge_method().get_merge_src(format_registers(registers_in))
 			inits = node.get_inits_src()
 			if len(inits) > 0:

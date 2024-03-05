@@ -10,6 +10,9 @@ changes:
 		turn join existing into enum
 			three: join on, make new, auto
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
+		move more module generation into the model nodes
+			in case of the group, and using padding to solve it partially, the nodes will need to be able to deal with the padding?
+			in the normal course it would be its responsibility for evaluation
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		non issue for 1 group, and for depthwise, but everything else is an issue
