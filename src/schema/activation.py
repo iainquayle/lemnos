@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .src_generation import * 
-from src.shared import LockedShape
+from ..shared import LockedShape
 
 from abc import ABC as Abstract, abstractmethod
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared import LockedShape, Shape, Index, ShapeBound
+from ..shared import LockedShape, Shape, Index, ShapeBound
 from .merge_method import MergeMethod 
 from .activation import Activation
 from .regularization import Regularization

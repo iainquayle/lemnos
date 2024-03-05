@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared import Shape, LockedShape, OpenShape, ShapeBound, Range, Index
+from ..shared import Shape, LockedShape, OpenShape, ShapeBound, Range, Index
 from .src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 

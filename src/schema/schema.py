@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from .schema_node import SchemaNode
-
-from src.shared import Shape, LockedShape, OpenShape, Index
-from src.model.model import Model
-from src.model.model_node import ModelNode
+from ..shared import Shape, LockedShape, OpenShape, Index
+from ..model.model import Model
+from ..model.model_node import ModelNode
 from .schema_node import SchemaNode, Transition, TransitionGroup
 
 import random

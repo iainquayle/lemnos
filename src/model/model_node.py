@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.shared import LockedShape, Index
-from src.schema.schema_node import SchemaNode
-from src.schema.src_generation import *
+from ..shared import LockedShape, Index
+from ..schema.schema_node import SchemaNode
+from ..schema.src_generation import *
 
 from typing import List, Iterable
 from typing_extensions import Self

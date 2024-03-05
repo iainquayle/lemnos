@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.shared import Index
-from src.schema.schema_node import SchemaNode
-from src.schema.src_generation import *
+from ..shared import Index
+from ..schema.schema_node import SchemaNode
+from ..schema.src_generation import *
 from .model_node import ModelNode
 
 from typing import List, Tuple, Dict, Type
