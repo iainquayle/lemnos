@@ -183,8 +183,6 @@ class ShapeBound:
 					self._bounds[i] = element[ShapeBound._UPPER_INDEX], element[ShapeBound._LOWER_INDEX]
 				if element[ShapeBound._LOWER_INDEX] <= 0 or element[ShapeBound._UPPER_INDEX] <= 0:
 					raise Exception("bound less than 1")
-	def __getitem__(self, index: int) -> Tuple[int, int] | None:
-		return self._bounds[index]
 	def lower(self, index: int) -> int | None:
 		element = self._bounds[index]
 		return element[ShapeBound._LOWER_INDEX] if element is not None else None
@@ -204,13 +202,20 @@ class ShapeBound:
 			return min(element[ShapeBound._UPPER_INDEX], max(element[ShapeBound._LOWER_INDEX], value))
 		else:
 			return value
+	def contains_value(self, value: int, index: int) -> bool:
+		#done this way to avoid None issue with lsp
+		element = self._bounds[index]
+		if element is not None:
+			return value >= element[ShapeBound._LOWER_INDEX] and value <= element[ShapeBound._UPPER_INDEX]
+		else:
+			return True
 	def __contains__(self, shape: Shape) -> bool:
 		for i in range(1, min(len(shape), len(self._bounds)) + 1):
-			element = self._bounds[-i]
-			if element is not None:
-				if shape[-i] < element[ShapeBound._LOWER_INDEX] or shape[-i] > element[ShapeBound._UPPER_INDEX]:
-					return False
+			if not self.contains_value(shape[-i], -i):
+				return False
 		return True
+	def __getitem__(self, index: int) -> Tuple[int, int] | None:
+		return self._bounds[index]
 	def __len__(self) -> int:
 		return len(self._bounds)
 	def __str__(self) -> str:

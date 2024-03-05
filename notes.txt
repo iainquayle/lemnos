@@ -1,14 +1,21 @@
 changes:
 	guarenteed:
 		refactor and clean up schema
-			make specific copy for recursion
-				make the depth auto increment, and be a parameter?
+			make the init not allow for defaults?
+		fix the issue with the groups
+			also just refactor it
 		change name of range and move to transforms
 	possible:
+		remove validate transform shape
 		turn join existing into enum
 			three: join on, make new, auto
-		change bound name to shape bound
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
 problems:
+	issue with groups, the input shape needs to be divisible by the group size
+		non issue for 1 group, and for depthwise, but everything else is an issue
+		only real option would be to make transforms have a requested output factor
+		other would be to allow for the node to search for a size that fits, perhaps within a range
+		orr, make it such that nodes can pad their inputs to fit the group size, jank but would technically work
+			look at F.pad if using this
 	no hint as to why a schema is not solvable
 	if a join existing is set where there is none to join on, it will crash with no reason

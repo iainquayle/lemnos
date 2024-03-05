@@ -67,7 +67,7 @@ class Schema:
 			raise ValueError("No start or end patterns")
 		for output in outputs:
 			if len(output.get_transition_groups()) > 0:
-				raise ValueError("End patterns should not have transition groups")
+				raise ValueError("End patterns cannot not have transitions out")
 		self.inputs: List[SchemaNode] = inputs 
 		self.outputs: List[SchemaNode] = outputs 
 		self.max_nodes: int = max_nodes
@@ -89,16 +89,15 @@ class Schema:
 class _BuildTracker:
 	_MAX_NODES = 512 
 	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence_index"]
-	def __init__(self, indices: BuildIndices, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack] = dict()) -> None:
+	def __init__(self, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack], sequence_index: int) -> None:
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
 		self._node_counts: Dict[SchemaNode, int] = {}
 		self._max_nodes: int = max_nodes
-		self._indices: BuildIndices = indices
-		self._sequence_index: int = 0
+		self._sequence_index: int = sequence_index 
 	@staticmethod
 	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: BuildIndices, max_nodes: int) -> List[ModelNode] | None:
 		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
-		tracker = _BuildTracker(indices, max_nodes, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()})
+		tracker = _BuildTracker(max_nodes, {input_schema: _BuildStack([_BuildNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()}, 0)
 		if isinstance((result := tracker._build_min(indices, 0)), List):
 			for node in dummy_nodes.values():
 				node.unbind()
@@ -109,26 +108,23 @@ class _BuildTracker:
 			schema_node, build_node = result
 			parents = build_node.get_parents()
 			mould_shape = schema_node.get_mould_shape([parent.get_output_shape() for parent in parents])
-			#index = Index()
-			#TODO: this one here chief, gotta get the proper index
 			index, self._sequence_index = indices.get_index(depth, self._sequence_index, schema_node, mould_shape)
 			pivot = index.get_shuffled(len(schema_node.get_transition_groups()))
 			i = 0
 			while abs(i) <= max(len(schema_node.get_transition_groups()) - pivot, pivot):
 				if pivot + i < len(schema_node.get_transition_groups()) and pivot + i >= 0:
 					group = schema_node[pivot + i]
-					conformance_shape = self._get_group_conformance_shape(group, schema_node)
-					if conformance_shape is not None:
-						tracker_copy = copy(self)
-						if (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None:
-							node = ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)
-							self._increment_count(schema_node)
-							if (depth < self._max_nodes 
-			   						and tracker_copy._record_transitions(iter(group), node) 
-			   						and isinstance(result := tracker_copy._build_min(indices, depth + 1), List)):
-								return [node, *result]
-							else:
-								node.unbind()	
+					if ((conformance_shape := self._get_group_conformance_shape(group, schema_node)) is not None
+			 				and (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None):
+						next_tracker = copy(self)
+						node = ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)
+						next_tracker._increment_count(schema_node)
+						if (depth < self._max_nodes 
+								and next_tracker._record_transitions(iter(group), node) 
+								and isinstance(result := next_tracker._build_min(indices, depth + 1), List)):
+							return [node, *result]
+						else:
+							node.unbind()	
 				i = -i if i > 0 else -i + 1
 			if len(schema_node.get_transition_groups()) == 0:
 				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape(), index)) is not None:
@@ -192,9 +188,9 @@ class _BuildTracker:
 		self._stacks[key] = value
 		return
 	def __copy__(self) -> _BuildTracker:
-		return _BuildTracker(self._indices, self._max_nodes, {key: copy(value) for key, value in self.get_iter()})
-	def next_tracker(self) -> _BuildTracker:
-		return _BuildTracker(self._indices, self._max_nodes, {key: copy(value) for key, value in self.get_iter()})
+		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, self._sequence_index)
+	def _next_tracker(self) -> _BuildTracker:
+		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, self._sequence_index)
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._stacks
 	def __len__(self) -> int:

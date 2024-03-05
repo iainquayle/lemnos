@@ -122,12 +122,12 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		self.node2 = _BuildNode([m1s2], 10)
 		self.stack1 = _BuildStack([self.node1])
 		self.stack2 = _BuildStack([self.node2])
-		self.tracker = _BuildTracker(BreedIndices(), 0, {s1: self.stack1, s2: self.stack2})
+		self.tracker = _BuildTracker(0, {s1: self.stack1, s2: self.stack2}, 0)
 	def test_pop_min_full(self):
 		self.assertEqual(self.tracker._pop_min_node(), (s1, self.node1))
 		self.assertEqual(self.tracker._pop_min_node(), (s2, self.node2))
 	def test_pop_min_empty(self):
-		tracker = _BuildTracker(BreedIndices(), 0)
+		tracker = _BuildTracker(0, dict(), 0)
 		self.assertIsNone(tracker._pop_min_node())
 	def test_copy(self):
 		new_tracker = copy(self.tracker) 
@@ -152,7 +152,7 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		#t3_nj = Transition()
 	def test_record_invalid(self):
 		t2_j = Transition(s2, 1, True)
-		tracker = _BuildTracker(BreedIndices(), 0, {s1: self.stack1, s2: _BuildStack([])})
+		tracker = _BuildTracker(0, {s1: self.stack1, s2: _BuildStack([])}, 0)
 		self.assertFalse(tracker.record_transition(t2_j, m1s1))
 		self.assertEqual(len(tracker[s2]), 0)
 		t1_j = Transition(s1, 0, True)
