@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..shared import Shape, LockedShape, OpenShape, Index
 from ..model.model import Model
 from ..model.model_node import ModelNode
-from .schema_node import SchemaNode, Transition, TransitionGroup, JoinType
+from .schema_node import SchemaNode, Transition, TransitionGroup 
 
 import random
 from typing import List, Dict, Tuple, Iterable
@@ -111,6 +111,10 @@ class _BuildTracker:
 			while abs(i) <= max(len(schema_node.get_transition_groups()) - pivot, pivot):
 				if pivot + i < len(schema_node.get_transition_groups()) and pivot + i >= 0:
 					group = schema_node[pivot + i]
+					#could change get group conformance
+					#	make a func that takes in a target node and an availbility node, return a shape
+					#	list them, senf that to the group itself, and then the group can return the conformance shape
+					#	seems like its more a proper repsonsibility 
 					if ((conformance_shape := self._get_group_conformance_shape(group, schema_node)) is not None
 			 				and (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None):
 						next_tracker = copy(self)
@@ -135,7 +139,7 @@ class _BuildTracker:
 	def _get_group_conformance_shape(self, group: TransitionGroup, schema_node: SchemaNode) -> Shape | None:
 		transition_iter = iter(group)
 		conformance_shape = OpenShape()
-		while (transition := next(transition_iter, None)) is not None and conformance_shape is not None: #TODO: simplify somehow, fugly
+		while (transition := next(transition_iter, None)) is not None and conformance_shape is not None:
 			if transition.is_join_existing():
 				if (join_node := self[transition.get_next()].get_available(schema_node)) is not None: 
 					conformance_shape = conformance_shape.common_lossless(transition.get_next().get_conformance_shape(join_node.get_parent_shapes()))

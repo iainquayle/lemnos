@@ -12,10 +12,9 @@ changes:
 		refactor and clean up schema more
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
-		non issue for 1 group, and for depthwise, but everything else is an issue
-		only real option would be to make transforms have a requested output factor
-		other would be to allow for the node to search for a size that fits, perhaps within a range
-		orr, make it such that nodes can pad their inputs to fit the group size, jank but would technically work
-			look at F.pad if using this
+		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
+			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape
+			shouldnt be too hard to implement, as it would deal with all of the schema nodes in a transition that it owns
+		if all else fails, or as a fall back, could technically implement padding
 	no hint as to why a schema is not solvable
 	if a join existing is set where there is none to join on, it will crash with no reason
