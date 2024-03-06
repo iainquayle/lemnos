@@ -3,7 +3,6 @@ changes:
 		fix the issue with the groups
 			also just refactor it
 		implement auto join
-		remove some tests to make it easier to refactor
 	possible:
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
