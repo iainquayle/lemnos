@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..shared import Shape, LockedShape, OpenShape, ShapeBound, Range, Index
+from ..shared import Shape, LockedShape, OpenShape, ShapeBound, Index
 from .src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 
@@ -8,11 +8,19 @@ from typing import Tuple
 
 #maybe just dont even use a range class
 
+_LOWER = 0
+_UPPER = 1
+
 class Transform(Abstract):
-	__slots__ = ["_size_coefficients"]
-	#size_delta_coeffs: int | Tuple[int, int] 
-	def __init__(self, size_coefficients: Range) -> None:
-		self._size_coefficients: Range = size_coefficients
+	__slots__ = ["_size_coeffs_bounds"]
+	def __init__(self, size_coeffs_bounds: float | Tuple[float, float]) -> None:
+		if isinstance(size_coeffs_bounds, float):
+			size_coeffs_bounds = (size_coeffs_bounds, size_coeffs_bounds)
+		elif isinstance(size_coeffs_bounds, int):
+			raise ValueError("wtf")
+		elif size_coeffs_bounds[0] > size_coeffs_bounds[1]:
+			size_coeffs_bounds = (size_coeffs_bounds[1], size_coeffs_bounds[0])
+		self._size_coeffs_bounds: Tuple[float, float] = size_coeffs_bounds
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
@@ -24,31 +32,30 @@ class Transform(Abstract):
 		pass
 
 class Full(Transform):
-	__slots__ = ["_size_coefficients"]
-	def __init__(self, size_coefficients: Range) -> None:
-		super().__init__(size_coefficients)
+	def __init__(self, size_coeffs_bounds: float | Tuple[float, float]) -> None:
+		super().__init__(size_coeffs_bounds)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality() and shape_in.dimensionality() == 1
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
 		if input_shape.dimensionality() != 1:
 			raise ValueError("input shape must have dimensionality of 1")
-		lower = int(input_shape[0] * self._size_coefficients.lower())
-		upper = int(input_shape[0] * self._size_coefficients.upper())
+		lower = int(input_shape[0] * self._size_coeffs_bounds[_LOWER])
+		upper = int(input_shape[0] * self._size_coeffs_bounds[_UPPER])
 		return LockedShape(shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0))
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
 		return full_(shape_in, shape_out)
 
 class Conv(Transform):
-	__slots__ = ["_size_coefficients", "_kernel", "_stride", "_dilation", "_padding", "_group_size"]
+	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
 	def __init__(self,
-			size_coefficients: Range,
+			size_coeffs_bounds: float | Tuple[float, float],
 			kernel: Tuple | int = 1, 
 			stride: Tuple | int = 1, 
 			dilation: Tuple | int = 1,
 			padding: Tuple | int = 0,
 			group_size: int | None = None, 
 			) -> None:
-		super().__init__(size_coefficients)
+		super().__init__(size_coeffs_bounds)
 		self._kernel: _ClampTuple = _ClampTuple(kernel)
 		self._stride: _ClampTuple = _ClampTuple(stride)
 		self._dilation: _ClampTuple = _ClampTuple(dilation)
@@ -74,8 +81,8 @@ class Conv(Transform):
 		else:
 			if self._group_size is not None and input_shape[0] % self._group_size != 0:
 				return None	
-			lower = int(input_shape.get_product() * self._size_coefficients.lower()) // output_conformance.get_product()
-			upper = int(input_shape.get_product() * self._size_coefficients.upper()) // output_conformance.get_product()
+			lower = int(input_shape.get_product() * self._size_coeffs_bounds[_LOWER]) // output_conformance.get_product()
+			upper = int(input_shape.get_product() * self._size_coeffs_bounds[_UPPER]) // output_conformance.get_product()
 			channels_raw = shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0)
 			if self._group_size is None:
 				return upper_shape.to_locked(channels_raw)

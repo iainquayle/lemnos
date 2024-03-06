@@ -1,14 +1,8 @@
 changes:
 	guarenteed:
-		refactor and clean up schema
-			make the init not allow for defaults?
 		fix the issue with the groups
 			also just refactor it
-		change name of range and move to transforms
-		turn join existing into enum
-			three: join on, make new, auto
-		remove repetition bounds
-			making them work correctly would be a pain, just rely on make node count and breeding
+		implement auto join
 		remove some tests to make it easier to refactor
 	possible:
 		remove validate transform shape
@@ -16,6 +10,7 @@ changes:
 		move more module generation into the model nodes
 			in case of the group, and using padding to solve it partially, the nodes will need to be able to deal with the padding?
 			in the normal course it would be its responsibility for evaluation
+		refactor and clean up schema more
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		non issue for 1 group, and for depthwise, but everything else is an issue

@@ -30,7 +30,7 @@ class Control:
 		self._train_dataset: Dataset = train_dataset
 		self._validation_dataset: Dataset = validation_dataset
 		#should also hold onto data transformation modules? though this could technically be done in the dataset class?
-	def optimize(self, input_shapes: List[LockedShape], save_dir: str, criterion: Module, optimizer_type: OptimizerType = OptimizerType.ADAM, batch_size: int = 5, workers: int = 0, model_pool_size: int = 1) -> None:
+	def search(self, input_shapes: List[LockedShape], save_dir: str, criterion: Module, optimizer_type: OptimizerType = OptimizerType.ADAM, batch_size: int = 5, workers: int = 0, model_pool_size: int = 1) -> None:
 		#look into taking in a sampler for the data loader, may be useful for large datasets
 		device_type = CUDA if torch.cuda.is_available() else CPU 
 		device = torch.device(device_type)
@@ -47,7 +47,6 @@ class Control:
 		for i in range(breed_iterations):
 			for model in model_pool:
 				runnable_model = model.get_torch_module_handle(f"M{i}")()
-				print(torch._dynamo.list_backends())
 				if COMPILE_MODELS:
 					runnable_model = torch.compile(runnable_model, backend=COMPILER_BACKEND) 
 				runnable_model.to(device)
@@ -77,5 +76,4 @@ class Control:
 							output = runnable_model(data)
 							loss = criterion(output, truth)
 							model_training_stats[i].append((loss.item(), 0))
-							print(f"Validation Loss: {loss.item()}")
 					pass

@@ -1,5 +1,5 @@
 from .schema import Schema, BreedIndices, StaticIndices 
-from .schema_node import SchemaNode, Transition
+from .schema_node import SchemaNode, Transition, JoinType
 from .activation import * 
 from .transform import * 
 from .merge_method import * 

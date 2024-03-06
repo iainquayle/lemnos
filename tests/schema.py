@@ -2,8 +2,8 @@ import unittest
 
 from src.schema.schema import _BuildNode, _BuildStack, _BuildTracker
 from src.model.model import ModelNode
-from src.schema import Schema, BreedIndices, SchemaNode, Transition, Conv, Concat, Sum, ReLU, BatchNormalization
-from src.shared import ShapeBound, LockedShape, Range, Index
+from src.schema import Schema, BreedIndices, SchemaNode, Transition, Conv, Concat, Sum, ReLU, BatchNormalization, JoinType
+from src.shared import ShapeBound, LockedShape, Index
 
 from typing import List, Tuple
 from copy import copy
@@ -18,11 +18,11 @@ m2s2 = ModelNode(Index(), 0, s2, shape, shape, [])
 
 class TestSchema(unittest.TestCase):
 	def test_model_builder(self):
-		main = SchemaNode(ShapeBound((1, 1), (1, 10)), Concat(), Conv( Range(.1, 2), kernel=2, stride=2))
+		main = SchemaNode(ShapeBound((1, 1), (1, 10)), Concat(), Conv( (.1, 2), kernel=2, stride=2))
 		input_shape = LockedShape(1, 8)
 		output = SchemaNode(ShapeBound((1, 1), (1, 1)), Concat(), None)
-		main.add_group(ShapeBound((2, 10)), (output, 0, False))
-		main.add_group(ShapeBound((2, 10)), (main, 0, False))
+		main.add_group((output, 0, JoinType.NEW))
+		main.add_group((main, 0, JoinType.NEW))
 		builder = Schema([main], [output])
 		model = builder.build([input_shape], BreedIndices())
 		if model is not None:
@@ -46,7 +46,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		input = SchemaNode(ShapeBound((1, 10)), Concat())
 		input_shape = LockedShape(5)
 		output = SchemaNode(ShapeBound((1, 10)), Concat())
-		input.add_group(ShapeBound((1, 10)), (output, 0, False))
+		input.add_group((output, 0, JoinType.NEW))
 		nodes = _BuildTracker.build_nodes({input: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 2)
@@ -58,22 +58,22 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		mid1 = SchemaNode(ShapeBound((1, 10)), Concat(), None)
 		mid2 = SchemaNode(ShapeBound((1, 10)), Concat(), None)
 		output = SchemaNode(ShapeBound((1, 10)), Concat(), None)
-		input.add_group(ShapeBound((1, 10)), (mid1, 0, False), (mid2, 1, False))
+		input.add_group((mid1, 0, JoinType.NEW), (mid2, 1, JoinType.NEW))
 		self.assertEqual(input[0][0].get_next(), mid1)
 		self.assertEqual(input[0][1].get_next(), mid2)
-		mid1.add_group(ShapeBound((1, 10)), (output, 2, False))
-		mid2.add_group(ShapeBound((1, 10)), (output, 2, True))
+		mid1.add_group((output, 2, JoinType.NEW))
+		mid2.add_group((output, 2, JoinType.EXISTING))
 		nodes = _BuildTracker.build_nodes({input: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 4)
 		else:
 			self.fail()
 	def test_looped(self):
-		main = SchemaNode(ShapeBound((1, 1), (1, 16)), Concat(), Conv( Range(.1, 2), kernel=2, stride=2))
+		main = SchemaNode(ShapeBound((1, 1), (1, 16)), Concat(), Conv( (.1, 2), kernel=2, stride=2))
 		input_shape = LockedShape(1, 8)
 		output = SchemaNode(ShapeBound((1, 1), (1, 1)), Concat(), None)
-		main.add_group(ShapeBound((2, 10)), (output, 0, False))
-		main.add_group(ShapeBound((2, 10)), (main, 0, False))
+		main.add_group((output, 0, JoinType.NEW))
+		main.add_group((main, 0, JoinType.NEW))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
 			self.assertEqual(nodes[0].get_output_shape(), LockedShape(1, 4))
@@ -86,19 +86,19 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 		main = SchemaNode( ShapeBound((1, 1), (1, 8)), Sum())
 		split_1 = SchemaNode( ShapeBound((1, 1), (1, 8)), 
 			Concat(), 
-			Conv(Range(.1, 2.0), kernel=2, stride=2),
+			Conv((.1, 2.0), kernel=2, stride=2),
 			ReLU(), 
 			BatchNormalization())
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			Concat(), 
-			Conv(Range(.1, 2.0), kernel=2, stride=2),
+			Conv((.1, 2.0), kernel=2, stride=2),
 			ReLU(), 
 			BatchNormalization())
 		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), Concat())
-		main.add_group(ShapeBound(), (split_1, 0, False), (split_2, 1, False))
-		split_1.add_group(ShapeBound(), (main, 2, False))
-		split_2.add_group(ShapeBound(), (main, 2, True))
-		main.add_group(ShapeBound(), (end_node, 0, False))
+		main.add_group( (split_1, 0, JoinType.NEW), (split_2, 1, JoinType.NEW))
+		split_1.add_group( (main, 2, JoinType.NEW))
+		split_2.add_group( (main, 2, JoinType.EXISTING))
+		main.add_group( (end_node, 0, JoinType.NEW))
 		input_shape = LockedShape(1, 8)
 		nodes = _BuildTracker.build_nodes({main: input_shape}, BreedIndices(), 10)
 		if nodes is not None:
@@ -112,7 +112,7 @@ class TestBuildTrackerBuilding(unittest.TestCase):
 	def test_infinite_loop_stop(self):
 		main = SchemaNode(ShapeBound((1, 10)), Concat(), None)
 		input_shape = LockedShape(5)
-		main.add_group(ShapeBound((1, 10)), (main, 0, False))
+		main.add_group((main, 0, JoinType.NEW))
 		nodes = _BuildTracker.build_nodes({main: input_shape}, BreedIndices(), 10)
 		self.assertFalse(nodes)
 
@@ -144,18 +144,18 @@ class TestBuildTrackerUtils(unittest.TestCase):
 		self.assertEqual(self.tracker[s2].peek().get_parents(), [m1s1])
 		self.assertEqual(self.tracker[s2].peek().get_priority(), 1)
 		self.assertEqual(len(self.tracker[s2]), 2)
-		t2_j = Transition(s2, 0, True)
+		t2_j = Transition(s2, 0, JoinType.EXISTING)
 		self.assertTrue(self.tracker.record_transition(t2_j, m2s2))
 		self.assertTrue(m2s2 in self.tracker[s2].peek().get_parents())
 		self.assertEqual(self.tracker[s2].peek().get_priority(), 0)
 		self.assertEqual(len(self.tracker[s2]), 2)
 		#t3_nj = Transition()
 	def test_record_invalid(self):
-		t2_j = Transition(s2, 1, True)
+		t2_j = Transition(s2, 1, JoinType.EXISTING)
 		tracker = _BuildTracker(0, {s1: self.stack1, s2: _BuildStack([])}, 0)
 		self.assertFalse(tracker.record_transition(t2_j, m1s1))
 		self.assertEqual(len(tracker[s2]), 0)
-		t1_j = Transition(s1, 0, True)
+		t1_j = Transition(s1, 0, JoinType.EXISTING)
 		self.assertFalse(tracker.record_transition(t1_j, m1s1))
 	def test_in(self):
 		self.assertTrue(s1 in self.tracker)

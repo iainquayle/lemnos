@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..shared import Shape, LockedShape, OpenShape, Index
 from ..model.model import Model
 from ..model.model_node import ModelNode
-from .schema_node import SchemaNode, Transition, TransitionGroup
+from .schema_node import SchemaNode, Transition, TransitionGroup, JoinType
 
 import random
 from typing import List, Dict, Tuple, Iterable
@@ -58,7 +58,6 @@ class BreedIndices(BuildIndices):
 						return index, sequence 
 		return Index.random(), sequence_index 
 
-#TODO: consider turning join existing into enum
 class Schema:
 	def __init__(self, inputs: List[SchemaNode], outputs: List[SchemaNode], max_nodes: int = 1024) -> None:
 		if len(inputs) == 0 or len(outputs) == 0:
@@ -77,7 +76,7 @@ class Schema:
 		if len(input_shapes) != len(self.inputs):
 			raise ValueError("Incorrect number of input shapes")
 		nodes = _BuildTracker.build_nodes({input_schema: shape for input_schema, shape in zip(self.inputs, input_shapes)}, indices, self.max_nodes)
-		if nodes is not None: #TODO: this needs to be checked
+		if nodes is not None: 
 			input_nodes = [node for node in nodes if node.get_schema_node() in self.inputs and len(node.get_parents()) == 0]
 			output_nodes = [node for node in nodes if node.get_schema_node() in self.outputs and len(node.get_children()) == 0]
 			if len(input_nodes) == len(self.inputs) and len(output_nodes) == len(self.outputs):
@@ -137,7 +136,7 @@ class _BuildTracker:
 		transition_iter = iter(group)
 		conformance_shape = OpenShape()
 		while (transition := next(transition_iter, None)) is not None and conformance_shape is not None: #TODO: simplify somehow, fugly
-			if transition.get_join_existing():
+			if transition.is_join_existing():
 				if (join_node := self[transition.get_next()].get_available(schema_node)) is not None: 
 					conformance_shape = conformance_shape.common_lossless(transition.get_next().get_conformance_shape(join_node.get_parent_shapes()))
 				else:
@@ -161,7 +160,7 @@ class _BuildTracker:
 				return False
 		return True
 	def record_transition(self, transition: Transition, parent: ModelNode) -> bool:
-		if transition.get_join_existing():
+		if transition.is_join_existing():
 			if transition.get_next() in self and (join_on_node := self[transition.get_next()].get_available(parent)) is not None:
 				join_on_node.add_parent(parent, transition.get_priority())
 				return True
@@ -195,6 +194,7 @@ class _BuildTracker:
 		return len(self._stacks)
 	def get_iter(self) -> Iterable[Tuple[SchemaNode, _BuildStack]]:
 		return iter(self._stacks.items())
+
 class _BuildNode:
 	__slots__ = ["_parents", "_priority"]
 	def __init__(self, parents: List[ModelNode], priority: int) -> None:
@@ -216,6 +216,7 @@ class _BuildNode:
 		return (parent.get_schema_node() if isinstance(parent, ModelNode) else parent) not in self._parents 
 	def __copy__(self) -> _BuildNode:
 		return _BuildNode(copy(self.get_parents()), self._priority)
+
 class _BuildStack:
 	__slots__ = ["_stack"]
 	def __init__(self, stack: List[_BuildNode] = []) -> None:

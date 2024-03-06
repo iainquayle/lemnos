@@ -222,17 +222,3 @@ class ShapeBound:
 		return f"ShapeBound({self._bounds})"
 	def __repr__(self) -> str:
 		return str(self)
-
-
-class Range:
-	def __init__(self, lower: float = 1, upper: float = 1) -> None:
-		if upper < lower:
-			exit("upper smaller than lower bound")
-		self._upper: float = upper
-		self._lower: float = lower
-	def difference(self) -> int | float:
-		return self._upper - self._lower
-	def lower(self) -> float:
-		return self._lower
-	def upper(self) -> float:
-		return self._upper
