@@ -23,8 +23,23 @@ class Transform(Abstract):
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:	
 		pass
 
+class Full(Transform):
+	__slots__ = ["_size_coefficients"]
+	def __init__(self, size_coefficients: Range) -> None:
+		super().__init__(size_coefficients)
+	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+		return shape_in.dimensionality() == shape_out.dimensionality() and shape_in.dimensionality() == 1
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
+		if input_shape.dimensionality() != 1:
+			raise ValueError("input shape must have dimensionality of 1")
+		lower = int(input_shape[0] * self._size_coefficients.lower())
+		upper = int(input_shape[0] * self._size_coefficients.upper())
+		return LockedShape(shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0))
+	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
+		return full_(shape_in, shape_out)
+
 class Conv(Transform):
-	__slots__ = ["_size_coefficients", "_merge_method", "_kernel", "_stride", "_dilation", "_padding", "_group_size"]
+	__slots__ = ["_size_coefficients", "_kernel", "_stride", "_dilation", "_padding", "_group_size"]
 	def __init__(self,
 			size_coefficients: Range,
 			kernel: Tuple | int = 1, 

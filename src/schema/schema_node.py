@@ -9,6 +9,12 @@ from .transform import Transform
 from typing import List, Set, Iterable, Tuple
 from typing_extensions import Self
 from copy import copy 
+from enum import Enum
+
+class JoinType(Enum):
+	EXISTING = "existing"
+	NEW = "new"
+	AUTO = "auto"
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]

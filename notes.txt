@@ -5,10 +5,13 @@ changes:
 		fix the issue with the groups
 			also just refactor it
 		change name of range and move to transforms
-	possible:
-		remove validate transform shape
 		turn join existing into enum
 			three: join on, make new, auto
+		remove repetition bounds
+			making them work correctly would be a pain, just rely on make node count and breeding
+		remove some tests to make it easier to refactor
+	possible:
+		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
 		move more module generation into the model nodes
 			in case of the group, and using padding to solve it partially, the nodes will need to be able to deal with the padding?

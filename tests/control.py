@@ -6,7 +6,7 @@ from src.schema import Schema, SchemaNode, Concat, Conv
 from src.shared import ShapeBound, LockedShape, Range
 
 from torch.utils.data import Dataset
-from torch.nn import MSELoss
+from torch.nn import BCEWithLogitsLoss 
 import torch
 
 class TestControl(unittest.TestCase):
@@ -22,4 +22,4 @@ class TestControl(unittest.TestCase):
 			def __getitem__(self, index):
 				return torch.zeros(1, 1), torch.zeros(1, 1)
 		control = Control(schema, TestDataset(), TestDataset())
-		control.optimize([input_shape], "", MSELoss())
+		control.optimize([input_shape], "", BCEWithLogitsLoss())

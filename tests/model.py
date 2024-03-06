@@ -1,9 +1,12 @@
 import unittest
 
 from src.shared import ShapeBound, Range, LockedShape
-from src.schema import Schema, SchemaNode, BreedIndices, Sum, Concat, Conv, ReLU, BatchNormalization 
+from src.schema import Schema, SchemaNode, BreedIndices, Sum, Concat, Conv, ReLU, BatchNormalization, Full, Sigmoid 
 
-from torch import zeros
+from torch import zeros, tensor
+from torch.nn import CrossEntropyLoss 
+from torch.optim import Adam
+from torch import nn
 
 class TestModel(unittest.TestCase):
 	def test_generate_simple_module(self):
@@ -63,3 +66,37 @@ class TestModel(unittest.TestCase):
 			input = zeros(1, 1, 8)
 			output = module(input)
 			self.assertEqual(output.shape, (1, 1, 1))
+	def test_module_function(self):
+		first = SchemaNode(ShapeBound((3, 3)), Concat(), Full(Range(.1, 2)), Sigmoid())
+		hidden = SchemaNode(ShapeBound((2, 2)), Concat(), Full(Range(.1, 2)), Sigmoid())
+		final = SchemaNode(ShapeBound((3, 3)), Concat(), Full(Range(.1, 2)))
+		first.add_group(ShapeBound(), (hidden, 0, False))
+		hidden.add_group(ShapeBound(), (final, 0, False))
+		schema = Schema([first], [final])
+		model = schema.build([LockedShape(3)], BreedIndices())
+		if model is None:
+			self.fail()
+		else:
+			module = model.get_torch_module_handle("Test")()
+			inputs = tensor([
+				[1.0, 0.0, 0.0],
+				[0.0, 1.0, 0.0],
+				[0.0, 0.0, 1.0],])
+			truths = tensor([
+				[1.0, 0.0, 0.0],
+				[0.0, 1.0, 0.0],
+				[0.0, 0.0, 1.0],])
+			#module = nn.Sequential( nn.Linear(3, 3, bias=True), nn.Sigmoid(), nn.Linear(3, 3, bias=True), nn.Sigmoid(), nn.Linear(3, 3, bias=True))
+			module.train()
+			optimizer = Adam(module.parameters(), lr=0.01)
+			criterion = CrossEntropyLoss()
+			for _ in range(1000):
+				optimizer.zero_grad()
+				output = module(inputs)
+				loss = criterion(output, truths)
+				loss.backward()
+				optimizer.step()
+			module.eval()
+			for i in range(3):
+				output = module(inputs[i])
+				self.assertTrue(output.argmax() == i)

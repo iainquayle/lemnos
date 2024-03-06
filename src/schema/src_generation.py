@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared import LockedShape
+from ..shared import LockedShape
 
 from typing import Tuple, List, Iterable, Any
 
@@ -56,6 +56,8 @@ def cat_(*exprs: str) -> str:
 
 def conv_(shape_in: LockedShape, shape_out: LockedShape, kernel: Tuple[int, ...], stride: Tuple[int, ...], padding: Tuple[int, ...], group: int) -> str:
 	return torch_nn_(f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')")
+def full_(shape_in: LockedShape, shape_out: LockedShape) -> str:
+	return torch_nn_(f"Linear({shape_in[0]}, {shape_out[0]}, bias=True)")
 
 def relu_() -> str:
 	return torch_nn_("ReLU()")
@@ -63,6 +65,8 @@ def relu6_() -> str:
 	return torch_nn_("ReLU6()")
 def softmax_() -> str:
 	return torch_nn_("Softmax(dim=1)")
+def sigmoid_() -> str:
+	return torch_nn_("Sigmoid()")
 
 def batch_norm_(shape_in: LockedShape) -> str:
 	return torch_nn_(f"BatchNorm{len(shape_in) - 1}d({shape_in[0]})")
