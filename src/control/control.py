@@ -9,8 +9,8 @@ from torch.nn import Module
 import torch
 
 from typing import List, Tuple
-
 from enum import Enum
+from dataclasses import dataclass
 
 class OptimizerType(Enum):
 	ADAM = "adam"
@@ -50,21 +50,18 @@ class Control:
 				test_models.append(model)
 			else:
 				raise ValueError("Model could not be built from schema")
-		model_pool: List[Model] = []
-		model_training_stats: List[List[Tuple[float, float]]] = [[] for _ in model_pool]
+		#could make the performance stats hold the model instead?
+		model_pool: List[Tuple[Model, List[PerformanceStats], List[PerformanceStats]]] = []
 		breed_iterations = 1
 		for i in range(breed_iterations):
-			for model in model_pool:
+			for model in test_models:
+				model_pool.append((model, [], []))
 				runnable_model = model.get_torch_module_handle(f"M{i}")()
 				if COMPILE_MODELS:
 					runnable_model = torch.compile(runnable_model, backend=COMPILER_BACKEND) 
 				runnable_model.to(device)
 				epochs = 1
 				for _ in range(1):
-					#make some dataclass to handle the stats
-					training_loss_avg: float = 0
-					training_loss_max: float = 0
-					training_loss_min: float = 0
 					runnable_model.train()
 					for epoch in range(epochs):
 						optimizer = torch.optim.Adam(runnable_model.parameters())
@@ -75,15 +72,42 @@ class Control:
 							with torch.autocast(device_type=device_type, dtype=torch.float16):
 								output = runnable_model(data)
 								loss = criterion(output, truth)
-								training_loss_avg += loss.item()
 							scaler.scale(loss).backward()
 							scaler.step(optimizer)
 							scaler.update()
-					validation_loss_avg: float = 0
 					runnable_model.eval()
 					for data, truth in validation_loader:
 						data, truth = data.to(device), truth.to(device)
 						with torch.no_grad():
 							output = runnable_model(data)
 							loss = criterion(output, truth)
-							validation_loss_avg += loss.item()
+
+def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
+	for param_group in optimizer.param_groups:
+		param_group["lr"] = learning_rate
+def get_optimizer(optimizer_type: OptimizerType, model: Module) -> torch.optim.Optimizer:
+	if optimizer_type == OptimizerType.ADAM:
+		return torch.optim.Adam(model.parameters())
+	elif optimizer_type == OptimizerType.SGD:
+		return torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+	else:
+		raise ValueError("Invalid optimizer type")
+
+class PerformanceStats:
+	__slots__ = ["_loss_total", "loss_max", "loss_min", "_correct_total", "_samples"]
+	def __init__(self) -> None:
+		self._loss_total: float
+		self.loss_max: float
+		self.loss_min: float
+		self._correct_total: float
+		self._samples: int
+	def record(self, loss: float, correct: float, samples: int = 1) -> None:
+		self._samples += samples 
+		self._loss_total += loss
+		self.loss_max = max(self.loss_max, loss)
+		self.loss_min = min(self.loss_min, loss)
+		self._correct_total += correct 
+	def get_average_loss(self) -> float:
+		return self._loss_total / self._samples
+	def get_accuracy(self) -> float:	
+		return self._correct_total / self._samples
