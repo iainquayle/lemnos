@@ -84,7 +84,6 @@ class Schema:
 		return None
 
 class _BuildTracker:
-	_MAX_NODES = 512 
 	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence_index"]
 	def __init__(self, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack], sequence_index: int) -> None:
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
@@ -111,10 +110,11 @@ class _BuildTracker:
 			while abs(i) <= max(len(schema_node.get_transition_groups()) - pivot, pivot):
 				if pivot + i < len(schema_node.get_transition_groups()) and pivot + i >= 0:
 					group = schema_node[pivot + i]
-					#could change get group conformance
-					#	make a func that takes in a target node and an availbility node, return a shape
-					#	list them, senf that to the group itself, and then the group can return the conformance shape
-					#	seems like its more a proper repsonsibility 
+					#will need to make function to get possible children of a group
+					#	does anything need to be done for newly created nodes?
+					#	they should auto delete if not used since everything unbinds
+					#	the group get and record can be done in the same function
+					#	needs to be done on the tracker copy though
 					if ((conformance_shape := self._get_group_conformance_shape(group, schema_node)) is not None
 			 				and (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None):
 						next_tracker = copy(self)

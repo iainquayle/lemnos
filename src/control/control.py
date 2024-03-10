@@ -15,26 +15,25 @@ from dataclasses import dataclass
 class OptimizerType(Enum):
 	ADAM = "adam"
 	SGD = "sgd"
-
-REQUIRE_CUDA = True
+class CompileBackend(Enum):
+	INDUCTOR = "inductor"
+	CUDA_GRAPHS = "cudagraphs"
 
 CUDA = "cuda"
 CPU = "cpu"
-INDUCTOR = "inductor"
-CUDA_GRAPHS = "cudagraphs"
-
-COMPILE_MODELS = True 
-COMPILER_BACKEND = INDUCTOR
 
 class Control:
-	def __init__(self, schema: Schema, train_dataset: Dataset, validation_dataset: Dataset) -> None:
+	def __init__(self, schema: Schema, train_dataset: Dataset, validation_dataset: Dataset, compile_models: bool = True, compiler_backend: CompileBackend = CompileBackend.INDUCTOR, require_cuda: bool = True) -> None:
 		self._schema: Schema = schema
 		self._train_dataset: Dataset = train_dataset
 		self._validation_dataset: Dataset = validation_dataset
+		self._compile_models: bool = compile_models
+		self._compiler_backend: CompileBackend = compiler_backend
+		self._require_cuda: bool = require_cuda
 		#should also hold onto data transformation modules? though this could technically be done in the dataset class?
 	def search(self, 
 			input_shapes: List[LockedShape], 
-			save_dir: str, 
+			model_save_dir: str, 
 			criterion: Module, 
 			optimizer_type: OptimizerType = OptimizerType.ADAM, 
 			batch_size: int = 5, 
@@ -43,7 +42,7 @@ class Control:
 		) -> None:
 		#look into taking in a sampler for the data loader, may be useful for large datasets
 		device_type = CUDA if torch.cuda.is_available() else CPU 
-		if REQUIRE_CUDA and not device_type == CUDA:
+		if self._require_cuda and not device_type == CUDA:
 			raise ValueError("CUDA set to required but not available")
 		device = torch.device(device_type)
 		train_loader = DataLoader(self._train_dataset, batch_size=batch_size, shuffle=True, num_workers=workers, persistent_workers=workers > 0, pin_memory=True)
@@ -57,12 +56,14 @@ class Control:
 		#could make the performance stats hold the model instead?
 		model_pool: List[Tuple[Model, List[PerformanceStats], List[PerformanceStats]]] = []
 		breed_iterations = 1
-		for i in range(breed_iterations):
+		#move train and eval loops into functions
+		#then wrap the pool in a function too?
+		for i in range(breed_iterations): #will switch this to use a call back? allowing for a cli?
 			for model in test_models:
 				model_pool.append((model, [], []))
-				runnable_model = model.get_torch_module_handle(f"M{i}")()
-				if COMPILE_MODELS:
-					runnable_model = torch.compile(runnable_model, backend=COMPILER_BACKEND) 
+				runnable_model: Any = model.get_torch_module_handle(f"M{i}")() #fix any type
+				if self._compile_models:
+					runnable_model = torch.compile(runnable_model, backend=str(self._compiler_backend)) 
 				runnable_model.to(device)
 				optimizer = get_optimizer(optimizer_type, runnable_model)
 				epochs = 1
@@ -107,11 +108,11 @@ def get_optimizer(optimizer_type: OptimizerType, model: Any) -> torch.optim.Opti
 class PerformanceStats:
 	__slots__ = ["_loss_total", "loss_max", "loss_min", "_correct_total", "_samples"]
 	def __init__(self) -> None:
-		self._loss_total: float
-		self.loss_max: float
-		self.loss_min: float
-		self._correct_total: float
-		self._samples: int
+		self._loss_total: float = 0
+		self.loss_max: float = float("-inf")
+		self.loss_min: float = float("inf")
+		self._correct_total: float = 0
+		self._samples: int = 0
 	def record(self, loss: float, correct: float, samples: int = 1) -> None:
 		self._samples += samples 
 		self._loss_total += loss

@@ -110,6 +110,8 @@ class TransitionGroup:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.get_next())
 		self._transitions = transitions
+	def get_transitions(self) -> List[Transition]:
+		return self._transitions
 	def __getitem__(self, index: int) -> Transition:
 		return self._transitions[index]
 	def __iter__(self) -> Iterable[Transition]:

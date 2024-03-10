@@ -1,7 +1,7 @@
 
 import unittest
 
-from src.control import Control, OptimizerType
+from src.control import Control
 from src.schema import Schema, SchemaNode, Concat, Conv
 from src.shared import ShapeBound, LockedShape
 
@@ -21,5 +21,5 @@ class TestControl(unittest.TestCase):
 				return 10 
 			def __getitem__(self, index):
 				return torch.zeros(1, 1), torch.zeros(1, 1)
-		control = Control(schema, TestDataset(), TestDataset())
+		control = Control(schema, TestDataset(), TestDataset(), False)
 		control.search([input_shape], "", BCEWithLogitsLoss())
