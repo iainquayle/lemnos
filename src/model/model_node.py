@@ -11,11 +11,11 @@ from copy import copy
 
 class ModelNode():
 	_NOT_BUILT = -1
-	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape", "_mould_shape_invalid"]
+	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape"]
 	def __init__(self, 
-			index: Index,
 			schema_node: SchemaNode,
 			id: int = _NOT_BUILT, 
+			index: Index = Index(),
 			mould_shape: LockedShape = LockedShape(0),
 			output_shape: LockedShape = LockedShape(0),
 			parents: Iterable[Self] | None = None
@@ -29,21 +29,17 @@ class ModelNode():
 			self._set_parents(parents)
 		self._mould_shape: LockedShape = mould_shape 
 		self._output_shape: LockedShape = output_shape
-		#@cache depending on its impl may be able to deal with this
-		self._mould_shape_invalid: bool = False
 	def attempt_build(self, index: Index) -> bool: #will take in a new build tracker
 		pass
 	def attempt_join_children(self, children: List[Self], index: Index) -> bool:
 		if ((conformance_shape := Shape.reduce_common_lossless([child.get_conformance_shape() for child in children])) is not None 
-				and (output_shape := self._schema_node.get_output_shape(self.get_set_mould_shape(), conformance_shape, index)) is not None):
+				and (output_shape := self._schema_node.get_output_shape(self._mould_shape, conformance_shape, index)) is not None):
 			self._output_shape = output_shape
 			self._set_children(children)
 			return True
 		return False
 	def get_conformance_shape(self) -> Shape:
 		return self._schema_node.get_conformance_shape([parent.get_output_shape() for parent in self._parents])
-	def __del__(self) -> None:
-		self.unbind()
 	def unbind(self) -> None:
 		self.unbind_children()
 		self.unbind_parents()
@@ -65,7 +61,6 @@ class ModelNode():
 			child._add_parent(self)
 	def _add_parent(self, parent: Self) -> None:
 		if parent not in self._parents:
-			self._mould_shape_invalid = True
 			self._parents.append(parent)
 			parent._add_child(self)
 	def _set_parents(self, parents: Iterable[Self]) -> None: #could find intersection of old and new parents to minimize unbinding
@@ -80,16 +75,12 @@ class ModelNode():
 		return self._id > -1
 	def get_output_shape(self) -> LockedShape:
 		return self._output_shape
-	def get_set_mould_shape(self) -> LockedShape: #to show it caches the mould shape
-		return self.get_mould_shape()
+	def set_mould_shape(self) -> None:
+		self._mould_shape = self._schema_node.get_mould_shape([parent.get_output_shape() for parent in self._parents])
 	def get_mould_shape(self) -> LockedShape:
-		if self._mould_shape_invalid or len(self._parents) != 0:
-			self._mould_shape = self._schema_node.get_mould_shape([parent.get_output_shape() for parent in self._parents])
+		if not self.is_built():
+			raise ValueError("Cannot get mould shape of unbuilt node")
 		return self._mould_shape
-	def get_parents(self) -> List[Self]: #remove these later
-		return self._parents
-	def get_children(self) -> List[Self]:
-		return self._children
 	def get_schema_node(self) -> SchemaNode:
 		return self._schema_node
 	def dimensionality(self) -> int:
@@ -119,16 +110,6 @@ class _BuildTracker:
 		self._node_counts: Dict[SchemaNode, int] = {}
 		self._max_nodes: int = max_nodes
 		self._sequence_index: int = sequence_index 
-	@staticmethod
-	#any is temporary until this is working
-	def build_nodes(inputs: Dict[SchemaNode, LockedShape], indices: Any, max_nodes: int) -> List[ModelNode] | None:
-		dummy_nodes = {input_schema: ModelNode(Index(), -1, input_schema, shape, shape, None) for input_schema, shape in inputs.items()}
-		tracker = _BuildTracker(max_nodes, {input_schema: _BuildStack([ModelNode([dummy_node], -1)]) for input_schema, dummy_node in dummy_nodes.items()}, 0)
-		if isinstance((result := tracker._build_min(indices, 0)), List):
-			for node in dummy_nodes.values():
-				node.unbind()
-			return result
-		return None
 	def _build_min(self, indices: Any, depth: int) -> List[ModelNode] | SchemaNode:
 		if (result := self._pop_min_node()) is not None:
 			schema_node, build_node = result
@@ -232,26 +213,20 @@ class _BuildTracker:
 class _BuildStack:
 	_NODE = 0
 	_PRIORITY = 1
-	__slots__ = ["_stack"]
-	def __init__(self, stack: List[Tuple[ModelNode, int]] = []) -> None:
+	__slots__ = ["_stack", "_schema"]
+	def __init__(self, schema: SchemaNode, stack: List[Tuple[ModelNode, int]] = []) -> None:
+		self._schema: SchemaNode = schema
 		self._stack: List[Tuple[ModelNode, int]] = stack 
 	def push(self, node: ModelNode, priority: int) -> None:
 		self._stack.append((node, priority))
-	def get(self, parent: ModelNode | SchemaNode, join_type: JoinType) -> ModelNode | None: 
-		result = None
-		for node, _ in self._stack:
-			if not node.has_parent_type(parent.get_schema_node() if isinstance(parent, ModelNode) else parent):
-				result = node
-		return result
+	def record_and_get(self, parent: ModelNode | SchemaNode, join_type: JoinType, priority: int) -> ModelNode | None: 
 		if join_type != JoinType.NEW:
-			result = None
-			for node, _ in self._stack:
+			for i, (node, _) in enumerate(self._stack):
 				if not node.has_parent_type(parent.get_schema_node() if isinstance(parent, ModelNode) else parent):
-					result = node
-			if result is not None:
-				return result
+					self._stack[i] = (node, priority)
+					return node
 		if join_type != JoinType.EXISTING:
-			pass
+			self.push(ModelNode(self._schema), priority)
 		else:
 			return None
 	def pop(self) -> Tuple[ModelNode, int]:
@@ -263,4 +238,4 @@ class _BuildStack:
 	def __len__(self) -> int:
 		return len(self._stack)
 	def __copy__(self) -> _BuildStack:
-		return _BuildStack([copy(node) for node in self._stack])
+		return _BuildStack(self._schema, copy(self._stack))

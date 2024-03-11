@@ -6,9 +6,9 @@ from src.model import ModelNode
 
 class TestModelNodeGraphFunctions(unittest.TestCase):
 	def setUp(self) -> None:
-		self.m1 = ModelNode(Index(0), SchemaNode(ShapeBound(None, None), Sum()), 0, LockedShape(1, 1), LockedShape(1, 1))
-		self.m2 = ModelNode(Index(0), SchemaNode(ShapeBound(None, None), Concat()), 1, LockedShape(1, 2), LockedShape(1, 2))
-		self.m3 = ModelNode(Index(0), SchemaNode(ShapeBound(None, None), Concat()), 2, LockedShape(2, 1), LockedShape(2, 1))
+		self.m1 = ModelNode(SchemaNode(ShapeBound(None, None), Sum()), 0, Index(), LockedShape(1, 1), LockedShape(1, 1))
+		self.m2 = ModelNode(SchemaNode(ShapeBound(None, None), Concat()), 1, Index(), LockedShape(1, 2), LockedShape(1, 2))
+		self.m3 = ModelNode(SchemaNode(ShapeBound(None, None), Concat()), 2, Index(), LockedShape(2, 1), LockedShape(2, 1))
 	def test_attempt_join_children_valid(self) -> None:
 		self.assertTrue(self.m1.attempt_join_children([self.m2], Index(0)))
 		self.assertTrue(self.m3.attempt_join_children([self.m2], Index(0)))
