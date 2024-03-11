@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, Shape, Index
-from ..schema.schema_node import SchemaNode
+from ..schema.schema_node import SchemaNode, JoinType
 from ..schema.src_generation import *
 
 from typing import List, Iterable, Dict, Tuple, Any
@@ -10,11 +10,12 @@ from typing_extensions import Self
 from copy import copy
 
 class ModelNode():
+	_NOT_BUILT = -1
 	__slots__ = ["_index", "_id", "_schema_node", "_children", "_parents", "_output_shape", "_mould_shape", "_mould_shape_invalid"]
 	def __init__(self, 
 			index: Index,
-			id: int,
 			schema_node: SchemaNode,
+			id: int = _NOT_BUILT, 
 			mould_shape: LockedShape = LockedShape(0),
 			output_shape: LockedShape = LockedShape(0),
 			parents: Iterable[Self] | None = None
@@ -28,6 +29,7 @@ class ModelNode():
 			self._set_parents(parents)
 		self._mould_shape: LockedShape = mould_shape 
 		self._output_shape: LockedShape = output_shape
+		#@cache depending on its impl may be able to deal with this
 		self._mould_shape_invalid: bool = False
 	def attempt_build(self, index: Index) -> bool: #will take in a new build tracker
 		pass
@@ -74,6 +76,8 @@ class ModelNode():
 		self.unbind_children()
 		for child in children:
 			self._add_child(child)
+	def is_built(self) -> bool:
+		return self._id > -1
 	def get_output_shape(self) -> LockedShape:
 		return self._output_shape
 	def get_set_mould_shape(self) -> LockedShape: #to show it caches the mould shape
@@ -233,12 +237,23 @@ class _BuildStack:
 		self._stack: List[Tuple[ModelNode, int]] = stack 
 	def push(self, node: ModelNode, priority: int) -> None:
 		self._stack.append((node, priority))
-	def get_available(self, parent: ModelNode | SchemaNode) -> ModelNode | None: 
+	def get(self, parent: ModelNode | SchemaNode, join_type: JoinType) -> ModelNode | None: 
 		result = None
 		for node, _ in self._stack:
 			if not node.has_parent_type(parent.get_schema_node() if isinstance(parent, ModelNode) else parent):
 				result = node
 		return result
+		if join_type != JoinType.NEW:
+			result = None
+			for node, _ in self._stack:
+				if not node.has_parent_type(parent.get_schema_node() if isinstance(parent, ModelNode) else parent):
+					result = node
+			if result is not None:
+				return result
+		if join_type != JoinType.EXISTING:
+			pass
+		else:
+			return None
 	def pop(self) -> Tuple[ModelNode, int]:
 		return self._stack.pop()
 	def peek(self) -> Tuple[ModelNode, int]:
