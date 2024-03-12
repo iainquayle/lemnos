@@ -5,7 +5,7 @@ from ..schema.schema_node import SchemaNode, TransitionGroup, Transition, JoinTy
 from ..schema.src_generation import *
 
 from typing import List, Iterable, Dict, Tuple, Any
-#from typing_extensions import Self 
+from typing_extensions import Self
 
 from copy import copy
 
@@ -18,18 +18,18 @@ class ModelNode():
 			index: Index = Index(),
 			mould_shape: LockedShape = LockedShape(0),
 			output_shape: LockedShape = LockedShape(0),
-			parents: Iterable[ModelNode] | None = None
+			parents: Iterable[Self] | None = None
 			) -> None:
 		self._index: Index = index
 		self._id: int = id 
 		self._schema_node: SchemaNode = schema_node 
-		self._children: List[ModelNode] = []
-		self._parents: List[ModelNode] = []
+		self._children: List[Self] = []
+		self._parents: List[Self] = []
 		if parents is not None:
 			self._set_parents(parents)
 		self._mould_shape: LockedShape = mould_shape 
 		self._output_shape: LockedShape = output_shape
-	def attempt_build(self, build_tracker: _BuildTracker,  indices: Any) -> List[ModelNode] | None: #will take in a new build tracker
+	def attempt_build(self, build_tracker: _BuildTracker,  indices: Any) -> List[Self] | None: #will take in a new build tracker
 		if self.is_built():
 			raise ValueError("Cannot build node that is already built")
 		self.set_mould_shape()
@@ -42,14 +42,10 @@ class ModelNode():
 				next_tracker = copy(build_tracker)
 				if ((nodes := next_tracker.record_and_get(group, self)) is not None
 						and self.attempt_join_children(nodes, index)):
-					if ((next_node := next_tracker.get_min()) is not None
-							and (built_nodes := next_node.attempt_build(next_tracker, indices)) is not None):
-						return built_nodes + [self]
-					else:
-						return []
+					pass
 		self.unbind()
 		return None 
-	def attempt_join_children(self, children: List[ModelNode], index: Index) -> bool:
+	def attempt_join_children(self, children: List[Self], index: Index) -> bool:
 		if ((conformance_shape := Shape.reduce_common_lossless([child.get_conformance_shape() for child in children])) is not None 
 				and (output_shape := self._schema_node.get_output_shape(self._mould_shape, conformance_shape, index)) is not None):
 			self._output_shape = output_shape
@@ -69,23 +65,23 @@ class ModelNode():
 		for parent in self._parents:
 			parent._unbind_child(self)
 		self._parents = []
-	def _unbind_child(self, child: ModelNode) -> None:
+	def _unbind_child(self, child: Self) -> None:
 		self._children.remove(child)
-	def _unbind_parent(self, parent: ModelNode) -> None:
+	def _unbind_parent(self, parent: Self) -> None:
 		self._parents.remove(parent)
-	def _add_child(self, child: ModelNode) -> None: 
+	def _add_child(self, child: Self) -> None: 
 		if child not in self._children:
 			self._children.append(child)
 			child._add_parent(self)
-	def _add_parent(self, parent: ModelNode) -> None:
+	def _add_parent(self, parent: Self) -> None:
 		if parent not in self._parents:
 			self._parents.append(parent)
 			parent._add_child(self)
-	def _set_parents(self, parents: Iterable[ModelNode]) -> None: #could find intersection of old and new parents to minimize unbinding
+	def _set_parents(self, parents: Iterable[Self]) -> None: #could find intersection of old and new parents to minimize unbinding
 		self.unbind_parents()
 		for parent in parents:
 			self._add_parent(parent)
-	def _set_children(self, children: Iterable[ModelNode]) -> None:
+	def _set_children(self, children: Iterable[Self]) -> None:
 		self.unbind_children()
 		for child in children:
 			self._add_child(child)
