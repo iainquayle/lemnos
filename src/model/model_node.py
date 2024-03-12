@@ -170,12 +170,10 @@ class _BuildTracker:
 class _BuildStack:
 	NODE = 0
 	PRIORITY = 1
-	__slots__ = ["_stack", "_schema"]
-	def __init__(self, schema: SchemaNode, stack: List[Tuple[ModelNode, int]] = []) -> None:
-		self._schema: SchemaNode = schema
-		self._stack: List[Tuple[ModelNode, int]] = stack 
-	def push(self, node: ModelNode, priority: int) -> None:
-		self._stack.append((node, priority))
+	__slots__ = ["_stack", "_schema_node"]
+	def __init__(self, schema_node: SchemaNode, stack: List[Tuple[ModelNode, int]] = []) -> None:
+		self._schema_node: SchemaNode = schema_node
+		self._stack: List[Tuple[ModelNode, int]] = copy(stack)
 	def record_and_get(self, parent: ModelNode | SchemaNode, join_type: JoinType, priority: int) -> ModelNode | None: 
 		if join_type != JoinType.NEW:
 			for i, (node, _) in enumerate(self._stack):
@@ -183,7 +181,8 @@ class _BuildStack:
 					self._stack[i] = (node, priority)
 					return node
 		if join_type != JoinType.EXISTING:
-			self.push(ModelNode(self._schema), priority)
+			self._stack.append((ModelNode(self._schema_node), priority))
+			return self.peek()[_BuildStack.NODE]
 		else:
 			return None
 	def pop(self) -> Tuple[ModelNode, int]:
@@ -195,4 +194,4 @@ class _BuildStack:
 	def __len__(self) -> int:
 		return len(self._stack)
 	def __copy__(self) -> _BuildStack:
-		return _BuildStack(self._schema, copy(self._stack))
+		return _BuildStack(self._schema_node, self._stack)

@@ -37,3 +37,7 @@ class TestModelNodeGraphFunctions(unittest.TestCase):
 		self.m1._set_parents([self.m3])
 		self.assertEqual(self.m1._parents, [self.m3])
 		self.assertEqual(self.m3._children, [self.m1])
+	def test_has_parent_type(self) -> None:
+		self.m1._add_parent(self.m2)
+		self.assertTrue(self.m1.has_parent_type(self.m2.get_schema_node()))
+		self.assertFalse(self.m1.has_parent_type(self.m3.get_schema_node()))
