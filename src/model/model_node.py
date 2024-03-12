@@ -42,9 +42,9 @@ class ModelNode():
 				next_tracker = copy(build_tracker)
 				if ((nodes := next_tracker.record_and_get(group, self)) is not None
 						and self.attempt_join_children(nodes, index)):
-					if ((next_node := next_tracker.get_min()) is not None
-							and (built_nodes := next_node.attempt_build(next_tracker, indices)) is not None):
-						return built_nodes + [self]
+					if (next_node := next_tracker.pop_min()) is not None:
+						if (built_nodes := next_node.attempt_build(next_tracker, indices)) is not None:
+							return built_nodes + [self]
 					else:
 						return []
 		self.unbind()
@@ -125,12 +125,12 @@ class ModelNode():
 
 class _BuildTracker:
 	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence_index"]
-	def __init__(self, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack], sequence_index: int) -> None:
+	def __init__(self, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack], node_counts: Dict[SchemaNode, int], sequence_index: int) -> None:
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
-		self._node_counts: Dict[SchemaNode, int] = {}
+		self._node_counts: Dict[SchemaNode, int] = node_counts
 		self._max_nodes: int = max_nodes
 		self._sequence_index: int = sequence_index 
-	def get_min(self) -> ModelNode | None:
+	def pop_min(self) -> ModelNode | None:
 		min_priority = Transition.get_max_priority() + 1
 		min_node = None
 		for _, stack in self.get_iter():
@@ -141,7 +141,10 @@ class _BuildTracker:
 	def record_and_get(self, transition_group: TransitionGroup, parent: ModelNode) -> List[ModelNode] | None:
 		nodes: List[ModelNode] = []
 		for transition in iter(transition_group):
-			if (node := self[transition.get_next()].record_and_get(parent, transition.get_join_type(), transition.get_priority())) is not None:
+			if transition.get_next() not in self:
+				self._stacks[transition.get_next()] = _BuildStack(transition.get_next())
+			self._node_counts[transition.get_next()] = self._node_counts.get(transition.get_next(), 0) + 1 
+			if (node := self._stacks[transition.get_next()].record_and_get(parent, transition.get_join_type(), transition.get_priority())) is not None:
 				nodes.append(node)
 			else:
 				return None
@@ -153,13 +156,8 @@ class _BuildTracker:
 		return True
 	def stacks_str(self) -> str:
 		return " , ".join([schema.debug_name + ": " + str(len(stack)) for schema, stack in self.get_iter()])
-	def __getitem__(self, key: SchemaNode) -> _BuildStack:
-		return self._stacks[key]
-	def __setitem__(self, key: SchemaNode, value: _BuildStack) -> None:
-		self._stacks[key] = value
-		return
 	def __copy__(self) -> _BuildTracker:
-		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, self._sequence_index)
+		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, copy(self._node_counts), self._sequence_index)
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._stacks
 	def __len__(self) -> int:
