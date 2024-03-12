@@ -29,8 +29,20 @@ class ModelNode():
 			self._set_parents(parents)
 		self._mould_shape: LockedShape = mould_shape 
 		self._output_shape: LockedShape = output_shape
-	def attempt_build(self, index: Index) -> bool: #will take in a new build tracker
-		pass
+	def attempt_build(self, build_tracker: _BuildTracker,  indices: Any) -> List[Self]: #will take in a new build tracker
+		if self.is_built():
+			raise ValueError("Cannot build node that is already built")
+		self.set_mould_shape()
+		index, sequence_index = indices.get_index(0, 0, self._schema_node, self._mould_shape)
+		pivot = index.get_shuffled(len(self._schema_node.get_transition_groups()))
+		i = 0
+		while abs(i) <= max(len(self._schema_node.get_transition_groups()) - pivot, pivot):
+			if pivot + i < len(self._schema_node.get_transition_groups()) and pivot + i >= 0:
+				group = self._schema_node[pivot + i]
+				next_tracker = copy(build_tracker)
+				#get 
+
+		return []
 	def attempt_join_children(self, children: List[Self], index: Index) -> bool:
 		if ((conformance_shape := Shape.reduce_common_lossless([child.get_conformance_shape() for child in children])) is not None 
 				and (output_shape := self._schema_node.get_output_shape(self._mould_shape, conformance_shape, index)) is not None):
@@ -72,8 +84,10 @@ class ModelNode():
 		for child in children:
 			self._add_child(child)
 	def is_built(self) -> bool:
-		return self._id > -1
+		return self._id > ModelNode._NOT_BUILT
 	def get_output_shape(self) -> LockedShape:
+		if not self.is_built():
+			raise ValueError("Cannot get output shape of unbuilt node")
 		return self._output_shape
 	def set_mould_shape(self) -> None:
 		self._mould_shape = self._schema_node.get_mould_shape([parent.get_output_shape() for parent in self._parents])
@@ -110,65 +124,14 @@ class _BuildTracker:
 		self._node_counts: Dict[SchemaNode, int] = {}
 		self._max_nodes: int = max_nodes
 		self._sequence_index: int = sequence_index 
-	def _build_min(self, indices: Any, depth: int) -> List[ModelNode] | SchemaNode:
-		if (result := self._pop_min_node()) is not None:
-			schema_node, build_node = result
-			parents = build_node.get_parents()
-			mould_shape = schema_node.get_mould_shape([parent.get_output_shape() for parent in parents])
-			index, self._sequence_index = indices.get_index(depth, self._sequence_index, schema_node, mould_shape)
-			pivot = index.get_shuffled(len(schema_node.get_transition_groups()))
-			i = 0
-			while abs(i) <= max(len(schema_node.get_transition_groups()) - pivot, pivot):
-				if pivot + i < len(schema_node.get_transition_groups()) and pivot + i >= 0:
-					group = schema_node[pivot + i]
-					#will need to make function to get possible children of a group
-					#	does anything need to be done for newly created nodes?
-					#	they should auto delete if not used since everything unbinds
-					#	the group get and record can be done in the same function
-					#	needs to be done on the tracker copy though
-					if ((conformance_shape := self._get_group_conformance_shape(group, schema_node)) is not None
-			 				and (output_shape := schema_node.get_output_shape(mould_shape, conformance_shape, index)) is not None):
-						next_tracker = copy(self)
-						node = ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)
-						next_tracker._increment_count(schema_node)
-						if (depth < self._max_nodes 
-								and next_tracker._record_transitions(iter(group), node) 
-								and isinstance(result := next_tracker._build_min(indices, depth + 1), List)):
-							return [node, *result]
-						else:
-							node.unbind()	
-				i = -i if i > 0 else -i + 1
-			if len(schema_node.get_transition_groups()) == 0:
-				if (output_shape := schema_node.get_output_shape(mould_shape, OpenShape(), index)) is not None:
-					return [ModelNode(index, depth, schema_node, mould_shape, output_shape, parents)]
-			return schema_node
-		return []
-	def _increment_count(self, schema_node: SchemaNode) -> None:
-		self._node_counts[schema_node] = self._node_counts.get(schema_node, 0) + 1
-	def _get_count(self, schema_node: SchemaNode) -> int:
-		return self._node_counts.get(schema_node, 0)
-	def _get_group_conformance_shape(self, group: TransitionGroup, schema_node: SchemaNode) -> Shape | None:
-		transition_iter = iter(group)
-		conformance_shape = OpenShape()
-		while (transition := next(transition_iter, None)) is not None and conformance_shape is not None:
-			if transition.is_join_existing():
-				if (join_node := self[transition.get_next()].get_available(schema_node)) is not None: 
-					conformance_shape = conformance_shape.common_lossless(transition.get_next().get_conformance_shape(join_node.get_parent_shapes()))
-				else:
-					conformance_shape = None
-		return conformance_shape
-	def _min_stack(self) -> Tuple[SchemaNode, _BuildStack] | None: 
-		if len(self) == 0:
-			return None
-		min_schema = min(self.get_iter(), key=lambda item: item[1].get_priority()) 
-		if len(min_schema[1]) == 0:
-			return None
-		return min_schema
-	def _pop_min_node(self) -> Tuple[SchemaNode, ModelNode] | None:
-		if (result := self._min_stack()) is not None:
-			schema, stack = result
-			return schema, stack.pop()
-		return None
+	def get_min(self) -> ModelNode | None:
+		min_priority = Transition.get_max_priority() + 1
+		min_node = None
+		for _, stack in self.get_iter():
+			if stack.get_priority() < min_priority:
+				min_priority = stack.get_priority()
+				min_node = stack.pop()[_BuildStack.NODE]
+		return min_node
 	def _record_transitions(self, transitions: Iterable[Transition], parent: ModelNode) -> bool:
 		for transition in transitions:
 			if not self.record_transition(transition, parent):
@@ -201,8 +164,6 @@ class _BuildTracker:
 		return
 	def __copy__(self) -> _BuildTracker:
 		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, self._sequence_index)
-	def _next_tracker(self) -> _BuildTracker:
-		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, self._sequence_index)
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._stacks
 	def __len__(self) -> int:
@@ -211,8 +172,8 @@ class _BuildTracker:
 		return iter(self._stacks.items())
 
 class _BuildStack:
-	_NODE = 0
-	_PRIORITY = 1
+	NODE = 0
+	PRIORITY = 1
 	__slots__ = ["_stack", "_schema"]
 	def __init__(self, schema: SchemaNode, stack: List[Tuple[ModelNode, int]] = []) -> None:
 		self._schema: SchemaNode = schema
@@ -234,7 +195,7 @@ class _BuildStack:
 	def peek(self) -> Tuple[ModelNode, int]:
 		return self._stack[-1]
 	def get_priority(self) -> int:
-		return self.peek()[_BuildStack._PRIORITY] if len(self._stack) > 0 else Transition.get_max_priority() + 1
+		return self.peek()[_BuildStack.PRIORITY] if len(self._stack) > 0 else Transition.get_max_priority() + 1
 	def __len__(self) -> int:
 		return len(self._stack)
 	def __copy__(self) -> _BuildStack:
