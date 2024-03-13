@@ -14,12 +14,24 @@ import random
 class Model():
 	_MAX_ITERATIONS = 1024 
 	def __init__(self, schema: Schema, input_shapes: List[LockedShape], indices: BuildIndices, max_nodes: int) -> None:
-		for schema_node, priority in schema.get_node_with_priority().items():
-			pass
-			#node = ModelNode(schema_node
 		self._input_nodes: List[ModelNode] = [] 
 		self._output_nodes: List[ModelNode] = [] 
 		self._ordered_node_cache: List[ModelNode] | None = []
+		stacks: Dict[SchemaNode, _BuildStack] = {}
+		for i, (schema_node, priority) in enumerate(schema.get_node_with_priority()):
+			node = ModelNode(schema_node, input_shapes[i])
+			self._input_nodes.append(node)
+			stacks[schema_node] = _BuildStack(schema_node, [(node, priority)])
+		tracker = _BuildTracker(max_nodes, stacks, {schema_node: 1 for schema_node in schema.get_starts_iter()}, 0)
+		if ((first_node := tracker.pop_min()) is not None
+				and (nodes := first_node.attempt_build(tracker, indices, 0)) is not None):
+			self._ordered_node_cache = nodes
+			for end in schema.get_ends_iter():
+				for node in nodes:
+					if node.get_schema_node() == end:
+						self._output_nodes.append(node)
+		else:
+			raise ValueError("Failed to build model")
 	def get_ordered_nodes(self) -> List[ModelNode]:
 		if self._ordered_node_cache is not None and len(self._ordered_node_cache) > 0:
 			return self._ordered_node_cache
@@ -88,10 +100,7 @@ class Model():
 		init_statements: List[str] = []
 		forward_statements: List[str] = []
 		def format_component(node: int, component: int | None = None) -> str:
-			if component is None:
-				return f"c{node}"
-			else:
-				return f"c{node}_{component}"
+			return f"c{node}" if component is None else f"c{node}_{component}"
 		def format_register(register: int) -> str:
 			return f"r{register}"
 		def format_registers(registers: List[int]) -> List[str]:

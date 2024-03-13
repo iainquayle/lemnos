@@ -3,17 +3,6 @@ changes:
 		fix the issue with the groups
 			also just refactor it
 		implement auto join
-		refactor build process
-			move building to model
-				works better, and will resolve the possible circular import issue
-			make model node an incremental process
-				source conformance shape from it
-				need to decide how to get the conformance shape from the children  
-					could take in the possible children, it attempts to join them and set its output shape, return true if it does
-					could be done by the transition group, then passed into the model node
-				add join function, perhaps return conformance shape from there
-				add has parent
-			remove future node
 	possible:
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
@@ -21,8 +10,6 @@ changes:
 			in case of the group, and using padding to solve it partially, the nodes will need to be able to deal with the padding?
 			in the normal course it would be its responsibility for evaluation
 problems:
-	when importing from inits, the wrong order will make circular
-		make master init to mitigate this
 	issue with groups, the input shape needs to be divisible by the group size
 		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
 			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape

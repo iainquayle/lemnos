@@ -6,7 +6,7 @@ from .activation import Activation
 from .regularization import Regularization
 from .transform import Transform  
 
-from typing import List, Tuple, Iterable, Set, Dict
+from typing import List, Tuple, Iterable, Set
 from typing_extensions import Self
 
 from copy import copy
@@ -32,8 +32,8 @@ class Schema:
 		return iter(self._starts)
 	def get_ends_iter(self) -> Iterable[SchemaNode]:
 		return iter(self._ends)
-	def get_node_with_priority(self) -> Dict[SchemaNode, int]:
-		return {node: -len(self._starts) + i for i, node in enumerate(self._starts)}
+	def get_node_with_priority(self) -> List[Tuple[SchemaNode, int]]:
+		return [(node, i - len(self._starts)) for i, node in enumerate(self._starts)]
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
