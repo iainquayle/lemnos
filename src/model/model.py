@@ -4,20 +4,23 @@ from ..shared import Index, LockedShape, OpenShape, Shape
 from ..schema.schema import Schema, SchemaNode, Transition, TransitionGroup, JoinType
 from ..schema.src_generation import *
 
+from abc import ABC as Abstract, abstractmethod
+
 from typing import List, Tuple, Dict, Type
 
 from copy import copy
+import random
 
 class Model():
 	_MAX_ITERATIONS = 1024 
-	def __init__(self, input_nodes: List[ModelNode], output_nodes: List[ModelNode]) -> None:
-		self._input_nodes: List[ModelNode] = input_nodes 
-		self._output_nodes: List[ModelNode] = output_nodes 
+	def __init__(self, schema: Schema, input_shapes: List[LockedShape], indices: BuildIndices, max_nodes: int) -> None:
+		for schema_node, priority in schema.get_node_with_priority().items():
+			pass
+			#node = ModelNode(schema_node
+		self._input_nodes: List[ModelNode] = [] 
+		self._output_nodes: List[ModelNode] = [] 
 		self._ordered_node_cache: List[ModelNode] | None = []
 	def get_ordered_nodes(self) -> List[ModelNode]:
-		#TODO: change the ordering of nodes so that the input nodes are all first
-		#	can reuse it for the forward pass then
-		#	shouldnt change any of the caching for the actual evaluation of the model?
 		if self._ordered_node_cache is not None and len(self._ordered_node_cache) > 0:
 			return self._ordered_node_cache
 		else:
@@ -34,11 +37,8 @@ class Model():
 						ordered_nodes.append(node)
 						evaluated_node = True
 						for child in node.get_children():
-							if child in evaluation_tracker:
-								evaluation_tracker[child] += 1
-							else:
-								evaluation_tracker[child] = 1
-			self._ordered_node_cache = ordered_nodes
+							evaluation_tracker[child] = evaluation_tracker.get(child, 0) + 1
+			self._ordered_node_cache = ordered_nodes.sort(key=lambda node: node.get_id())
 			return copy(ordered_nodes) 
 	def get_index_list(self) -> List[Index]:
 		return [node._index for node in self.get_ordered_nodes()]
@@ -50,6 +50,7 @@ class Model():
 		evaluation_tracker: Dict[ModelNode, List[int]] = {} #node and the registers it is using
 		register_commitments: Dict[int, int] = {} #register and nodes it still needs to be used for
 		available_registers: List[int] = []
+		ordered_nodes: List[ModelNode] = self.get_ordered_nodes()
 		register_count = len(self._input_nodes)
 		for i, node in enumerate(self._input_nodes):
 			evaluation_tracker[node] = [i]
@@ -122,20 +123,14 @@ class ModelNode():
 	def __init__(self, 
 			schema_node: SchemaNode,
 			mould_shape: LockedShape = LockedShape(0),
-			output_shape: LockedShape = LockedShape(0),
-			id: int = _NOT_BUILT, 
-			index: Index = Index(),
-			parents: Iterable[ModelNode] | None = None
 			) -> None:
-		self._index: Index = index
-		self._id: int = id 
+		self._index: Index = Index() 
+		self._id: int = ModelNode._NOT_BUILT 
 		self._schema_node: SchemaNode = schema_node 
 		self._children: List[ModelNode] = []
 		self._parents: List[ModelNode] = []
-		if parents is not None:
-			self._set_parents(parents)
 		self._mould_shape: LockedShape = mould_shape 
-		self._output_shape: LockedShape = output_shape
+		self._output_shape: LockedShape = LockedShape(0)
 	def attempt_build(self, build_tracker: _BuildTracker,  indices: Any, id: int) -> List[ModelNode] | None: #will take in a new build tracker
 		if self.is_built():
 			raise ValueError("Cannot build node that is already built")
@@ -201,6 +196,10 @@ class ModelNode():
 		self._unbind_children()
 		for child in children:
 			self._add_child(child)
+	def get_children(self) -> List[ModelNode]:
+		return copy(self._children)
+	def get_parents(self) -> List[ModelNode]:
+		return copy(self._parents)
 	def is_built(self) -> bool:
 		return self._id > ModelNode._NOT_BUILT
 	def get_output_shape(self) -> LockedShape:
@@ -303,3 +302,50 @@ class _BuildStack:
 		return len(self._stack)
 	def __copy__(self) -> _BuildStack:
 		return _BuildStack(self._schema_node, self._stack)
+
+class BuildIndices(Abstract):
+	@abstractmethod
+	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:	
+		pass
+
+class StaticIndices(BuildIndices):
+	__slots__ = ["_indices"]
+	def __init__(self, indices: List[Index]) -> None:
+		self._indices: List[Index] = indices
+	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:
+		return self._indices[id], 0 
+
+class BreedIndices(BuildIndices):
+	__slots__ = ["_sequences", "_sequence_change_prod", "_mutate_prod"]
+	def __init__(self, sequence_change_prod: float = 0, mutate_prod: float = 0, sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = []) -> None:
+		if sequence_change_prod < 0 or sequence_change_prod > 1 or mutate_prod < 0 or mutate_prod > 1:
+			raise ValueError("Invalid probabilities")
+		self._sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = sequences
+		self._sequence_change_prod: float = sequence_change_prod
+		self._mutate_prod: float = mutate_prod
+	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:
+		def search_sequence(sequence_index: int) -> Tuple[Index, int] | None:
+			sequence_index %= len(self._sequences)
+			min_diff: int = 2**32
+			result: Index | None = None
+			for index, node, shape in self._sequences[sequence_index]:
+				if node == schema_node and (diff := shape.upper_difference(shape_in)) < min_diff:
+					min_diff = diff 
+					result = index 
+			if result is not None:
+				return result, min_diff 
+			else:
+				return None
+		if random.random() > self._mutate_prod and len(self._sequences) != 0:
+			if random.random() > self._sequence_change_prod or len(self._sequences) == 1:
+				if (result := search_sequence(sequence_index)) is not None:
+					index, _ = result
+					return index, sequence_index
+			if len(self._sequences) > 1:
+				sequence_indices: List[int] = list(range(sequence_index)) + list(range(sequence_index + 1, len(self._sequences)))
+				random.shuffle(sequence_indices)
+				for sequence in sequence_indices:
+					if (result := search_sequence(sequence)) is not None:
+						index, _ = result
+						return index, sequence 
+		return Index.random(), sequence_index 

@@ -71,9 +71,18 @@ class TestModelNodeBuild(unittest.TestCase):
 
 class TestModelNodeGraphFunctions(unittest.TestCase):
 	def setUp(self) -> None:
-		self.m1 = ModelNode(SchemaNode(ShapeBound(None, None), Sum()),  LockedShape(1, 1), LockedShape(1, 1), 0, Index())
-		self.m2 = ModelNode(SchemaNode(ShapeBound(None, None), Concat()),  LockedShape(1, 2), LockedShape(1, 2), 0, Index())
-		self.m3 = ModelNode(SchemaNode(ShapeBound(None, None), Concat()),  LockedShape(2, 1), LockedShape(2, 1), 0, Index())
+		self.m1 = ModelNode(SchemaNode(ShapeBound(None, None), Sum()),  LockedShape(1, 1))
+		self.m1._output_shape = LockedShape(1, 1)
+		self.m1._id = 0
+		self.m1._index = Index(0)
+		self.m2 = ModelNode(SchemaNode(ShapeBound(None, None), Concat()),  LockedShape(1, 2))
+		self.m2._output_shape = LockedShape(1, 2)
+		self.m2._id = 1
+		self.m2._index = Index(0)
+		self.m3 = ModelNode(SchemaNode(ShapeBound(None, None), Concat()),  LockedShape(2, 1))
+		self.m3._output_shape = LockedShape(2, 1)
+		self.m3._id = 2
+		self.m3._index = Index(0)
 	def test_attempt_join_children_valid(self) -> None:
 		self.assertTrue(self.m1.attempt_join_children([self.m2], Index(0)))
 		self.assertTrue(self.m3.attempt_join_children([self.m2], Index(0)))
