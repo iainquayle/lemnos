@@ -13,7 +13,7 @@ import random
 
 class Model():
 	_MAX_ITERATIONS = 1024 
-	def __init__(self, schema: Schema, input_shapes: List[LockedShape], indices: BuildIndices, max_nodes: int) -> None:
+	def __init__(self, schema: Schema, input_shapes: List[LockedShape], indices: BuildIndices, max_nodes: int = 512) -> None:
 		self._input_nodes: List[ModelNode] = [] 
 		self._output_nodes: List[ModelNode] = [] 
 		self._ordered_node_cache: List[ModelNode] | None = []
@@ -22,9 +22,9 @@ class Model():
 			node = ModelNode(schema_node, input_shapes[i])
 			self._input_nodes.append(node)
 			stacks[schema_node] = _BuildStack(schema_node, [(node, priority)])
-		tracker = _BuildTracker(max_nodes, stacks, {schema_node: 1 for schema_node in schema.get_starts_iter()}, 0)
+		tracker = _BuildTracker(max_nodes, stacks, {schema_node: 1 for schema_node in schema.get_starts_iter()})
 		if ((first_node := tracker.pop_min()) is not None
-				and (nodes := first_node.attempt_build(tracker, indices, 0)) is not None):
+				and (nodes := first_node.attempt_build(tracker, indices, 0, 0)) is not None):
 			self._ordered_node_cache = nodes
 			for end in schema.get_ends_iter():
 				for node in nodes:
@@ -63,6 +63,9 @@ class Model():
 		register_commitments: Dict[int, int] = {} #register and nodes it still needs to be used for
 		available_registers: List[int] = []
 		ordered_nodes: List[ModelNode] = self.get_ordered_nodes()
+		register_count: int = 0
+		for node in ordered_nodes:
+			pass
 		register_count = len(self._input_nodes)
 		for i, node in enumerate(self._input_nodes):
 			evaluation_tracker[node] = [i]
@@ -140,13 +143,13 @@ class ModelNode():
 		self._parents: List[ModelNode] = []
 		self._mould_shape: LockedShape = mould_shape 
 		self._output_shape: LockedShape = LockedShape(0)
-	def attempt_build(self, build_tracker: _BuildTracker,  indices: Any, id: int) -> List[ModelNode] | None: #will take in a new build tracker
+	def attempt_build(self, build_tracker: _BuildTracker,  indices: BuildIndices, id: int, sequence_index: int) -> List[ModelNode] | None: 
 		if self.is_built():
 			raise ValueError("Cannot build node that is already built")
 		if len(self._parents) != 0:
 			self._mould_shape = self._schema_node.get_mould_shape([parent.get_output_shape() for parent in self._parents])
 		self._id = id
-		#index, sequence_index = indices.get_index(0, 0, self._schema_node, self._mould_shape)
+		index, sequence_index = indices.get_index(id, sequence_index, self._schema_node, self._mould_shape)
 		index = Index()
 		pivot = index.get_shuffled(len(self._schema_node.get_transition_groups()))
 		i = 0
@@ -157,7 +160,7 @@ class ModelNode():
 				if ((nodes := next_tracker.record_and_get(group, self)) is not None
 						and self.attempt_join_children(nodes, index)
 					 	and (next_node := next_tracker.pop_min()) is not None #dont think this would happen?
-						and (built_nodes := next_node.attempt_build(next_tracker, indices, id + 1)) is not None):
+						and (built_nodes := next_node.attempt_build(next_tracker, indices, id + 1, sequence_index)) is not None):
 					return built_nodes + [self]
 			i = -i if i > 0 else -i + 1
 		if len(self._schema_node.get_transition_groups()) == 0:
@@ -243,24 +246,26 @@ class ModelNode():
 
 class _BuildTracker:
 	__slots__ = ["_stacks", "_max_nodes", "_indices", "_node_counts", "_sequence_index"]
-	def __init__(self, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack], node_counts: Dict[SchemaNode, int], sequence_index: int) -> None:
+	def __init__(self, max_nodes: int, stacks: Dict[SchemaNode, _BuildStack], node_counts: Dict[SchemaNode, int]) -> None:
 		self._stacks: Dict[SchemaNode, _BuildStack] = stacks 
 		self._node_counts: Dict[SchemaNode, int] = node_counts
 		self._max_nodes: int = max_nodes
-		self._sequence_index: int = sequence_index 
 	def pop_min(self) -> ModelNode | None:
 		min_priority = Transition.get_max_priority() + 1
-		min_node = None
-		for _, stack in self.get_iter():
+		min_schema: SchemaNode | None = None
+		for schema, stack in self.get_iter():
 			if stack.get_priority() < min_priority:
 				min_priority = stack.get_priority()
-				min_node = stack.pop()[_BuildStack.NODE]
-		return min_node
+				min_schema = schema
+		if min_schema is not None:
+			return self._stacks[min_schema].pop()[_BuildStack.NODE]
+		else:
+			return None
 	def record_and_get(self, transition_group: TransitionGroup, parent: ModelNode) -> List[ModelNode] | None:
 		nodes: List[ModelNode] = []
 		for transition in iter(transition_group):
 			if transition.get_next() not in self:
-				self._stacks[transition.get_next()] = _BuildStack(transition.get_next())
+				self._stacks[transition.get_next()] = _BuildStack(transition.get_next(), [])
 			self._node_counts[transition.get_next()] = self._node_counts.get(transition.get_next(), 0) + 1 
 			if (node := self._stacks[transition.get_next()].record_and_get(parent, transition.get_join_type(), transition.get_priority())) is not None:
 				nodes.append(node)
@@ -275,7 +280,7 @@ class _BuildTracker:
 	def stacks_str(self) -> str:
 		return " , ".join([schema.debug_name + ": " + str(len(stack)) for schema, stack in self.get_iter()])
 	def __copy__(self) -> _BuildTracker:
-		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, copy(self._node_counts), self._sequence_index)
+		return _BuildTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, copy(self._node_counts))
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._stacks
 	def __len__(self) -> int:
@@ -287,13 +292,15 @@ class _BuildStack:
 	NODE = 0
 	PRIORITY = 1
 	__slots__ = ["_stack", "_schema_node"]
-	def __init__(self, schema_node: SchemaNode, stack: List[Tuple[ModelNode, int]] = []) -> None:
+	def __init__(self, schema_node: SchemaNode, stack: List[Tuple[ModelNode, int]]) -> None:
 		self._schema_node: SchemaNode = schema_node
-		self._stack: List[Tuple[ModelNode, int]] = copy(stack)
+		self._stack: List[Tuple[ModelNode, int]] = stack
 	def record_and_get(self, parent: ModelNode | SchemaNode, join_type: JoinType, priority: int) -> ModelNode | None: 
+		if isinstance(parent, ModelNode):
+			parent = parent.get_schema_node()
 		if join_type != JoinType.NEW:
 			for i, (node, _) in enumerate(self._stack):
-				if not node.has_parent_type(parent.get_schema_node() if isinstance(parent, ModelNode) else parent):
+				if not node.has_parent_type(parent):
 					self._stack[i] = (node, priority)
 					return node
 		if join_type != JoinType.EXISTING:
@@ -310,7 +317,7 @@ class _BuildStack:
 	def __len__(self) -> int:
 		return len(self._stack)
 	def __copy__(self) -> _BuildStack:
-		return _BuildStack(self._schema_node, self._stack)
+		return _BuildStack(self._schema_node, copy(self._stack))
 
 class BuildIndices(Abstract):
 	@abstractmethod

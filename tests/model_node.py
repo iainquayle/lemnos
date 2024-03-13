@@ -2,16 +2,18 @@ import unittest
 
 from src.schema import SchemaNode, Concat, Sum, JoinType, Conv, ReLU, BatchNormalization
 from src.shared import Index, LockedShape, ShapeBound
-from src.model import ModelNode
+from src.model import ModelNode, BreedIndices
 from src.model.model import _BuildTracker  
 
 class TestModelNodeBuild(unittest.TestCase):
+	def setUp(self) -> None:
+		self.indices = BreedIndices()
 	def test_double(self):
 		start_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "start")
 		end_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "end")
 		start_schema.add_group((end_schema, 0, JoinType.NEW))
 		start = ModelNode(start_schema, LockedShape(1))
-		nodes = start.attempt_build(_BuildTracker(10, {}, {start.get_schema_node(): 1}, 0), Index(), 0)
+		nodes = start.attempt_build(_BuildTracker(10, {}, {start.get_schema_node(): 1}), self.indices, 0, 0)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 2)
 		else:
@@ -23,7 +25,7 @@ class TestModelNodeBuild(unittest.TestCase):
 		start_schema.add_group((mid_schema, 0, JoinType.NEW), (end_schema, 1, JoinType.NEW))
 		mid_schema.add_group((end_schema, 0, JoinType.EXISTING))
 		start = ModelNode(start_schema, LockedShape(1))
-		nodes = start.attempt_build(_BuildTracker(10, {}, {start.get_schema_node(): 1}, 0), Index(), 0)
+		nodes = start.attempt_build(_BuildTracker(10, {}, {start.get_schema_node(): 1}), self.indices, 0, 0)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 3)
 			self.assertEqual({node.get_schema_node() for node in nodes}, {start_schema, mid_schema, end_schema})
@@ -35,7 +37,7 @@ class TestModelNodeBuild(unittest.TestCase):
 		main.add_group((end, 0, JoinType.NEW))
 		main.add_group((main, 0, JoinType.NEW))
 		start = ModelNode(main, LockedShape(1, 8))
-		nodes = start.attempt_build(_BuildTracker(10, {}, {start.get_schema_node(): 1}, 0), Index(), 0)
+		nodes = start.attempt_build(_BuildTracker(10, {}, {start.get_schema_node(): 1}), self.indices, 0, 0)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 4)
 		else:
@@ -47,7 +49,7 @@ class TestModelNodeBuild(unittest.TestCase):
 			Conv((.1, 2.0), kernel=2, stride=2),
 			ReLU(), 
 			BatchNormalization(), "split_1")
-		split_2 = SchemaNode( ShapeBound((1, 1), (1, 8)), 
+		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			Concat(), 
 			Conv((.1, 2.0), kernel=2, stride=2),
 			ReLU(), 
@@ -58,7 +60,7 @@ class TestModelNodeBuild(unittest.TestCase):
 		split_2.add_group( (main, 2, JoinType.EXISTING))
 		main.add_group( (end_node, 0, JoinType.NEW))
 		start = ModelNode(main, LockedShape(1, 8))
-		nodes = start.attempt_build(_BuildTracker(12, {}, {start.get_schema_node(): 1}, 0), Index(), 0)
+		nodes = start.attempt_build(_BuildTracker(12, {}, {start.get_schema_node(): 1}), self.indices, 0, 0)
 		if nodes is not None:
 			self.assertEqual(len(nodes), 11)
 			id_set = set()
