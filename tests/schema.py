@@ -8,14 +8,6 @@ from src.shared import ShapeBound, LockedShape, Index
 from typing import List, Tuple
 from copy import copy
 
-s1 = SchemaNode(ShapeBound(), Concat())
-s2 = SchemaNode(ShapeBound(), Concat())
-shape = LockedShape(1)
-m1s1 = ModelNode(Index(), 0, s1, shape, shape, [])
-m2s1 = ModelNode(Index(), 0, s1, shape, shape, [])
-m1s2 = ModelNode(Index(), 0, s2, shape, shape, [])
-m2s2 = ModelNode(Index(), 0, s2, shape, shape, [])
-
 class TestSchema(unittest.TestCase):
 	def test_model_builder(self):
 		main = SchemaNode(ShapeBound((1, 1), (1, 10)), Concat(), Conv( (.1, 2), kernel=2, stride=2))
