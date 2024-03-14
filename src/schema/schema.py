@@ -86,6 +86,8 @@ class _CompileTracker:
 	__slots__ = ["_stacks"]
 	def __init__(self, stacks: Dict[SchemaNode, _NodeCompileStack], node_counts: Dict[SchemaNode, int]) -> None:
 		self._stacks: Dict[SchemaNode, _NodeCompileStack] = stacks 
+	def compile_min(self) -> Tuple[List[str], List[str], StaticIndices] | None:
+		pass
 	def pop_min(self) -> ModelNode | None:
 		min_priority = Transition.get_max_priority() + 1
 		min_schema: SchemaNode | None = None
@@ -138,7 +140,7 @@ class _NodeCompileStack:
 	def __init__(self, schema_node: SchemaNode, stack: List[_CompileNode]) -> None:
 		self._schema_node: SchemaNode = schema_node
 		self._stack: List[_CompileNode] = stack
-	def get_available_conformance(self, parent: SchemaNode, join_type: JoinType) -> Shape | None: 
+	def get_available(self, parent: SchemaNode, join_type: JoinType) -> _CompileNode | None: 
 		if join_type != JoinType.NEW:
 			for i, compile_node in enumerate(self._stack):
 				if parent not in compile_node.parents:
