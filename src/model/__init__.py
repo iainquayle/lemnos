@@ -1,1 +1,1 @@
-from .model import Model, ModelNode, BreedIndices, StaticIndices
+from .model import Model, ModelNode

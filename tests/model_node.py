@@ -1,8 +1,8 @@
 import unittest
 
-from src.schema import SchemaNode, Concat, Sum, JoinType, Conv, ReLU, BatchNormalization
+from src.schema import SchemaNode, Concat, Sum, JoinType, Conv, ReLU, BatchNormalization, BreedIndices
 from src.shared import Index, LockedShape, ShapeBound
-from src.model import ModelNode, BreedIndices
+from src.model import ModelNode 
 from src.model.model import _BuildTracker  
 
 class TestModelNodeBuild(unittest.TestCase):

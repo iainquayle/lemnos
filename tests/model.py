@@ -1,8 +1,8 @@
 import unittest
 
 from src.shared import ShapeBound, LockedShape
-from src.schema import Schema, SchemaNode, Sum, Concat, Conv, ReLU, BatchNormalization, Full, Sigmoid, Softmax, JoinType
-from src.model import Model, BreedIndices 
+from src.schema import Schema, SchemaNode, Sum, Concat, Conv, ReLU, BatchNormalization, Full, Sigmoid, Softmax, JoinType, BreedIndices
+from src.model import Model  
 
 from torch import zeros, tensor
 from torch.nn import CrossEntropyLoss 

@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from ..shared import Index, LockedShape, OpenShape, Shape
-from ..schema.schema import Schema, SchemaNode, Transition, TransitionGroup, JoinType
+from ..schema.schema import Schema, BuildIndices
+from ..schema.schema_graph import SchemaNode, Transition, TransitionGroup, JoinType
 from ..schema.src_generation import *
-
-from abc import ABC as Abstract, abstractmethod
 
 from typing import List, Tuple, Dict, Type
 
 from copy import copy
-import random
 
 class Model():
 	_MAX_ITERATIONS = 1024 
@@ -64,8 +62,12 @@ class Model():
 		available_registers: List[int] = []
 		ordered_nodes: List[ModelNode] = self.get_ordered_nodes()
 		register_count: int = 0
+		i = 0
 		for node in ordered_nodes:
-			pass
+			if node.is_root():
+				pass
+			else:
+				pass
 		register_count = len(self._input_nodes)
 		for i, node in enumerate(self._input_nodes):
 			evaluation_tracker[node] = [i]
@@ -228,6 +230,8 @@ class ModelNode():
 		return self._schema_node.dimensionality()
 	def is_leaf(self) -> bool:
 		return len(self._children) == 0
+	def is_root(self) -> bool:
+		return len(self._parents) == 0
 	def has_parent_type(self, schema_node: SchemaNode) -> bool:
 		for parent in self._parents:
 			if parent.get_schema_node() == schema_node:
@@ -301,7 +305,7 @@ class _BuildStack:
 		if join_type != JoinType.NEW:
 			for i, (node, _) in enumerate(self._stack):
 				if not node.has_parent_type(parent):
-					self._stack[i] = (node, priority)
+					self._stack[i] = (node, priority if priority < self._stack[i][_BuildStack.PRIORITY] else self._stack[i][_BuildStack.PRIORITY])
 					return node
 		if join_type != JoinType.EXISTING:
 			self._stack.append((ModelNode(self._schema_node), priority))
@@ -318,50 +322,3 @@ class _BuildStack:
 		return len(self._stack)
 	def __copy__(self) -> _BuildStack:
 		return _BuildStack(self._schema_node, copy(self._stack))
-
-class BuildIndices(Abstract):
-	@abstractmethod
-	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:	
-		pass
-
-class StaticIndices(BuildIndices):
-	__slots__ = ["_indices"]
-	def __init__(self, indices: List[Index]) -> None:
-		self._indices: List[Index] = indices
-	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:
-		return self._indices[id], 0 
-
-class BreedIndices(BuildIndices):
-	__slots__ = ["_sequences", "_sequence_change_prod", "_mutate_prod"]
-	def __init__(self, sequence_change_prod: float = 0, mutate_prod: float = 0, sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = []) -> None:
-		if sequence_change_prod < 0 or sequence_change_prod > 1 or mutate_prod < 0 or mutate_prod > 1:
-			raise ValueError("Invalid probabilities")
-		self._sequences: List[List[Tuple[Index, SchemaNode, LockedShape]]] = sequences
-		self._sequence_change_prod: float = sequence_change_prod
-		self._mutate_prod: float = mutate_prod
-	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> Tuple[Index, int]:
-		def search_sequence(sequence_index: int) -> Tuple[Index, int] | None:
-			sequence_index %= len(self._sequences)
-			min_diff: int = 2**32
-			result: Index | None = None
-			for index, node, shape in self._sequences[sequence_index]:
-				if node == schema_node and (diff := shape.upper_difference(shape_in)) < min_diff:
-					min_diff = diff 
-					result = index 
-			if result is not None:
-				return result, min_diff 
-			else:
-				return None
-		if random.random() > self._mutate_prod and len(self._sequences) != 0:
-			if random.random() > self._sequence_change_prod or len(self._sequences) == 1:
-				if (result := search_sequence(sequence_index)) is not None:
-					index, _ = result
-					return index, sequence_index
-			if len(self._sequences) > 1:
-				sequence_indices: List[int] = list(range(sequence_index)) + list(range(sequence_index + 1, len(self._sequences)))
-				random.shuffle(sequence_indices)
-				for sequence in sequence_indices:
-					if (result := search_sequence(sequence)) is not None:
-						index, _ = result
-						return index, sequence 
-		return Index.random(), sequence_index 
