@@ -15,7 +15,8 @@ from enum import Enum
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
-	def __init__(self, shape_bounds: ShapeBound,
+	def __init__(self, 
+			shape_bounds: ShapeBound,
 			merge_method: MergeMethod,
 			transform: Transform | None = None,
 			activation: Activation | None = None,
@@ -68,12 +69,12 @@ class JoinType(Enum):
 	NEW = "new"
 	AUTO = "auto"
 
-_MAX_PRIORITY: int = 128 
-_MIN_PRIORITY: int = 0 
 class Transition:
+	MAX_PRIORITY: int = 128 
+	MIN_PRIORITY: int = 0 
 	__slots__ = ["_next", "_optional", "_priority", "_join_type"]
 	def __init__(self, next: SchemaNode, priority: int, join_type: JoinType = JoinType.NEW) -> None:
-		if priority > _MAX_PRIORITY or priority < _MIN_PRIORITY:
+		if priority > Transition.MAX_PRIORITY or priority < Transition.MIN_PRIORITY:
 			raise ValueError("Priority out of bounds")
 		self._next: SchemaNode = next
 		self._optional: bool =  False 
@@ -93,10 +94,10 @@ class Transition:
 		return self._join_type == JoinType.EXISTING
 	@staticmethod
 	def get_max_priority() -> int:
-		return _MAX_PRIORITY 
+		return Transition.MAX_PRIORITY 
 	@staticmethod
 	def get_min_priority() -> int:
-		return _MIN_PRIORITY
+		return Transition.MIN_PRIORITY
 
 
 class TransitionGroup:

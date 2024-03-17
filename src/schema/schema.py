@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, Shape, Index 
+from ..shared import LockedShape, OpenShape, Shape, Index 
 from .schema_graph import SchemaNode, TransitionGroup, Transition, JoinType
 
 from typing import List, Tuple, Iterable, Set, Dict
@@ -10,6 +10,16 @@ from copy import copy
 
 from abc import ABC as Abstract, abstractmethod
 from dataclasses import dataclass
+
+ID = int
+@dataclass
+class ModuleIR:
+	schema_node: SchemaNode
+	parent_ids: List[ID]
+	transition_id: ID 
+	input_shape: LockedShape
+	output_shape: LockedShape
+	index: Index
 
 class Schema:
 	def __init__(self, starts: List[SchemaNode], ends: List[SchemaNode], max_nodes: int = 1024) -> None:
@@ -31,7 +41,7 @@ class Schema:
 		return iter(self._ends)
 	def get_node_with_priority(self) -> List[Tuple[SchemaNode, int]]:
 		return [(node, i - len(self._starts)) for i, node in enumerate(self._starts)]
-	def direct_compile(self, input_shapes: List[LockedShape], build_indices: NodeCompileIndices, max_nodes: int) -> Tuple[str, StaticIndices]:
+	def compile_IR(self, input_shapes: List[LockedShape], build_indices: NodeCompileIndices, max_nodes: int) -> Tuple[str, StaticIndices]:
 		raise NotImplementedError("Direct compile not implemented")
 
 
@@ -82,23 +92,16 @@ class BreedIndices(BuildIndices):
 						return index, sequence 
 		return Index.random(), sequence_index 
 
+
 class _CompileTracker:
 	__slots__ = ["_stacks"]
-	def __init__(self, stacks: Dict[SchemaNode, _NodeCompileStack], node_counts: Dict[SchemaNode, int]) -> None:
-		self._stacks: Dict[SchemaNode, _NodeCompileStack] = stacks 
-	def compile_min(self) -> Tuple[List[str], List[str], StaticIndices] | None:
-		pass
-	def pop_min(self) -> ModelNode | None:
-		min_priority = Transition.get_max_priority() + 1
-		min_schema: SchemaNode | None = None
-		for schema, stack in self.get_iter():
-			if stack.get_priority() < min_priority:
-				min_priority = stack.get_priority()
-				min_schema = schema
-		if min_schema is not None:
-			return self._stacks[min_schema].pop()[_NodeCompileStack.NODE]
-		else:
-			return None
+	def __init__(self, stacks: List[_NodeCompileStack]) -> None:
+		self._stacks: List[_NodeCompileStack] = stacks 
+	def pop_min(self) -> _CompileNode | None:
+		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
+		if len(self._stacks[min_stack_index]) > 0:
+			return self._stacks[min_stack_index].pop()
+		return None
 	def record_and_get(self, transition_group: TransitionGroup, parent: ModelNode) -> List[ModelNode] | None:
 		nodes: List[ModelNode] = []
 		for transition in iter(transition_group):
@@ -111,27 +114,27 @@ class _CompileTracker:
 				return None
 		return nodes
 	def is_empty(self) -> bool:
-		for _, stack in self.get_iter():
+		for stack in self._stacks:
 			if len(stack) > 0:
 				return False
 		return True
 	def stacks_str(self) -> str:
 		return " , ".join([schema.debug_name + ": " + str(len(stack)) for schema, stack in self.get_iter()])
 	def __copy__(self) -> _CompileTracker:
-		return _CompileTracker(self._max_nodes, {key: copy(value) for key, value in self.get_iter()}, copy(self._node_counts))
+		return _CompileTracker([copy(stack) for stack in self._stacks])
 	def __contains__(self, key: SchemaNode) -> bool:
 		return key in self._stacks
 	def __len__(self) -> int:
 		return len(self._stacks)
-	def get_iter(self) -> Iterable[Tuple[SchemaNode, _NodeCompileStack]]:
-		return iter(self._stacks.items())
 
 @dataclass
 class _CompileNode:
-	schema_node: SchemaNode
-	input_shapes: List[LockedShape]
-	parents: Set[SchemaNode]
+	parent_nodes: Set[SchemaNode]
+	parent_ids: List[int]
+	input_shape: LockedShape 
 	priority: int
+	def __copy__(self) -> _CompileNode:
+		return _CompileNode(copy(self.parent_nodes), copy(self.parent_ids), self.input_shape, self.priority)
 
 class _NodeCompileStack:
 	NODE = 0
@@ -140,22 +143,38 @@ class _NodeCompileStack:
 	def __init__(self, schema_node: SchemaNode, stack: List[_CompileNode]) -> None:
 		self._schema_node: SchemaNode = schema_node
 		self._stack: List[_CompileNode] = stack
-	def get_available(self, parent: SchemaNode, join_type: JoinType) -> _CompileNode | None: 
-		if join_type != JoinType.NEW:
-			for i, compile_node in enumerate(self._stack):
-				if parent not in compile_node.parents:
-					return compile_node 
+	def get_conformance(self, parent: SchemaNode, join_type: JoinType) -> Shape | None:
+		if join_type != JoinType.NEW and (node := self.get_available(parent)) is not None:
+			return self._schema_node.get_conformance_shape([node.input_shape])
 		if join_type != JoinType.EXISTING:
-			return self.peek()[_NodeCompileStack.NODE]
-		else:
-			return None
-	#def record(self, parent: SchemaNode, )
-	def pop(self) -> Tuple[ModelNode, int]:
+			return OpenShape()
+		return None
+	def record(self, parent: SchemaNode, join_type: JoinType, input_shape: LockedShape, parent_id: int, priority: int) -> bool:
+		if join_type != JoinType.NEW and (node := self.get_available(parent)) is not None:
+			node.parent_nodes.add(parent)
+			node.parent_ids.append(parent_id)
+			node.input_shape = self._schema_node.get_mould_shape([node.input_shape, input_shape])
+			return True
+		if join_type != JoinType.EXISTING:
+			self._stack.append(_CompileNode({parent}, [parent_id], input_shape, priority))
+			return True
+		return False
+	def _get_available_index(self, parent: SchemaNode) -> int | None:
+		for i, compile_node in enumerate(self._stack):
+			if parent not in compile_node.parent_nodes:
+				return i
+		return None
+	def get_available(self, parent: SchemaNode) -> _CompileNode | None:
+		for compile_node in self._stack:
+			if parent not in compile_node.parent_nodes:
+				return compile_node 
+		return None
+	def pop(self) -> _CompileNode:
 		return self._stack.pop()
-	def peek(self) -> Tuple[ModelNode, int]:
+	def peek(self) -> _CompileNode:
 		return self._stack[-1]
 	def get_priority(self) -> int:
-		return self.peek()[_NodeCompileStack.PRIORITY] if len(self._stack) > 0 else Transition.get_max_priority() + 1
+		return self.peek().priority if len(self._stack) > 0 else Transition.get_max_priority() + 1
 	def __len__(self) -> int:
 		return len(self._stack)
 	def __copy__(self) -> _NodeCompileStack:
