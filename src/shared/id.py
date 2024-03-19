@@ -1,0 +1,2 @@
+class ID(int):
+	pass

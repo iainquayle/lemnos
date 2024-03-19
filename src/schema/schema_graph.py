@@ -6,7 +6,7 @@ from .activation import Activation
 from .regularization import Regularization
 from .transform import Transform  
 
-from typing import Iterator 
+from typing import Iterator, Iterable 
 from typing_extensions import Self
 
 from dataclasses import dataclass
@@ -14,22 +14,8 @@ from enum import Enum
 from abc import ABC as Abstract, abstractmethod
 
 from copy import copy
-from functools import reduce
 import random
 
-ID = int
-@dataclass(frozen=True)
-class ModuleIR:
-	schema_node: SchemaNode
-	parent_ids: tuple[ID, ...]
-	transition_id: ID 
-	input_shape: LockedShape
-	output_shape: LockedShape
-	index: Index
-	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, Transition ID: {self.transition_id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, Index: {self.index}"
-	def __repr__(self) -> str:
-		return str(self)
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
@@ -72,6 +58,8 @@ class SchemaNode:
 		return self._transition_groups[index]
 	def __iter__(self) -> Iterator[TransitionGroup]:
 		return iter(self._transition_groups)
+	def __len__(self) -> int:
+		return len(self._transition_groups)
 	def get_inits_src(self, mould_shape: LockedShape, output_shape: LockedShape) -> list[str]:
 		src: list[str] = []
 		if self._transform is not None:
@@ -81,74 +69,54 @@ class SchemaNode:
 		if self._regularization is not None:
 			src.append(self._regularization.get_init_src(mould_shape))
 		return src
-	def compile_IR(self, compile_tracker: _CompilationTracker, indices: BuildIndices, sequence_index: int) -> list[ModuleIR] | None: 
-		node_info = compile_tracker[self].pop()
-		index, sequence_index = indices.get_index(node_info.priority, sequence_index, self, node_info.input_shape)
-		offset = index.get_shuffled(len(self._transition_groups), 0)
-		for group in (self._transition_groups[(i + offset) % len(self._transition_groups)] for i in range(len(self._transition_groups))):
-			if ((conformance := compile_tracker.get_conformance(self, group)) is not None
-					and (output_shape := self.get_output_shape(node_info.input_shape, conformance, index)) is not None
-					and (ir := compile_tracker.next(self, group, output_shape).compile_IR(indices, sequence_index)) is not None):
-				return ir + [ModuleIR(self, tuple(node_info.parent_ids), compile_tracker.get_id(), node_info.input_shape, output_shape, index)]
-		if (len(self._transition_groups) == 0
-				and (output_shape := self.get_output_shape(node_info.input_shape, OpenShape(), index)) is not None):
-			return [ModuleIR(self, tuple(node_info.parent_ids), compile_tracker.get_id(), node_info.input_shape, output_shape, index)]
-		return None
+
+
 class JoinType(Enum):
 	EXISTING = "existing"
 	NEW = "new"
 	AUTO = "auto"
 
-#make transition and transition group dataclasses
-#make immutable
+MAX_PRIORITY: int = 128 
+MIN_PRIORITY: int = 0 
 class Transition:
-	MAX_PRIORITY: int = 128 
-	MIN_PRIORITY: int = 0 
-	__slots__ = ["_next", "_optional", "_priority", "_join_type"]
+	__slots__ = ["_next", "_priority", "_join_type"]
 	def __init__(self, next: SchemaNode, priority: int, join_type: JoinType = JoinType.NEW) -> None:
-		if priority > Transition.MAX_PRIORITY or priority < Transition.MIN_PRIORITY:
+		if priority > MAX_PRIORITY or priority < MIN_PRIORITY:
 			raise ValueError("Priority out of bounds")
 		self._next: SchemaNode = next
-		self._optional: bool =  False 
 		self._priority: int = priority 
 		self._join_type: JoinType = join_type 
 	def get_next(self) -> SchemaNode:
 		return self._next
 	def get_priority(self) -> int:
 		return self._priority
-	#def is_optional(self) -> bool:
-	#	return self._optional
 	def get_join_type(self) -> JoinType:
 		return self._join_type
-	def is_join_new(self) -> bool:
-		return self._join_type == JoinType.NEW
-	def is_join_existing(self) -> bool:
-		return self._join_type == JoinType.EXISTING
-	@staticmethod
-	def get_max_priority() -> int:
-		return Transition.MAX_PRIORITY 
-	@staticmethod
-	def get_min_priority() -> int:
-		return Transition.MIN_PRIORITY
-
 
 class TransitionGroup:
 	__slots__ = ["_transitions"]
-	def __init__(self, transitions: list[Transition]) -> None:
-		self._transitions: list[Transition] = copy(transitions)
-	def set_transitions(self, transitions: list[Transition]) -> None:
+	def __init__(self, transitions: Iterable[Transition]) -> None:
 		pattern_set: set[SchemaNode] = set()
 		for transition in transitions:
 			if transition.get_next() in pattern_set:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.get_next())
-		self._transitions = transitions
-	def get_transitions(self) -> list[Transition]:
-		return self._transitions
+		self._transitions: tuple[Transition, ...] = tuple(transitions) 
 	def __iter__(self) -> Iterator[Transition]:
 		return iter(self._transitions)
 	def __len__(self) -> int:
 		return len(self._transitions)
+ID = int
+@dataclass(frozen=True)
+class ModuleIR:
+	schema_node: SchemaNode
+	parent_ids: tuple[ID, ...]
+	transition_id: ID 
+	input_shape: LockedShape
+	output_shape: LockedShape
+	index: Index
+	def __str__(self) -> str:
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, Transition ID: {self.transition_id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, Index: {self.index}"
 
 class _CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id"]
@@ -162,9 +130,21 @@ class _CompilationTracker:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
 	def compile_IR(self, indices: BuildIndices, sequence_index: int) -> list[ModuleIR] | None:
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
-		return self._stacks[min_stack_index].get_schema().compile_IR(self, indices, sequence_index)
+		compilation_node = self._stacks[min_stack_index].pop()
+		schema_node = self._stacks[min_stack_index].get_schema()
+		index, sequence_index = indices.get_index(compilation_node.priority, sequence_index, schema_node, compilation_node.input_shape)
+		offset = index.get_shuffled(len(schema_node), 0)
+		for group in (schema_node[(i + offset) % len(schema_node)] for i in range(len(schema_node))):
+			if ((conformance := self.get_conformance(schema_node, group)) is not None
+					and (output_shape := schema_node.get_output_shape(compilation_node.input_shape, conformance, index)) is not None
+					and (ir := self.next(schema_node, group, output_shape).compile_IR(indices, sequence_index)) is not None):
+				return ir + [ModuleIR(schema_node, tuple(compilation_node.parent_ids), self.get_id(), compilation_node.input_shape, output_shape, index)]
+		if (len(schema_node) == 0
+				and (output_shape := schema_node.get_output_shape(compilation_node.input_shape, OpenShape(), index)) is not None):
+			return [ModuleIR(schema_node, tuple(compilation_node.parent_ids), self.get_id(), compilation_node.input_shape, output_shape, index)]
+		return None
 	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape) -> _CompilationTracker:
-		next_tracker = copy(self)
+		next_tracker = _CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id + 1)
 		for transition in children:
 			stack_index = next_tracker._stacks_lookup[transition.get_next()]
 			next_tracker._stacks[stack_index] = next_tracker._stacks[stack_index].next(parent, transition.get_join_type(), parent_output_shape, self.get_id(), transition.get_priority())
@@ -186,8 +166,6 @@ class _CompilationTracker:
 		self._stacks.append(_CompilationNodeStack(key, []))
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
-	def __copy__(self) -> _CompilationTracker:
-		return _CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id + 1)
 	def __len__(self) -> int:
 		return len(self._stacks)
 	def get_id(self) -> ID:
@@ -236,7 +214,7 @@ class _CompilationNodeStack:
 	def peek(self) -> _CompilationNode:
 		return self._stack[-1]
 	def get_priority(self) -> int:
-		return self.peek().priority if len(self._stack) > 0 else Transition.get_max_priority() + 1
+		return self.peek().priority if len(self._stack) > 0 else MAX_PRIORITY + 1
 	def __len__(self) -> int:
 		return len(self._stack)
 
