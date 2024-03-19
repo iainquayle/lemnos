@@ -152,7 +152,6 @@ class ModelNode():
 			self._mould_shape = self._schema_node.get_mould_shape([parent.get_output_shape() for parent in self._parents])
 		self._id = id
 		index, sequence_index = indices.get_index(id, sequence_index, self._schema_node, self._mould_shape)
-		index = Index()
 		pivot = index.get_shuffled(len(self._schema_node.get_transition_groups()))
 		i = 0
 		while abs(i) <= max(len(self._schema_node.get_transition_groups()) - pivot, pivot):
