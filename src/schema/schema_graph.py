@@ -26,6 +26,10 @@ class ModuleIR:
 	input_shape: LockedShape
 	output_shape: LockedShape
 	index: Index
+	def __str__(self) -> str:
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, Transition ID: {self.transition_id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, Index: {self.index}"
+	def __repr__(self) -> str:
+		return str(self)
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
@@ -79,12 +83,12 @@ class SchemaNode:
 		return src
 	def compile_IR(self, compile_tracker: _CompilationTracker, indices: BuildIndices, sequence_index: int) -> list[ModuleIR] | None: 
 		node_info = compile_tracker[self].pop()
-		index = Index()
+		index, sequence_index = indices.get_index(node_info.priority, sequence_index, self, node_info.input_shape)
 		offset = index.get_shuffled(len(self._transition_groups), 0)
 		for group in (self._transition_groups[(i + offset) % len(self._transition_groups)] for i in range(len(self._transition_groups))):
 			if ((conformance := compile_tracker.get_conformance(self, group)) is not None
 					and (output_shape := self.get_output_shape(node_info.input_shape, conformance, index)) is not None
-					and (ir := compile_tracker.next(self, group, output_shape, node_info.priority).compile_IR(indices, sequence_index)) is not None):
+					and (ir := compile_tracker.next(self, group, output_shape).compile_IR(indices, sequence_index)) is not None):
 				return ir + [ModuleIR(self, tuple(node_info.parent_ids), compile_tracker.get_id(), node_info.input_shape, output_shape, index)]
 		if (len(self._transition_groups) == 0
 				and (output_shape := self.get_output_shape(node_info.input_shape, OpenShape(), index)) is not None):
@@ -159,11 +163,11 @@ class _CompilationTracker:
 	def compile_IR(self, indices: BuildIndices, sequence_index: int) -> list[ModuleIR] | None:
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		return self._stacks[min_stack_index].get_schema().compile_IR(self, indices, sequence_index)
-	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape, priority: int) -> _CompilationTracker:
+	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape) -> _CompilationTracker:
 		next_tracker = copy(self)
 		for transition in children:
 			stack_index = next_tracker._stacks_lookup[transition.get_next()]
-			next_tracker._stacks[stack_index] = next_tracker._stacks[stack_index].next(parent, transition.get_join_type(), parent_output_shape, self.get_id(), priority)
+			next_tracker._stacks[stack_index] = next_tracker._stacks[stack_index].next(parent, transition.get_join_type(), parent_output_shape, self.get_id(), transition.get_priority())
 		return next_tracker
 	def get_conformance(self, parent: SchemaNode, children: TransitionGroup) -> Shape | None:
 		common_conformance: Shape = OpenShape() 
@@ -213,7 +217,8 @@ class _CompilationNodeStack:
 		next_stack = _CompilationNodeStack(self._schema_node, copy(self._stack))
 		if join_type != JoinType.NEW and (node_index := self._get_available_index(parent)) is not None:
 			next_stack._stack[node_index] = next_stack._stack[node_index].copy_and_record(parent,
-				next_stack._schema_node.get_mould_shape([next_stack._stack[node_index].input_shape, parent_output_shape]), parent_id, priority)
+				next_stack._schema_node.get_mould_shape([next_stack._stack[node_index].input_shape, parent_output_shape]), parent_id, 
+				min(priority, next_stack._stack[node_index].priority)) #min may not be correct
 			return next_stack
 		if join_type != JoinType.EXISTING:
 			next_stack._stack.append(_CompilationNode({parent}, [parent_id], parent_output_shape, priority))
