@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, Shape, Index, ShapeBound
-from .merge_method import MergeMethod 
-from .activation import Activation
-from .regularization import Regularization
-from .transform import Transform  
+from .components import Activation, Regularization, Transform, MergeMethod
 
 from typing import Iterator, Iterable 
 from typing_extensions import Self

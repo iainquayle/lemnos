@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ..shared import Shape, LockedShape, OpenShape, ShapeBound, Index
-from .src_generation import * 
+from ...shared import Shape, LockedShape, OpenShape, ShapeBound, Index
+from ..src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 
 from typing import Tuple
