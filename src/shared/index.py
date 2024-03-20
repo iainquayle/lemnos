@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple, Any 
+from typing import Any 
 import random
 
 class Index:
@@ -9,7 +9,7 @@ class Index:
 	@staticmethod
 	def random() -> Index:
 		return Index(random.randint(0, 2**31 - 1))
-	def get_shuffled(self, bounds: Tuple[int, int] | int, salt: int = 0) -> int:
+	def get_shuffled(self, bounds: tuple[int, int] | int, salt: int = 0) -> int:
 		if isinstance(bounds, int):
 			bounds = (0, bounds)
 		elif bounds[0] > bounds[1]:

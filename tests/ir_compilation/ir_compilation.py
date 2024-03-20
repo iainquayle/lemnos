@@ -1,7 +1,7 @@
 import unittest
 
 from src.schema import SchemaNode, JoinType
-from src.schema.ir_compilation import _CompilationNode, _CompilationNodeStack, _CompilationTracker
+from src.schema.ir_compilation import CompilationNode, CompilationNodeStack, CompilationTracker
 from src.schema.components import Concat, Sum, Conv, ReLU, BatchNormalization
 from src.schema.compilation_indices import BreedIndices
 from src.shared import *
@@ -13,8 +13,8 @@ class TestCompilation(unittest.TestCase):
 		end_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "end")
 		start_schema.add_group((mid_schema, 0, JoinType.NEW), (end_schema, 1, JoinType.NEW))
 		mid_schema.add_group((end_schema, 0, JoinType.EXISTING))
-		tracker = _CompilationTracker([_CompilationNodeStack(start_schema, [_CompilationNode([], [], LockedShape(1), 0)])], None, 0) 
-		nodes = tracker.compile_IR(BreedIndices(), 0)
+		tracker = CompilationTracker([CompilationNodeStack(start_schema, [CompilationNode(set(), [], LockedShape(1), 0)])], None, 0, 100) 
+		nodes = tracker.compile_ir(BreedIndices(), 0)
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 3)
@@ -23,8 +23,8 @@ class TestCompilation(unittest.TestCase):
 		end = SchemaNode(ShapeBound((1, 1), (1, 1)), Concat(), None, None, None, "end")
 		main.add_group((end, 0, JoinType.NEW))
 		main.add_group((main, 0, JoinType.NEW))
-		tracker = _CompilationTracker([_CompilationNodeStack(main, [_CompilationNode([], [], LockedShape(1, 8), 0)])], None, 0) 
-		nodes = tracker.compile_IR(BreedIndices(), 0)
+		tracker = CompilationTracker([CompilationNodeStack(main, [CompilationNode(set(), [], LockedShape(1, 8), 0)])], None, 0, 100) 
+		nodes = tracker.compile_ir(BreedIndices(), 0)
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 4)
@@ -45,8 +45,8 @@ class TestCompilation(unittest.TestCase):
 		split_1.add_group( (main, 2, JoinType.NEW))
 		split_2.add_group( (main, 2, JoinType.EXISTING))
 		main.add_group( (end_node, 0, JoinType.NEW))
-		tracker = _CompilationTracker([_CompilationNodeStack(main, [_CompilationNode([], [], LockedShape(1, 8), 0)])], None, 0) 
-		nodes = tracker.compile_IR(BreedIndices(), 0)
+		tracker = CompilationTracker([CompilationNodeStack(main, [CompilationNode(set(), [], LockedShape(1, 8), 0)])], None, 0, 100) 
+		nodes = tracker.compile_ir(BreedIndices(), 0)
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 11)

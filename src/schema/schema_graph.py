@@ -27,8 +27,8 @@ class SchemaNode:
 	def add_group(self, *transitions: tuple[SchemaNode, int, JoinType] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup([transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
 		return self
-	def get_mould_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
-		return self._merge_method.get_output_shape(input_shapes).squash(self.dimensionality())
+	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
+		return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, mould_shape: LockedShape, output_conformance: Shape, index: Index) -> LockedShape | None:
 		output_shape = self._transform.get_output_shape(mould_shape, output_conformance, self._shape_bounds, index) if self._transform is not None else mould_shape
 		if output_shape is not None and output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
@@ -41,8 +41,6 @@ class SchemaNode:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod:
 		return self._merge_method
-	def get_transition_groups(self) -> list[TransitionGroup]:
-		return self._transition_groups
 	def dimensionality(self) -> int:
 		return len(self._shape_bounds)
 	def __getitem__(self, index: int) -> TransitionGroup:

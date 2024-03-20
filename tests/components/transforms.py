@@ -3,7 +3,7 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from src.schema import Conv
+from src.schema.components import Conv
 from src.shared import LockedShape, OpenShape, ShapeBound, Index
 
 #TODO: splits these tests up

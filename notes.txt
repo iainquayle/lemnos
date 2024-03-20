@@ -1,23 +1,15 @@
 changes:
 	guarenteed:
+		find better names for index and indices
+			better describe purpose
 		fix the issue with the groups
 			also just refactor it
-		move schema interpretation to schema, produce an IR list
-			hide generation functions, making one standard interpretation
-			from the IR, it can generate more intricate representations, or generate source code directly
-			generation notes:
-				make as stack based as possible, ie no linking/unlinking of graph nodes
 	possible:
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
-		move more module generation into the model nodes
-			in case of the group, and using padding to solve it partially, the nodes will need to be able to deal with the padding?
-			in the normal course it would be its responsibility for evaluation
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
 			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape
 			shouldnt be too hard to implement, as it would deal with all of the schema nodes in a transition that it owns
 		if all else fails, or as a fall back, could technically implement padding
-	no hint as to why a schema is not solvable, perhaps return deepest location reached
-	if a join existing is set where there is none to join on, it will crash with no reason, give proper error

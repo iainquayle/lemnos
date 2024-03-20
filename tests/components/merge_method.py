@@ -1,6 +1,6 @@
 import unittest
 
-from src.schema import Sum, Concat
+from src.schema.components import Sum, Concat
 from src.shared import LockedShape, OpenShape 
 
 class TestMergeMethod(unittest.TestCase):
@@ -12,10 +12,10 @@ class TestMergeMethod(unittest.TestCase):
 		self.e = LockedShape(4, 3)
 		self.f = LockedShape(6)
 		self.g = LockedShape(2, 2, 3)
-	def test_concat_get_output(self) -> None:
-		self.assertEqual(Concat().get_output_shape([self.d, self.a]), self.g)
-	def test_add_get_output(self) -> None:
-		self.assertEqual(Sum().get_output_shape([self.d, self.a]), self.d)
+	def test_concat_get_merged(self) -> None:
+		self.assertEqual(Concat().get_merged_shape([self.d, self.a]), self.g)
+	def test_add_get_merged(self) -> None:
+		self.assertEqual(Sum().get_merged_shape([self.d, self.a]), self.d)
 	def test_concat_get_conformance(self) -> None:
 		self.assertEqual(Concat().get_conformance_shape([self.d, self.a]), self.c)
 		self.assertEqual(Concat().get_conformance_shape([]), OpenShape())

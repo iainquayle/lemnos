@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Iterable, Tuple, Any
+from typing import Iterator, Any
 from copy import copy
 from math import prod
 from abc import ABC as Abstract, abstractmethod
-#TODO: probably want to optim some of this
-#TODO: consider making more for loop implementing functions rather than slice, as it may perform better 
 #rules:
 #	if no remaining open dims
 #		dims to the right must be the same, dims to the left must be prod the same
@@ -14,11 +12,10 @@ from abc import ABC as Abstract, abstractmethod
 #	if remaining open dims
 #		dims to the right must be the same
 
-#TODO: consider renaming locked to fixed, or sized
 class Shape(Abstract):
 	__slots__ = ("_shape", "_product_cache")
 	def __init__(self, *shape: int) -> None:
-		self._shape: List[int] = list(shape)
+		self._shape: tuple[int, ...] = tuple(shape)
 		self._product_cache: int = prod(self._shape)
 	@abstractmethod
 	def upper_length(self) -> int:
@@ -32,22 +29,18 @@ class Shape(Abstract):
 		reverse_index = min(self.upper_length(), other.upper_length())
 		return self.reverse_upper_equal(reverse_index, other)
 	def reverse_lower_product(self, reverse_index: int) -> int:
-		accumulator = 1
-		for i in range(len(self) - reverse_index):
-			accumulator *= self._shape[i]
-		return accumulator
-		#return prod(self._shape[:-reverse_index])
+		return prod(self._shape[:-reverse_index])
 	@abstractmethod
 	def dimensionality(self) -> int:
 		pass
 	@abstractmethod
 	def to_locked(self, dimension: int) -> LockedShape:
 		pass
-	def is_locked(self) -> bool:
-		return isinstance(self, LockedShape)
 	@abstractmethod
 	def to_open(self) -> OpenShape:
 		pass
+	def is_locked(self) -> bool:
+		return isinstance(self, LockedShape)
 	@abstractmethod
 	def squash(self, dimensionality: int) -> Shape:
 		pass
@@ -59,22 +52,18 @@ class Shape(Abstract):
 	def common_lossless(self, other: Shape) -> Shape | None:
 		return self.common(other) if self.dimensionality() > other.dimensionality() else other.common(self)
 	@staticmethod
-	def reduce_common_lossless(shapes: Iterable[Shape]) -> Shape | None:
+	def reduce_common_lossless(shapes: Iterator[Shape]) -> Shape | None:
 		common = OpenShape()
-		shapes_iter = iter(shapes)
-		for shape in shapes_iter:
+		for shape in shapes:
 			common = common.common_lossless(shape)
 			if common is None:
 				return None
 		return common
-	@abstractmethod
-	def to_tuple(self) -> Tuple[int, ...]:
-		pass
 	def __getitem__(self, index: int) -> int:
 		return self._shape[index]
 	def __len__(self) -> int:
 		return len(self._shape)
-	def __iter__(self) -> Iterable[int]:
+	def __iter__(self) -> Iterator[int]:
 		return iter(self._shape)
 	@abstractmethod
 	def __eq__(self, other: Any) -> bool:
@@ -105,25 +94,22 @@ class LockedShape(Shape):
 			accumulator *= abs(self[i] - other[i]) + 1 
 		return accumulator
 	def to_locked(self, dimension: int) -> LockedShape:
-		return LockedShape(*self._shape)
+		return self 
 	def to_open(self) -> OpenShape:
 		return OpenShape(*self._shape[1:])
 	def squash(self, dimensionality: int) -> LockedShape:
 		if dimensionality >= self.dimensionality():
-			return copy(self) 
+			return self 
 		else:
 			return LockedShape(self.reverse_lower_product(dimensionality - 1), *self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
-		common = copy(self)
 		reverse_index = min(self.upper_length(), other.upper_length())
 		if other.is_locked():
 			if self.reverse_lower_product(reverse_index) != other.reverse_lower_product(reverse_index):
 				return None
 		elif self[0] % other.reverse_lower_product(reverse_index) != 0:
 				return None
-		return common if self.reverse_upper_equal(reverse_index, other) else None 
-	def to_tuple(self) -> Tuple[int, ...]:
-		return tuple(self._shape)
+		return self if self.reverse_upper_equal(reverse_index, other) else None 
 	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, LockedShape) and self._shape == other._shape
 	def __copy__(self) -> LockedShape:
@@ -139,16 +125,16 @@ class OpenShape(Shape):
 	def dimensionality(self) -> int:
 		return len(self) + 1
 	def to_locked(self, dimension: int) -> LockedShape:
-		return LockedShape(*([dimension] + self._shape))
+		return LockedShape(dimension, *self._shape)
 	def to_open(self) -> OpenShape:
-		return OpenShape(*self._shape)
+		return self
 	def squash(self, dimensionality: int) -> OpenShape:
 		if dimensionality > self.dimensionality():
-			return copy(self)
+			return self
 		else:
 			return OpenShape(*self._shape[-(dimensionality - 1):])
 	def common(self, other: Shape) -> Shape | None:
-		common = copy(self)
+		common = self
 		reverse_index = min(self.upper_length(), other.upper_length())
 		if other.is_locked():
 			other_product = other.reverse_lower_product(reverse_index)
@@ -157,8 +143,6 @@ class OpenShape(Shape):
 				return None
 			common = self.to_locked(other_product // self_product)
 		return common if self.reverse_upper_equal(reverse_index, other) else None 
-	def to_tuple(self) -> Tuple[int, ...]:
-		return tuple([-1] + self._shape)
 	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, OpenShape) and self._shape == other._shape
 	def __copy__(self) -> OpenShape:
@@ -174,8 +158,8 @@ class ShapeBound:
 	_LOWER_INDEX = 0
 	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
-	def __init__(self, *bounds: Tuple[int, int] | int | None) -> None:
-		self._bounds: List[Tuple[int, int] | None] = [(x, x) if isinstance(x, int) else x for x in bounds] 
+	def __init__(self, *bounds: tuple[int, int] | int | None) -> None:
+		self._bounds: list[tuple[int, int] | None] = [(x, x) if isinstance(x, int) else x for x in bounds] 
 		for i in range(len(self._bounds)):
 			element = self._bounds[i]
 			if element is not None:
@@ -214,7 +198,7 @@ class ShapeBound:
 			if not self.contains_value(shape[-i], -i):
 				return False
 		return True
-	def __getitem__(self, index: int) -> Tuple[int, int] | None:
+	def __getitem__(self, index: int) -> tuple[int, int] | None:
 		return self._bounds[index]
 	def __len__(self) -> int:
 		return len(self._bounds)

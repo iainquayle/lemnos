@@ -1,26 +1,23 @@
 from __future__ import annotations
 
 from ...shared import Shape, LockedShape, OpenShape, ShapeBound, Index
-from ..src_generation import * 
+#from ..src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 
-from typing import Tuple
-
-#maybe just dont even use a range class
 
 _LOWER = 0
 _UPPER = 1
 
 class Transform(Abstract):
 	__slots__ = ["_size_coeffs_bounds"]
-	def __init__(self, size_coeffs_bounds: float | Tuple[float, float]) -> None:
+	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
 		if isinstance(size_coeffs_bounds, float):
 			size_coeffs_bounds = (size_coeffs_bounds, size_coeffs_bounds)
 		elif isinstance(size_coeffs_bounds, int):
 			raise ValueError("wtf")
 		elif size_coeffs_bounds[0] > size_coeffs_bounds[1]:
 			size_coeffs_bounds = (size_coeffs_bounds[1], size_coeffs_bounds[0])
-		self._size_coeffs_bounds: Tuple[float, float] = size_coeffs_bounds
+		self._size_coeffs_bounds: tuple[float, float] = size_coeffs_bounds
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
@@ -32,7 +29,7 @@ class Transform(Abstract):
 		pass
 
 class Full(Transform):
-	def __init__(self, size_coeffs_bounds: float | Tuple[float, float]) -> None:
+	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
 		super().__init__(size_coeffs_bounds)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality() and shape_in.dimensionality() == 1
@@ -43,23 +40,24 @@ class Full(Transform):
 		upper = int(input_shape[0] * self._size_coeffs_bounds[_UPPER])
 		return LockedShape(shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0))
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
+		return ""
 		return full_(shape_in, shape_out)
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
 	def __init__(self,
-			size_coeffs_bounds: float | Tuple[float, float],
-			kernel: Tuple | int = 1, 
-			stride: Tuple | int = 1, 
-			dilation: Tuple | int = 1,
-			padding: Tuple | int = 0,
+			size_coeffs_bounds: float | tuple[float, float],
+			kernel: tuple | int = 1, 
+			stride: tuple | int = 1, 
+			dilation: tuple | int = 1,
+			padding: tuple | int = 0,
 			group_size: int | None = None, 
 			) -> None:
 		super().__init__(size_coeffs_bounds)
-		self._kernel: _ClampTuple = _ClampTuple(kernel)
-		self._stride: _ClampTuple = _ClampTuple(stride)
-		self._dilation: _ClampTuple = _ClampTuple(dilation)
-		self._padding: _ClampTuple = _ClampTuple(padding)
+		self._kernel: _Clamptuple = _Clamptuple(kernel)
+		self._stride: _Clamptuple = _Clamptuple(stride)
+		self._dilation: _Clamptuple = _Clamptuple(dilation)
+		self._padding: _Clamptuple = _Clamptuple(padding)
 		self._group_size: int | None = group_size 
 	def output_dim_to_input_dim(self, output_shape: LockedShape, i: int) -> int:
 		i -= 1
@@ -104,12 +102,13 @@ class Conv(Transform):
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
 		dimensionality = len(shape_in) - 1
+		return ""
 		return conv_(shape_in, shape_out, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else shape_out[0] // self._group_size)
 
-class _ClampTuple:
+class _Clamptuple:
 	slot = ["_val"]
-	def __init__(self, val: Tuple[int, ...] | int) -> None:
-		self._val: Tuple[int, ...] = val if isinstance(val, tuple) else (val,)
+	def __init__(self, val: tuple[int, ...] | int) -> None:
+		self._val: tuple[int, ...] = val if isinstance(val, tuple) else (val,)
 		if len(self._val) == 0:
 			raise ValueError("empty tuple")
 	def __getitem__(self, index: int) -> int:
@@ -117,5 +116,5 @@ class _ClampTuple:
 			return self._val[-1]
 		else:
 			return self._val[index]
-	def expand(self, dimensionality: int) -> Tuple[int, ...]:
+	def expand(self, dimensionality: int) -> tuple[int, ...]:
 		return self._val + (self._val[-1],) * (dimensionality - len(self._val))
