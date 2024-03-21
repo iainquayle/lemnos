@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, OpenShape, Shape, Index 
+from ..shared import LockedShape, OpenShape, Shape  
+from .compilation_indices import CompilationIndices 
+from .ir_index import IRIndex
 from .schema_graph import SchemaNode, TransitionGroup, JoinType, MAX_PRIORITY
-from .compilation_indices import BuildIndices
 
 from dataclasses import dataclass
 
@@ -16,9 +17,9 @@ class IRNode:
 	transition_id: ID 
 	input_shape: LockedShape
 	output_shape: LockedShape
-	index: Index
+	index: IRIndex
 	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, Transition ID: {self.transition_id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, Index: {self.index}"
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, Transition ID: {self.transition_id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, IRIndex: {self.index}"
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_node_id"]
@@ -31,20 +32,23 @@ class CompilationTracker:
 			self._stacks_lookup = stacks_lookup
 		else:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
-	def compile_ir(self, indices: BuildIndices, sequence_index: int) -> list[IRNode] | None:
+	def compile_ir(self, indices: CompilationIndices, sequence_index: int) -> list[IRNode] | None:
+		if self._id >= self._max_node_id:
+			return None
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		compilation_node = self._stacks[min_stack_index].pop()
 		schema_node = self._stacks[min_stack_index].get_schema()
 		index, sequence_index = indices.get_index(compilation_node.priority, sequence_index, schema_node, compilation_node.input_shape)
 		offset = index.get_shuffled(len(schema_node), 0)
+		input_shape = schema_node.get_input_shape([compilation_node.input_shape])
+		print(input_shape, schema_node.dimensionality())
 		for group in (schema_node[(i + offset) % len(schema_node)] for i in range(len(schema_node))):
-			if (self._id < self._max_node_id
-					and (conformance := self.get_conformance(schema_node, group)) is not None
-					and (output_shape := schema_node.get_output_shape(compilation_node.input_shape, conformance, index)) is not None
+			if ((conformance := self.get_conformance(schema_node, group)) is not None
+					and (output_shape := schema_node.get_output_shape(input_shape, conformance, index)) is not None
 					and (ir := self.next(schema_node, group, output_shape).compile_ir(indices, sequence_index)) is not None):
-				return ir + [IRNode(schema_node, tuple(compilation_node.parent_ids), self._id, compilation_node.input_shape, output_shape, index)]
+				return ir + [IRNode(schema_node, tuple(compilation_node.parent_ids), self._id, input_shape, output_shape, index)]
 		if (len(schema_node) == 0
-				and (output_shape := schema_node.get_output_shape(compilation_node.input_shape, OpenShape(), index)) is not None):
+				and (output_shape := schema_node.get_output_shape(input_shape, OpenShape(), index)) is not None):
 			return [IRNode(schema_node, tuple(compilation_node.parent_ids), self._id, compilation_node.input_shape, output_shape, index)]
 		return None
 	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape) -> CompilationTracker:

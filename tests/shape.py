@@ -10,6 +10,7 @@ class TestShapeCommons(unittest.TestCase):
 		self.d = LockedShape(1, 2, 3)
 		self.e = LockedShape(4, 3)
 		self.f = LockedShape(3, 3)
+		self.g = LockedShape(6)
 	def test_length(self) -> None:
 		self.assertEqual(len(self.a), 2)
 	def test_upper_length(self) -> None:
@@ -20,6 +21,7 @@ class TestShapeCommons(unittest.TestCase):
 		self.assertEqual(self.d.squash(3), self.d)
 		self.assertEqual(self.c.squash(2), self.b)
 		self.assertEqual(self.c.squash(3), self.c)
+		self.assertEqual(self.a.squash(1), self.g)
 	def test_dimensionality(self) -> None:
 		self.assertEqual(self.a.dimensionality(), 2)
 		self.assertEqual(self.c.dimensionality(), 3)

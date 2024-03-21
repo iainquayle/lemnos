@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, Shape, Index, ShapeBound
+from ..shared import LockedShape, Shape, ShapeBound
 from .components import Activation, Regularization, Transform, MergeMethod
+from .ir_index import IRIndex
 
 from typing import Iterator, Iterable 
 from typing_extensions import Self
@@ -29,7 +30,7 @@ class SchemaNode:
 		return self
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
 		return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
-	def get_output_shape(self, mould_shape: LockedShape, output_conformance: Shape, index: Index) -> LockedShape | None:
+	def get_output_shape(self, mould_shape: LockedShape, output_conformance: Shape, index: IRIndex) -> LockedShape | None:
 		output_shape = self._transform.get_output_shape(mould_shape, output_conformance, self._shape_bounds, index) if self._transform is not None else mould_shape
 		if output_shape is not None and output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
 			return output_shape 

@@ -3,8 +3,8 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from src.schema.components import Conv
-from src.shared import LockedShape, OpenShape, ShapeBound, Index
+from src.schema.components import Conv, IRIndex
+from src.shared import LockedShape, OpenShape, ShapeBound 
 
 #TODO: splits these tests up
 class TestConv(unittest.TestCase):
@@ -31,14 +31,14 @@ class TestConv(unittest.TestCase):
 	def test_mould_output_shape_valid(self) -> None:
 		parameters = Conv((0.2, 2.0), kernel=2, stride=2, padding=0, dilation=1)
 		shape = LockedShape(2, 6)
-		if (shape := parameters.get_output_shape(shape, OpenShape(2, 3), ShapeBound((2, 2), (1, 8)), Index())) is not None:
+		if (shape := parameters.get_output_shape(shape, OpenShape(2, 3), ShapeBound((2, 2), (1, 8)), IRIndex())) is not None:
 			self.assertEqual(shape, LockedShape(2, 3))
 		parameters = Conv((1, 2), kernel=2, stride=2, padding=0, dilation=1)
 		shape = LockedShape(2, 6)
-		if (shape := parameters.get_output_shape(shape, OpenShape(3), ShapeBound((2, 2), (1, 8)), Index())) is not None:
+		if (shape := parameters.get_output_shape(shape, OpenShape(3), ShapeBound((2, 2), (1, 8)), IRIndex())) is not None:
 			self.assertEqual(shape, LockedShape(2, 3))
 		shape = LockedShape(2, 6)
-		if (shape := parameters.get_output_shape(shape, LockedShape(2, 3), ShapeBound((1, 1000), (1, 8)), Index())) is not None:
+		if (shape := parameters.get_output_shape(shape, LockedShape(2, 3), ShapeBound((1, 1000), (1, 8)), IRIndex())) is not None:
 			self.assertEqual(shape, LockedShape(2, 3))
 	def test_output_shape_invalid(self) -> None:
 		pass

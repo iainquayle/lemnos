@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..shared import LockedShape
 from .schema_graph import SchemaNode
-from .compilation_indices import BuildIndices 
+from .compilation_indices import CompilationIndices 
 from .ir_compilation import IRNode, CompilationNodeStack, CompilationNode, CompilationTracker
 
 class Schema:
@@ -18,7 +18,7 @@ class Schema:
 		self._starts.append(pattern)
 	def add_end(self, pattern: SchemaNode) -> None:
 		self._ends.append(pattern)
-	def compile_ir(self, input_shapes: list[LockedShape], build_indices: BuildIndices, max_nodes: int) -> list[IRNode] | None:
+	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_nodes: int) -> list[IRNode] | None:
 		tracker = CompilationTracker(
 			[CompilationNodeStack(schema_node, [CompilationNode(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
 			None, 0, max_nodes)

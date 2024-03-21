@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from ...shared import Shape, LockedShape, OpenShape, ShapeBound, Index
+from ...shared import Shape, LockedShape, OpenShape, ShapeBound 
+from ..ir_index import IRIndex
 #from ..src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 
@@ -22,7 +23,7 @@ class Transform(Abstract):
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
 	@abstractmethod
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
 		pass
 	@abstractmethod
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:	
@@ -32,10 +33,8 @@ class Full(Transform):
 	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
 		super().__init__(size_coeffs_bounds)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
-		return shape_in.dimensionality() == shape_out.dimensionality() and shape_in.dimensionality() == 1
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
-		if input_shape.dimensionality() != 1:
-			raise ValueError("input shape must have dimensionality of 1")
+		return shape_in.dimensionality() == shape_out.dimensionality()
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
 		lower = int(input_shape[0] * self._size_coeffs_bounds[_LOWER])
 		upper = int(input_shape[0] * self._size_coeffs_bounds[_UPPER])
 		return LockedShape(shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0))
@@ -65,7 +64,7 @@ class Conv(Transform):
 	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: Index) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
 		upper_shape = OpenShape(*[self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])

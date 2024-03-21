@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterator, Any
+from typing import Iterable, Any
 from copy import copy
 from math import prod
 from abc import ABC as Abstract, abstractmethod
@@ -52,7 +52,7 @@ class Shape(Abstract):
 	def common_lossless(self, other: Shape) -> Shape | None:
 		return self.common(other) if self.dimensionality() > other.dimensionality() else other.common(self)
 	@staticmethod
-	def reduce_common_lossless(shapes: Iterator[Shape]) -> Shape | None:
+	def reduce_common_lossless(shapes: Iterable[Shape]) -> Shape | None:
 		common = OpenShape()
 		for shape in shapes:
 			common = common.common_lossless(shape)
@@ -63,7 +63,7 @@ class Shape(Abstract):
 		return self._shape[index]
 	def __len__(self) -> int:
 		return len(self._shape)
-	def __iter__(self) -> Iterator[int]:
+	def __iter__(self) -> Iterable[int]:
 		return iter(self._shape)
 	@abstractmethod
 	def __eq__(self, other: Any) -> bool:
@@ -100,8 +100,10 @@ class LockedShape(Shape):
 	def squash(self, dimensionality: int) -> LockedShape:
 		if dimensionality >= self.dimensionality():
 			return self 
+		elif dimensionality > 1:
+			return LockedShape(self.reverse_lower_product(dimensionality - 1), *(self._shape[-(dimensionality - 1):]))
 		else:
-			return LockedShape(self.reverse_lower_product(dimensionality - 1), *self._shape[-(dimensionality - 1):])
+			return LockedShape(self.get_product())
 	def common(self, other: Shape) -> Shape | None:
 		reverse_index = min(self.upper_length(), other.upper_length())
 		if other.is_locked():
