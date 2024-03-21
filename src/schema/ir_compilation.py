@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 from copy import copy
 
+
+
 ID = int
 @dataclass(frozen=True)
 class IRNode:
@@ -23,8 +25,8 @@ class IRNode:
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_node_id"]
-	def __init__(self, stacks: list[CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_node_id: ID) -> None:
-		self._stacks: list[CompilationNodeStack] = stacks 
+	def __init__(self, stacks: list[NodeTrackerStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_node_id: ID) -> None:
+		self._stacks: list[NodeTrackerStack] = stacks 
 		self._stacks_lookup: dict[SchemaNode, int] = {}
 		self._id: ID = id 
 		self._max_node_id: ID = max_node_id 
@@ -36,20 +38,19 @@ class CompilationTracker:
 		if self._id >= self._max_node_id:
 			return None
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
-		compilation_node = self._stacks[min_stack_index].pop()
+		tracker_node = self._stacks[min_stack_index].pop()
 		schema_node = self._stacks[min_stack_index].get_schema()
-		index, sequence_index = indices.get_index(compilation_node.priority, sequence_index, schema_node, compilation_node.input_shape)
+		index, sequence_index = indices.get_index(tracker_node.priority, sequence_index, schema_node, tracker_node.input_shape)
 		offset = index.get_shuffled(len(schema_node), 0)
-		input_shape = schema_node.get_input_shape([compilation_node.input_shape])
-		print(input_shape, schema_node.dimensionality())
+		input_shape = schema_node.get_input_shape([tracker_node.input_shape])
 		for group in (schema_node[(i + offset) % len(schema_node)] for i in range(len(schema_node))):
 			if ((conformance := self.get_conformance(schema_node, group)) is not None
 					and (output_shape := schema_node.get_output_shape(input_shape, conformance, index)) is not None
 					and (ir := self.next(schema_node, group, output_shape).compile_ir(indices, sequence_index)) is not None):
-				return ir + [IRNode(schema_node, tuple(compilation_node.parent_ids), self._id, input_shape, output_shape, index)]
+				return ir + [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, input_shape, output_shape, index)]
 		if (len(schema_node) == 0
 				and (output_shape := schema_node.get_output_shape(input_shape, OpenShape(), index)) is not None):
-			return [IRNode(schema_node, tuple(compilation_node.parent_ids), self._id, compilation_node.input_shape, output_shape, index)]
+			return [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, tracker_node.input_shape, output_shape, index)]
 		return None
 	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape) -> CompilationTracker:
 		next_tracker = CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id + 1, self._max_node_id)
@@ -68,44 +69,44 @@ class CompilationTracker:
 		return common_conformance
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
-	def __getitem__(self, key: SchemaNode) -> CompilationNodeStack:
+	def __getitem__(self, key: SchemaNode) -> NodeTrackerStack:
 		if key in self._stacks_lookup:
 			return self._stacks[self._stacks_lookup[key]]
-		self._stacks.append(CompilationNodeStack(key, []))
+		self._stacks.append(NodeTrackerStack(key, []))
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
 	def __len__(self) -> int:
 		return len(self._stacks)
 
 @dataclass(frozen=True)
-class CompilationNode:
+class NodeTracker:
 	parent_nodes: set[SchemaNode]
 	parent_ids: list[ID]
 	input_shape: LockedShape 
 	priority: int
-	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> CompilationNode:
-		return CompilationNode(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
+	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> NodeTracker:
+		return NodeTracker(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
 
-class CompilationNodeStack:
+class NodeTrackerStack:
 	__slots__ = ["_stack", "_schema_node"]
-	def __init__(self, schema_node: SchemaNode, stack: list[CompilationNode]) -> None:
+	def __init__(self, schema_node: SchemaNode, stack: list[NodeTracker]) -> None:
 		self._schema_node: SchemaNode = schema_node
-		self._stack: list[CompilationNode] = stack
+		self._stack: list[NodeTracker] = stack
 	def get_conformance(self, parent: SchemaNode, join_type: JoinType) -> Shape | None:
 		if join_type != JoinType.NEW and (node_index := self._get_available_index(parent)) is not None:
 			return self._schema_node.get_conformance_shape([self._stack[node_index].input_shape])
 		if join_type != JoinType.EXISTING:
 			return OpenShape()
 		return None
-	def next(self, parent: SchemaNode, join_type: JoinType, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> CompilationNodeStack:
-		next_stack = CompilationNodeStack(self._schema_node, copy(self._stack))
+	def next(self, parent: SchemaNode, join_type: JoinType, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> NodeTrackerStack:
+		next_stack = NodeTrackerStack(self._schema_node, copy(self._stack))
 		if join_type != JoinType.NEW and (node_index := self._get_available_index(parent)) is not None:
 			next_stack._stack[node_index] = next_stack._stack[node_index].copy_and_record(parent,
 				next_stack._schema_node.get_input_shape([next_stack._stack[node_index].input_shape, parent_output_shape]), parent_id, 
 				min(priority, next_stack._stack[node_index].priority)) #min may not be correct
 			return next_stack
 		if join_type != JoinType.EXISTING:
-			next_stack._stack.append(CompilationNode({parent}, [parent_id], parent_output_shape, priority))
+			next_stack._stack.append(NodeTracker({parent}, [parent_id], parent_output_shape, priority))
 			return next_stack
 		raise ValueError("Join type not valid")
 	def _get_available_index(self, parent: SchemaNode) -> int | None:
@@ -115,9 +116,9 @@ class CompilationNodeStack:
 		return None
 	def get_schema(self) -> SchemaNode:
 		return self._schema_node
-	def pop(self) -> CompilationNode:
+	def pop(self) -> NodeTracker:
 		return self._stack.pop()
-	def peek(self) -> CompilationNode:
+	def peek(self) -> NodeTracker:
 		return self._stack[-1]
 	def get_priority(self) -> int:
 		return self.peek().priority if len(self._stack) > 0 else MAX_PRIORITY + 1

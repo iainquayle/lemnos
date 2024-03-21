@@ -1,7 +1,7 @@
 import unittest
 
 from src.schema.schema_graph import SchemaNode, JoinType
-from src.schema.ir_compilation import CompilationNode, CompilationNodeStack, CompilationTracker
+from src.schema.ir_compilation import NodeTracker, NodeTrackerStack, CompilationTracker
 from src.schema.components import Concat 
 from src.shared import *
 
@@ -12,7 +12,7 @@ class TestStack(unittest.TestCase):
 		self.s3 = SchemaNode(ShapeBound(1), Concat())
 		self.s4 = SchemaNode(ShapeBound(1), Concat())
 	def test_record(self):
-		stack1 = CompilationNodeStack(self.s1, [])
+		stack1 = NodeTrackerStack(self.s1, [])
 		self.assertRaises(ValueError, stack1.next, self.s2, JoinType.EXISTING, LockedShape(1), 0, 0)
 		stack2 = stack1.next(self.s2, JoinType.NEW, LockedShape(1), 0, 0)
 		self.assertEqual(len(stack1), 0)

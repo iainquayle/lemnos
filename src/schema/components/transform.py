@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ...shared import Shape, LockedShape, OpenShape, ShapeBound 
 from ..ir_index import IRIndex
+
 #from ..src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 

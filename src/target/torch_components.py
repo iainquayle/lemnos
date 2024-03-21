@@ -2,14 +2,10 @@ from __future__ import annotations
 
 from ..shared import LockedShape
 
-from .python_src import *
-from .src_backend import SrcBackend
+from .python_formats import *
+from .target_components import TargetComponents
 
-class TorchSrc(SrcBackend):
-	def module(self, name: str, init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> str:
-		return concat_lines_(*([import_torch_()] + class_(name, [torch_nn_("Module")], 
-			function_("__init__", ["self"],["super().__init__()"] + [import_torch_()] + init_statements) +
-			function_("forward", ["self"] + forward_args, [import_torch_()] + forward_statments))))
+class TorchComponents(TargetComponents):
 	def view(self, expr: str, shape: LockedShape) -> str:
 		return f"{expr}.view(-1, {arg_list_(*to_str_list(iter(shape)))})"
 	def flatten_view(self, expr: str, size: int | LockedShape) -> str:
@@ -43,3 +39,7 @@ def torch_(expr: str) -> str:
 	return f"torch.{expr}"
 def torch_nn_(expr: str) -> str:
 	return f"torch.nn.{expr}"
+def torch_module_(name: str, init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> str:
+	return concat_lines_(*([import_torch_()] + class_(name, [torch_nn_("Module")], 
+		function_("__init__", ["self"],["super().__init__()"] + [import_torch_()] + init_statements) +
+		function_("forward", ["self"] + forward_args, [import_torch_()] + forward_statments))))

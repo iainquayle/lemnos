@@ -5,12 +5,9 @@ from ..shared import LockedShape
 from typing import Callable
 from abc import ABC as Abstract, abstractmethod
 
-class SrcBackend(Abstract):
+class TargetComponents(Abstract):
 	def __init__(self, additional_mapping: dict[type, Callable] | None = None):
 		self.mapping = additional_mapping if additional_mapping is not None else {} 
-	@abstractmethod
-	def module(self, name: str, init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> str:
-		pass
 	@abstractmethod
 	def view(self, expr: str, shape: LockedShape) -> str:
 		pass
