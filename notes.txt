@@ -1,8 +1,5 @@
 changes:
 	guarenteed:
-		make it such that full layers wont require a gaurd to deal with only accepting something sized in a different dimension
-			likely solution, make full keep the upper shape of the input and only allow it to resize anything below that
-			also impl output conformance in it
 		fix the issue with the groups
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of

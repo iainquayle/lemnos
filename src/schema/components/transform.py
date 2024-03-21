@@ -28,6 +28,10 @@ class Transform(Abstract):
 	@abstractmethod
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:	
 		pass
+	def get_coeff_bounds(self, size: int) -> tuple[int, int]:
+		lower = int(self._size_coeffs_bounds[_LOWER] * size)
+		upper = int(self._size_coeffs_bounds[_UPPER] * size)
+		return (lower, upper)
 
 class Full(Transform):
 	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
@@ -35,9 +39,11 @@ class Full(Transform):
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality()
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
-		lower = int(input_shape[0] * self._size_coeffs_bounds[_LOWER])
-		upper = int(input_shape[0] * self._size_coeffs_bounds[_UPPER])
-		return LockedShape(shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0))
+		upper_shape = input_shape.to_open()
+		if output_conformance.is_locked():
+			return upper_shape.to_locked(output_conformance.get_product() // upper_shape.get_product())
+		else:
+			return upper_shape.to_locked(shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0))
 	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
 		return ""
 		return full_(shape_in, shape_out)
@@ -67,7 +73,7 @@ class Conv(Transform):
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
-		upper_shape = OpenShape(*[self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))])
+		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.is_locked():
 			channels = output_conformance.get_product() // upper_shape.get_product()
 			if self._group_size is not None and (input_shape[0] % self._group_size != 0 or channels % self._group_size != 0):
@@ -78,9 +84,7 @@ class Conv(Transform):
 		else:
 			if self._group_size is not None and input_shape[0] % self._group_size != 0:
 				return None	
-			lower = int(input_shape.get_product() * self._size_coeffs_bounds[_LOWER]) // output_conformance.get_product()
-			upper = int(input_shape.get_product() * self._size_coeffs_bounds[_UPPER]) // output_conformance.get_product()
-			channels_raw = shape_bounds.clamp_value(index.get_shuffled((lower, upper), 0), 0)
+			channels_raw = shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0)
 			if self._group_size is None:
 				return upper_shape.to_locked(channels_raw)
 			else:
