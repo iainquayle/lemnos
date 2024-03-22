@@ -19,3 +19,16 @@ problems:
 			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape
 			shouldnt be too hard to implement, as it would deal with all of the schema nodes in a transition that it owns
 		if all else fails, or as a fall back, could technically implement padding
+
+ideas:
+	source gen options:
+		hard code per component, set it to only work for torch
+		switch on compoenet actual type, and access data from it
+			allows for multiple source gen options, but is a little messy and doesnt align well with other languages
+		pass in object which holds functions that are specific to each component type, these funcs are called and have the component passed into them
+			little more verbose, but more in line with other languages perhaps, and guarantees type safety
+		perhaps some other way, pass in ir 
+
+			
+
+		
