@@ -16,25 +16,37 @@ class TorchComponents(TargetComponents):
 		if len(exprs) == 1:
 			return exprs[0]
 		return torch_(f"cat({arg_list_(*exprs)}, dim=1)")
-	def conv(self, shape_in: LockedShape, shape_out: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], group: int) -> str:
-		return torch_nn_(f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')")
-	def full(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
-		return torch_nn_(f"Linear({shape_in[0]}, {shape_out[0]}, bias=True)")
-	def relu(self) -> str:
-		return torch_nn_("ReLU()")
-	def relu6(self) -> str:
-		return torch_nn_("ReLU6()")
-	def softmax(self) -> str:
-		return torch_nn_("Softmax(dim=1)")
-	def sigmoid(self) -> str:
-		return torch_nn_("Sigmoid()")
-	def batch_norm(self, shape_in: LockedShape) -> str:
-		return torch_nn_(f"BatchNorm{len(shape_in) - 1}d({shape_in[0]})")
-	def dropout(self, p: float) -> str:
-		return torch_nn_(f"Dropout(p={p})")
-	def channel_dropout(self, p: float, shape_in: LockedShape) -> str:
-		return torch_nn_(f"Dropout{len(shape_in) - 1}d(p={p})")
+	def conv_init(self, shape_in: LockedShape, shape_out: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], group: int) -> list[str]:
+		return [torch_nn_(f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')")]
+	def full_init(self, shape_in: LockedShape, shape_out: LockedShape) -> list[str]:
+		return [torch_nn_(f"Linear({shape_in.get_product()}, {shape_out.get_product()}, bias=True)")] 
+	def relu_init(self) -> list[str]:
+		return [torch_nn_("ReLU()")] 
+	def relu6_init(self) -> list[str]:
+		return [torch_nn_("ReLU6()")] 
+	def softmax_init(self) -> list[str]:
+		return [torch_nn_("Softmax(dim=1)")] 
+	def sigmoid_init(self) -> list[str]:
+		return [torch_nn_("Sigmoid()")] 
+	def batch_norm_init(self, shape_in: LockedShape) -> list[str]:
+		return [torch_nn_(f"BatchNorm{len(shape_in) - 1}d({shape_in[0]})")] 
+	def dropout_init(self, p: float) -> list[str]:
+		return [torch_nn_(f"Dropout(p={p})")] 
+	def channel_dropout_init(self, p: float, shape_in: LockedShape) -> list[str]:
+		return [torch_nn_(f"ChannelDropout(p={p})")] 
+	def conv_forward(self, expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [view_(expr, input_shape)]
 
+def view_(expr: str, shape: LockedShape) -> str:
+	return f"{expr}.view(-1, {arg_list_(*to_str_list(iter(shape)))})"
+def flatten_view_(expr: str, size: int | LockedShape) -> str:
+	return f"{expr}.view(-1, {size if isinstance(size, int) else size.get_product()})"
+def sum_(exprs: list[str]) -> str:
+	return f"({' + '.join(exprs)})"
+def cat_(exprs: list[str]) -> str:
+	if len(exprs) == 1:
+		return exprs[0]
+	return torch_(f"cat({arg_list_(*exprs)}, dim=1)")
 def import_torch_() -> str:
 	return "import torch"
 def torch_(expr: str) -> str:

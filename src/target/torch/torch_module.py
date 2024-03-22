@@ -1,8 +1,10 @@
 from __future__ import annotations 
 
-from ...schema.ir_compilation import IRNode, ID
+from ...schema.compile import IRNode, ID
 from .torch_components import torch_module_, TorchComponents
 from ..python_formats import *
+
+import itertools
 
 def _format_register(register: ID) -> str:
 	return f"r{register}"
@@ -21,8 +23,8 @@ def generate_torch_module(name: str, ir: list[IRNode]) -> str:
 	forward_statements: list[str] = []
 	available_registers: list[ID] = []
 	max_register: ID = 0
-	for node in ir:
-		component_inits: list[str] = node.schema_node.get_inits_src(target_components, node.input_shape, node.output_shape)
+	for i, node in enumerate(ir):
+		component_inits: list[str] = list(itertools.chain.from_iterable(component.get_inits_src(target_components, node.input_shape, node.output_shape) for component in node.schema_node.get_components()))
 		for i, init in enumerate(component_inits):
 			init_statements.append(assign_(self_(_format_component(node.id, i)), init))
 		registers_in: list[ID] = []
@@ -45,7 +47,7 @@ def generate_torch_module(name: str, ir: list[IRNode]) -> str:
 			else:
 				register_out = available_registers.pop()
 		node_register[node.id] = register_out
-		if children_counts[node.id] == 0: #dont need to worry about register being reclaimed
+		if node.id not in children_counts: #dont need to worry about register being reclaimed
 			return_registers.append(register_out)
 		forward_statment: str = ""
 	return torch_module_(name, init_statements, to_str_list(arg_registers), forward_statements)

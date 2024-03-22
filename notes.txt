@@ -4,8 +4,10 @@ changes:
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
 			also just refactor it
-		look at moving ir to its own module
-			having too much in one init is make circular imports
+		reasses the need to return a list of strings from the component funtions, may be best to restrict it to one?
+			but in the case of possibly expanding to making a monolithic triton kernel, it may work
+			also may not though??
+			idfk
 	possible:
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2

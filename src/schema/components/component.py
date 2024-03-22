@@ -9,3 +9,6 @@ class Component(Abstract):
 	@abstractmethod
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
 		pass
+	@abstractmethod
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		pass

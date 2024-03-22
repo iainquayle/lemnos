@@ -43,7 +43,9 @@ class Full(Transform):
 		else:
 			return upper_shape.to_locked(shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0))
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [target.full(input_shape, output_shape)]
+		return [target.full_init(input_shape, output_shape)]
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [input_expr] 
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
@@ -102,7 +104,9 @@ class Conv(Transform):
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
 		dimensionality = len(input_shape) - 1
-		return [target.conv(input_shape, output_shape, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else output_shape[0] // self._group_size)]
+		return [target.conv_init(input_shape, output_shape, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else output_shape[0] // self._group_size)]
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [input_expr] 
 
 class _Clamptuple:
 	slot = ["_val"]

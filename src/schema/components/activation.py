@@ -11,13 +11,21 @@ class Activation(Component, Abstract):
 
 class ReLU(Activation):
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [target.relu()]
+		return [target.relu_init()]
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [input_expr] 
 class ReLU6(Activation):
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [target.relu6()] 
+		return [target.relu6_init()] 
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [input_expr] 
 class Softmax(Activation):
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [target.softmax()] 
+		return [target.softmax_init()] 
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [input_expr] 
 class Sigmoid(Activation):
 	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [target.sigmoid()] 
+		return [target.sigmoid_init()] 
+	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [input_expr] 
