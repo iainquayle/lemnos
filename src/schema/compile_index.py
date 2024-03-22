@@ -4,13 +4,13 @@ from typing import Any
 
 import random
 
-class IRIndex:
+class CompileIndex:
 	__slots__ = ["_index"]
 	def __init__(self, index: int = 0) -> None:
 		self._index: int = index
 	@staticmethod
-	def random() -> IRIndex:
-		return IRIndex(random.randint(0, 2**31 - 1))
+	def random() -> CompileIndex:
+		return CompileIndex(random.randint(0, 2**31 - 1))
 	def get_shuffled(self, bounds: tuple[int, int] | int, salt: int = 0) -> int:
 		if isinstance(bounds, int):
 			bounds = (0, bounds)
@@ -20,8 +20,8 @@ class IRIndex:
 	def get(self) -> int:
 		return self._index
 	def __eq__(self, other: Any) -> bool:
-		return isinstance(other, IRIndex) and self._index == other._index
+		return isinstance(other, CompileIndex) and self._index == other._index
 	def __str__(self) -> str:
 		return str(self._index)
 	def __repr__(self) -> str:
-		return f"IRIndex({self._index})"
+		return f"CompileIndex({self._index})"

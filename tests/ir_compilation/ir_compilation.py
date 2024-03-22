@@ -1,9 +1,9 @@
 import unittest
 
 from src.schema import SchemaNode, JoinType 
-from src.schema.ir_compilation import NodeTracker, NodeTrackerStack, CompilationTracker
+from src.schema.compile import NodeTracker, NodeTrackerStack, CompilationTracker
 from src.schema.components import Concat, Sum, Conv, ReLU, BatchNormalization, Full
-from src.schema.compilation_indices import BreedIndices
+from src.schema.compile_indices import BreedIndices
 from src.shared import *
 
 class TestCompilation(unittest.TestCase):

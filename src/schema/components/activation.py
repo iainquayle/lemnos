@@ -1,24 +1,23 @@
 from __future__ import annotations
 
 from ...shared import LockedShape
-from ...target import TargetComponents
+from ...target.target_components import TargetComponents
+from .component import Component
 
-from abc import ABC as Abstract, abstractmethod
+from abc import ABC as Abstract 
 
-class Activation(Abstract):
-	@abstractmethod
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
-		pass
+class Activation(Component, Abstract):
+	pass
 
 class ReLU(Activation):
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
-		return target.relu()
+	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [target.relu()]
 class ReLU6(Activation):
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
-		return target.relu6() 
+	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [target.relu6()] 
 class Softmax(Activation):
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
-		return target.softmax()
+	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [target.softmax()] 
 class Sigmoid(Activation):
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
-		return target.sigmoid()
+	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [target.sigmoid()] 

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from ...shared import Shape, LockedShape, OpenShape, ShapeBound 
-from ..ir_index import IRIndex
-from ...target import TargetComponents
-
+from ..compile_index import CompileIndex 
+from .component import Component
+from ...target.target_components import TargetComponents
 
 from abc import ABC as Abstract, abstractmethod 
 
 _LOWER = 0
 _UPPER = 1
 
-class Transform(Abstract):
+class Transform(Component, Abstract):
 	__slots__ = ["_size_coeffs_bounds"]
 	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
 		if isinstance(size_coeffs_bounds, float):
@@ -24,10 +24,7 @@ class Transform(Abstract):
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
 	@abstractmethod
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
-		pass
-	@abstractmethod
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape, shape_out: LockedShape) -> str:	
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
 		pass
 	def get_coeff_bounds(self, size: int) -> tuple[int, int]:
 		lower = int(self._size_coeffs_bounds[_LOWER] * size)
@@ -39,14 +36,14 @@ class Full(Transform):
 		super().__init__(size_coeffs_bounds)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality()
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
 		upper_shape = input_shape.to_open()
 		if output_conformance.is_locked():
 			return upper_shape.to_locked(output_conformance.get_product() // upper_shape.get_product())
 		else:
 			return upper_shape.to_locked(shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0))
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape, shape_out: LockedShape) -> str:
-		return target.full(shape_in, shape_out)
+	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		return [target.full(input_shape, output_shape)]
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
@@ -70,7 +67,7 @@ class Conv(Transform):
 	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
@@ -103,9 +100,9 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
-	def get_init_src(self, target: TargetComponents, shape_in: LockedShape, shape_out: LockedShape) -> str:
-		dimensionality = len(shape_in) - 1
-		return target.conv(shape_in, shape_out, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else shape_out[0] // self._group_size)
+	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		dimensionality = len(input_shape) - 1
+		return [target.conv(input_shape, output_shape, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else output_shape[0] // self._group_size)]
 
 class _Clamptuple:
 	slot = ["_val"]

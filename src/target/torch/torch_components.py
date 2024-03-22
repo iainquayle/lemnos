@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ..shared import LockedShape
+from ...shared import LockedShape
 
-from .python_formats import *
-from .target_components import TargetComponents
+from ..python_formats import *
+from ..target_components import TargetComponents
 
 class TorchComponents(TargetComponents):
 	def view(self, expr: str, shape: LockedShape) -> str:

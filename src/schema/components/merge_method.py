@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ...shared import LockedShape, OpenShape, Shape
-from ...target import TargetComponents
+from ...target.target_components import TargetComponents
 
 from typing import Iterable
 from abc import ABC as Abstract, abstractmethod

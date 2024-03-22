@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, Shape, ShapeBound
-from .components import Activation, Regularization, Transform, MergeMethod
-from .ir_index import IRIndex
-from ..target import TargetComponents
+from .components.transform import Transform
+from .components.activation import Activation
+from .components.regularization import Regularization
+from .components.merge_method import MergeMethod
+from .components.component import Component
+from .compile_index import CompileIndex 
 
 from typing import Iterator, Iterable 
 from typing_extensions import Self
@@ -31,7 +34,7 @@ class SchemaNode:
 		return self
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
 		return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: IRIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, index: CompileIndex) -> LockedShape | None:
 		output_shape = self._transform.get_output_shape(input_shape, output_conformance, self._shape_bounds, index) if self._transform is not None else input_shape
 		if output_shape is not None and output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
 			return output_shape 
@@ -43,6 +46,8 @@ class SchemaNode:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod:
 		return self._merge_method
+	def get_components(self) -> list[Component]:
+		return [component for component in (self._transform, self._activation, self._regularization) if component is not None]
 	def dimensionality(self) -> int:
 		return len(self._shape_bounds)
 	def __getitem__(self, index: int) -> TransitionGroup:
@@ -51,16 +56,6 @@ class SchemaNode:
 		return iter(self._transition_groups)
 	def __len__(self) -> int:
 		return len(self._transition_groups)
-	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		src: list[str] = []
-		if self._transform is not None:
-			src.append(self._transform.get_init_src(target, input_shape, output_shape))
-		if self._activation is not None:
-			src.append(self._activation.get_init_src(target, input_shape))
-		if self._regularization is not None:
-			src.append(self._regularization.get_init_src(target, input_shape))
-		return src
-
 
 class JoinType(Enum):
 	EXISTING = "existing"

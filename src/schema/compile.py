@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, OpenShape, Shape  
-from .compilation_indices import CompilationIndices 
-from .ir_index import IRIndex
 from .schema_graph import SchemaNode, TransitionGroup, JoinType, MAX_PRIORITY
+from .compile_indices import CompilationIndices 
+from .compile_index import CompileIndex 
 
 from dataclasses import dataclass
 
 from copy import copy
-
-
 
 ID = int
 @dataclass(frozen=True)
@@ -19,9 +17,9 @@ class IRNode:
 	id: ID 
 	input_shape: LockedShape
 	output_shape: LockedShape
-	index: IRIndex
+	index: CompileIndex
 	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, IRIndex: {self.index}"
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompileIndex: {self.index}"
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_node_id"]
