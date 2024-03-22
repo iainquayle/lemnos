@@ -1,28 +1,24 @@
 from __future__ import annotations
 
-#from ..src_generation import * 
 from ...shared import LockedShape
+from ...target import TargetComponents
 
 from abc import ABC as Abstract, abstractmethod
 
 class Activation(Abstract):
 	@abstractmethod
-	def get_init_src(self, shape_in: LockedShape) -> str:
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
 		pass
 
 class ReLU(Activation):
-	def get_init_src(self, shape_in: LockedShape) -> str:
-		return ""
-		return relu_()
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
+		return target.relu()
 class ReLU6(Activation):
-	def get_init_src(self, shape_in: LockedShape) -> str:
-		return ""
-		return relu6_() 
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
+		return target.relu6() 
 class Softmax(Activation):
-	def get_init_src(self, shape_in: LockedShape) -> str:
-		return ""
-		return softmax_()
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
+		return target.softmax()
 class Sigmoid(Activation):
-	def get_init_src(self, shape_in: LockedShape) -> str:
-		return ""
-		return torch_nn_("Sigmoid()")
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape) -> str:
+		return target.sigmoid()

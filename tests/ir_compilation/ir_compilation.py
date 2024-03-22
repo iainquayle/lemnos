@@ -1,6 +1,6 @@
 import unittest
 
-from src.schema import SchemaNode, JoinType, Schema
+from src.schema import SchemaNode, JoinType 
 from src.schema.ir_compilation import NodeTracker, NodeTrackerStack, CompilationTracker
 from src.schema.components import Concat, Sum, Conv, ReLU, BatchNormalization, Full
 from src.schema.compilation_indices import BreedIndices

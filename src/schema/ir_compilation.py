@@ -16,12 +16,12 @@ ID = int
 class IRNode:
 	schema_node: SchemaNode
 	parent_ids: tuple[ID, ...]
-	transition_id: ID 
+	id: ID 
 	input_shape: LockedShape
 	output_shape: LockedShape
 	index: IRIndex
 	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, Transition ID: {self.transition_id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, IRIndex: {self.index}"
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, IRIndex: {self.index}"
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_node_id"]

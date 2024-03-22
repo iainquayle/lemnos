@@ -7,6 +7,9 @@ changes:
 	possible:
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
+		make ir hold the components of the schema rather than the schema itself
+			also take out the index out of the ir
+			and output those two items in a seperate list for breeding purposes
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes

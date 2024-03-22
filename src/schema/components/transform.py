@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from ...shared import Shape, LockedShape, OpenShape, ShapeBound 
 from ..ir_index import IRIndex
+from ...target import TargetComponents
 
-#from ..src_generation import * 
 
 from abc import ABC as Abstract, abstractmethod 
 
@@ -27,7 +27,7 @@ class Transform(Abstract):
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: IRIndex) -> LockedShape | None:
 		pass
 	@abstractmethod
-	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:	
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape, shape_out: LockedShape) -> str:	
 		pass
 	def get_coeff_bounds(self, size: int) -> tuple[int, int]:
 		lower = int(self._size_coeffs_bounds[_LOWER] * size)
@@ -45,9 +45,8 @@ class Full(Transform):
 			return upper_shape.to_locked(output_conformance.get_product() // upper_shape.get_product())
 		else:
 			return upper_shape.to_locked(shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0))
-	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
-		return ""
-		return full_(shape_in, shape_out)
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape, shape_out: LockedShape) -> str:
+		return target.full(shape_in, shape_out)
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
@@ -104,10 +103,9 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
-	def get_init_src(self, shape_in: LockedShape, shape_out: LockedShape) -> str:
+	def get_init_src(self, target: TargetComponents, shape_in: LockedShape, shape_out: LockedShape) -> str:
 		dimensionality = len(shape_in) - 1
-		return ""
-		return conv_(shape_in, shape_out, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else shape_out[0] // self._group_size)
+		return target.conv(shape_in, shape_out, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else shape_out[0] // self._group_size)
 
 class _Clamptuple:
 	slot = ["_val"]

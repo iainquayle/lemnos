@@ -13,6 +13,8 @@ class TorchComponents(TargetComponents):
 	def sum(self, *exprs: str) -> str:
 		return f"({' + '.join(exprs)})"
 	def cat(self, *exprs: str) -> str:
+		if len(exprs) == 1:
+			return exprs[0]
 		return torch_(f"cat({arg_list_(*exprs)}, dim=1)")
 	def conv(self, shape_in: LockedShape, shape_out: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], group: int) -> str:
 		return torch_nn_(f"Conv{len(shape_in) - 1}d({shape_in[0]}, {shape_out[0]}, {kernel}, {stride}, {padding}, {group}, bias=True, padding_mode='zeros')")
