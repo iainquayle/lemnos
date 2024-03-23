@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from ...shared import LockedShape, OpenShape, Shape
-from ...target.target_components import TargetComponents
 
 from typing import Iterable
 from abc import ABC as Abstract, abstractmethod
@@ -21,9 +20,6 @@ class MergeMethod(Abstract):
 		pass
 	@abstractmethod
 	def get_total_merged_size(self, input_shapes: list[LockedShape]) -> int:
-		pass
-	@abstractmethod
-	def get_merge_src(self, target: TargetComponents, exprs: list[str]) -> str:
 		pass
 
 
@@ -45,8 +41,6 @@ class Concat(MergeMethod):
 			total_size += largest_shape.get_product()
 		largest_shape = largest_shape.to_open()
 		return largest_shape.to_locked(total_size // largest_shape.get_product())
-	def get_merge_src(self, target: TargetComponents, exprs: list[str]) -> str:
-		return target.cat(*exprs)
 
 class Sum(MergeMethod):
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
@@ -58,5 +52,3 @@ class Sum(MergeMethod):
 		return input_shapes[0].get_product()
 	def _get_merged_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		return reduce(lambda x, y: x if len(x) > len(y) else y, input_shapes)
-	def get_merge_src(self, target: TargetComponents, exprs: list[str]) -> str:
-		return target.sum(*exprs)

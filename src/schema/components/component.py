@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-from ...shared import LockedShape
-from ...target.target_components import TargetComponents
+from .transform import Transform
+from .activation import Activation 
+from .regularization import Regularization
+from .merge_method import MergeMethod
 
-from abc import ABC as Abstract, abstractmethod
-
-class Component(Abstract):
-	@abstractmethod
-	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		pass
-	@abstractmethod
-	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		pass
+Component = Transform | Activation | Regularization | MergeMethod

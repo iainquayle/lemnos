@@ -2,15 +2,13 @@ from __future__ import annotations
 
 from ...shared import Shape, LockedShape, OpenShape, ShapeBound 
 from ..compile_index import CompileIndex 
-from .component import Component
-from ...target.target_components import TargetComponents
 
 from abc import ABC as Abstract, abstractmethod 
 
 _LOWER = 0
 _UPPER = 1
 
-class Transform(Component, Abstract):
+class Transform(Abstract):
 	__slots__ = ["_size_coeffs_bounds"]
 	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
 		if isinstance(size_coeffs_bounds, float):
@@ -42,10 +40,6 @@ class Full(Transform):
 			return upper_shape.to_locked(output_conformance.get_product() // upper_shape.get_product())
 		else:
 			return upper_shape.to_locked(shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0))
-	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [target.full_init(input_shape, output_shape)]
-	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [input_expr] 
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
@@ -102,11 +96,6 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
-	def get_inits_src(self, target: TargetComponents, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		dimensionality = len(input_shape) - 1
-		return [target.conv_init(input_shape, output_shape, self._kernel.expand(dimensionality), self._stride.expand(dimensionality), self._padding.expand(dimensionality), 1 if self._group_size is None else output_shape[0] // self._group_size)]
-	def get_forward_src(self, target: TargetComponents, input_expr: str, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return [input_expr] 
 
 class _Clamptuple:
 	slot = ["_val"]
