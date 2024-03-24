@@ -96,6 +96,18 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
+	def get_kernel(self) -> tuple[int, ...]:
+		raise NotImplementedError()
+	def get_stride(self) -> tuple[int, ...]:
+		raise NotImplementedError()
+	def get_dilation(self) -> tuple[int, ...]:
+		raise NotImplementedError()
+	def get_padding(self) -> tuple[int, ...]:
+		raise NotImplementedError()
+	def get_group_size(self) -> int | None:
+		raise NotImplementedError()
+	def get_groups(self, output_shape: LockedShape) -> int:
+		raise NotImplementedError()
 
 class _Clamptuple:
 	slot = ["_val"]

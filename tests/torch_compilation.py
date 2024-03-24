@@ -3,7 +3,7 @@ import unittest
 from src.schema import SchemaNode, Schema, BreedIndices, JoinType 
 from src.schema.components import Concat, Sum, Conv, ReLU, BatchNormalization, Full
 from src.shared import LockedShape, ShapeBound 
-from src.target.torch import generate_torch_module
+from src.target import generate_torch_module
 
 class TestTorchCompilation(unittest.TestCase):
 	def test_split_loop(self):

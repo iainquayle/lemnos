@@ -4,8 +4,8 @@ changes:
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
 			also just refactor it
-		solution for converting ir not pretty, but allows for extendsiblity while not adding additional complexity
-			make the main interfacing point in code generation just the ir to str
+		switch on component, and pull out information from the component
+			solution for converting ir not pretty, but allows for extendsiblity while not adding additional complexity
 			aswell, likely make any interface class that allows the additiong of new types of modules, be specific to the framework 
 				ie, rather than having a generic component to str, make a torch specific one, allowing for the intricacies needed
 			all that needs to happen at the end of the day is for the ir to be converted to a string which can be executed
