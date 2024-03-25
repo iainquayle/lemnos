@@ -32,14 +32,14 @@ class TorchComponents(TargetComponents):
 		return []
 	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, input_exprs: list[str]) -> list[str]:
 		if isinstance(component, Sum):
-			return [f"({' + '.join(inputs)})"]
+			return [f"({' + '.join(input_exprs)})"]
 		elif isinstance(component, Concat):
-			if len(inputs) == 1:
-				return [inputs[0]]
-			return [torch_(f"cat({arg_list_(*inputs)}, dim=1)")]
+			if len(input_exprs) == 1:
+				return [input_exprs[0]]
+			return [torch_(f"cat({arg_list_(*input_exprs)}, dim=1)")]
 		elif isinstance(component, Conv):
-			return [view_(inputs[0], input_shape)]
-		return [inputs[0]]
+			return [view_(input_exprs[0], input_shape)]
+		return [input_exprs[0]]
 
 def _format_register(register: ID) -> str:
 	return f"r{register}"
