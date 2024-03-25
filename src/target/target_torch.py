@@ -30,7 +30,7 @@ class TorchComponents(TargetComponents):
 		elif isinstance(component, ChannelDropout):
 			return [torch_nn_(f"ChannelDropout(p={component._p})")]
 		return []
-	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, inputs: list[str]) -> list[str]:
+	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, input_exprs: list[str]) -> list[str]:
 		if isinstance(component, Sum):
 			return [f"({' + '.join(inputs)})"]
 		elif isinstance(component, Concat):

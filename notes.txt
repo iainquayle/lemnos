@@ -4,13 +4,8 @@ changes:
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
 			also just refactor it
-		switch on component, and pull out information from the component
-			solution for converting ir not pretty, but allows for extendsiblity while not adding additional complexity
-			aswell, likely make any interface class that allows the additiong of new types of modules, be specific to the framework 
-				ie, rather than having a generic component to str, make a torch specific one, allowing for the intricacies needed
-			all that needs to happen at the end of the day is for the ir to be converted to a string which can be executed
-			obviously allows for malicous code, but this is a user beware 
 	possible:
+		switch target module name to adapters, put framework specific code in there?
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
 		move ir to the target module
@@ -21,3 +16,13 @@ problems:
 			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape
 			shouldnt be too hard to implement, as it would deal with all of the schema nodes in a transition that it owns
 		if all else fails, or as a fall back, could technically implement padding
+
+design:
+	adapters
+		allow this to work with any framework
+		currently, using isinstance, but could use a nice approach
+			look into the action/command? pattern and the visitor pattern, may provide some better structural ideas?
+	start by making control specific to torch, but attempt to make it more generic later and accept an adapter
+		adapter will use the source gen target and functions specific to the framework for training
+		though this may be a dumb idea or atleast the sin of premature planning
+

@@ -10,5 +10,5 @@ class TargetComponents(Abstract):
 	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
 		pass
 	@abstractmethod
-	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, inputs: list[str]) -> list[str]:
+	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, input_exprs: list[str]) -> list[str]:
 		pass

@@ -1,3 +1,11 @@
+#
+#
+# TEMPORARY, will be replaced with generic control, taking framework adapters
+# ...maybe, unless I decide its a dumb idea and just make it torch specific, which is likely true
+#
+#
+
+
 from __future__ import annotations
 
 from ..schema import Schema, BreedIndices
