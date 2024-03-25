@@ -5,7 +5,8 @@ changes:
 				already have look ahead for joining existing nodes nodes, so not unheard of
 			also just refactor it
 	possible:
-		switch target module name to adapters, put framework specific code in there?
+		reimpl component interface, and add a validate shapes method	
+			there are a number of not just specific to transform that require certain characterisitics of the shapes
 		remove validate transform shape
 		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
 		move ir to the target module

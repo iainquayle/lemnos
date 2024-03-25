@@ -3,47 +3,59 @@ from __future__ import annotations
 from ..shared import LockedShape
 from ..schema import IRNode, ID
 from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6
-from .target_components import TargetComponents
-from .python_formats import *
+from ..format.format_torch import * 
+
+from abc import ABC as Abstract, abstractmethod
 
 import itertools
 
-class TorchComponents(TargetComponents):
-	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+class TorchComponentFormatter(Abstract):
+	@abstractmethod
+	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
+		pass
+	@abstractmethod
+	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, input_exprs: list[str]) -> str:
+		pass
+
+
+class DefaultComponentFormatter(TorchComponentFormatter):
+	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
 		if isinstance(component, Conv):
-			#need to fix up group
-			return [torch_nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {component._kernel}, {component._stride}, {component._padding}, {component._group_size}, bias=True, padding_mode='zeros')")]
+			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
+				component.get_stride(input_shape), component.get_padding(input_shape),
+				component.get_groups(output_shape))
 		elif isinstance(component, Full):
-			return [torch_nn_(f"Linear({input_shape.get_product()}, {output_shape.get_product()}, bias=True)")] 
+			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):
-			return [torch_nn_("ReLU()")]
+			return relu_init_()
 		elif isinstance(component, ReLU6):
-			return [torch_nn_("ReLU6()")]
+			return relu6_init_()
 		elif isinstance(component, Sigmoid):
-			return [torch_nn_("Sigmoid()")]
+			return sigmoid_init_() 
 		elif isinstance(component, Softmax):
-			return [torch_nn_("Softmax(dim=1)")]
+			return softmax_init_() 
 		elif isinstance(component, BatchNormalization):
-			return [torch_nn_(f"BatchNorm{len(input_shape) - 1}d({input_shape[0]})")]
+			return batchnorm_init_(output_shape) 
 		elif isinstance(component, Dropout):
-			return [torch_nn_(f"Dropout(p={component._p})")]
+			return dropout_init_(component.get_probability()) 
 		elif isinstance(component, ChannelDropout):
-			return [torch_nn_(f"ChannelDropout(p={component._p})")]
-		return []
-	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, input_exprs: list[str]) -> list[str]:
+			return channeldropout_init_(component.get_probability()) 
+		return "" 
+	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, input_exprs: list[str]) -> str:
 		if isinstance(component, Sum):
-			return [f"({' + '.join(input_exprs)})"]
+			return sum_(input_exprs)
 		elif isinstance(component, Concat):
 			if len(input_exprs) == 1:
-				return [input_exprs[0]]
-			return [torch_(f"cat({arg_list_(*input_exprs)}, dim=1)")]
-		elif isinstance(component, Conv):
-			return [view_(input_exprs[0], input_shape)]
-		return [input_exprs[0]]
+				return input_exprs[0]
+			return cat_(input_exprs)
+		else: 
+			if isinstance(component, Conv):
+				pass
+		return input_exprs[0]
 
-def _format_register(register: ID) -> str:
+def _register_name(register: ID) -> str:
 	return f"r{register}"
-def _format_component(node_id: ID, component_index: int) -> str:
+def _component_name(node_id: ID, component_index: int) -> str:
 	return f"c{node_id}_{component_index}"
 def generate_torch_module(name: str, ir: list[IRNode]) -> str:
 	target_components = TorchComponents()

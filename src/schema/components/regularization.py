@@ -6,10 +6,14 @@ class Regularization(Abstract):
 	pass
 
 class Dropout(Regularization):
-	def __init__(self, p: float) -> None:
-		self._p: float = p
+	def __init__(self, probability: float) -> None:
+		self._probability: float = probability 
+	def get_probability(self) -> float:
+		return self._probability
 class ChannelDropout(Regularization):
-	def __init__(self, p: float) -> None:
-		self._p: float = p
+	def __init__(self, probability: float) -> None:
+		self._probability: float = probability 
+	def get_probability(self) -> float:
+		return self._probability
 class BatchNormalization(Regularization):
 	pass
