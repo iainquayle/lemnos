@@ -1,1 +1,1 @@
-from python import *
+from .format_python import *

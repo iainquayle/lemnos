@@ -47,7 +47,7 @@ class SchemaNode:
 	def get_merge_method(self) -> MergeMethod:
 		return self._merge_method
 	def get_components(self) -> list[Component]:
-		return [component for component in (self._transform, self._activation, self._regularization) if component is not None]
+		return [component for component in (self._merge_method, self._transform, self._activation, self._regularization) if component is not None]
 	def dimensionality(self) -> int:
 		return len(self._shape_bounds)
 	def __getitem__(self, index: int) -> TransitionGroup:
