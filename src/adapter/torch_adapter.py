@@ -122,25 +122,4 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
 		forward_statements.append(assign_(_register_name(register_out), flatten_view_(forward_statement[0], node.output_shape)))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
-	return torch_module_(name, init_statements, to_str_list(arg_registers), forward_statements)
-
-def view_(expr: str, shape: LockedShape) -> str:
-	return f"{expr}.view(-1, {arg_list_(*to_str_list(iter(shape)))})"
-def flatten_view_(expr: str, size: int | LockedShape) -> str:
-	return f"{expr}.view(-1, {size if isinstance(size, int) else size.get_product()})"
-def sum_(exprs: list[str]) -> str:
-	return f"({' + '.join(exprs)})"
-def cat_(exprs: list[str]) -> str:
-	if len(exprs) == 1:
-		return exprs[0]
-	return torch_(f"cat({arg_list_(*exprs)}, dim=1)")
-def import_torch_() -> str:
-	return "import torch"
-def torch_(expr: str) -> str:
-	return f"torch.{expr}"
-def torch_nn_(expr: str) -> str:
-	return f"torch.nn.{expr}"
-def torch_module_(name: str, init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> str:
-	return concat_lines_(*([import_torch_()] + class_(name, [torch_nn_("Module")], 
-		function_("__init__", ["self"],["super().__init__()"] + [import_torch_()] + init_statements) +
-		function_("forward", ["self"] + forward_args, [import_torch_()] + forward_statments))))
+	return module_(name, init_statements, to_str_list(arg_registers), forward_statements)
