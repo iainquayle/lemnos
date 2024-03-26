@@ -8,8 +8,7 @@
 
 from __future__ import annotations
 
-from ..schema import Schema, BreedIndices
-from ..model import Model
+from ..schema import Schema, BreedIndices, SequenceIndices
 from ..shared import LockedShape
 
 from torch.utils.data import Dataset, DataLoader
@@ -18,7 +17,6 @@ import torch
 
 from typing import List, Dict, Any
 from enum import Enum
-from dataclasses import dataclass
 
 class OptimizerType(Enum):
 	ADAM = "adam"

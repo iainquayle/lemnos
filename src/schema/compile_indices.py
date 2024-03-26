@@ -13,7 +13,7 @@ class CompilationIndices(Abstract):
 	def get_index(self, id: int, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> tuple[CompileIndex, int]:	
 		pass
 
-class StaticIndices(CompilationIndices):
+class SequenceIndices(CompilationIndices):
 	__slots__ = ["_indices"]
 	def __init__(self, indices: list[CompileIndex]) -> None:
 		self._indices: list[CompileIndex] = indices
