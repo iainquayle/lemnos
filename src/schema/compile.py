@@ -1,25 +1,13 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, OpenShape, Shape  
+from ..shared import LockedShape, OpenShape, Shape, ID
 from .schema_graph import SchemaNode, TransitionGroup, JoinType, MAX_PRIORITY
 from .compile_indices import CompilationIndices 
-from .compile_index import CompileIndex 
+from .ir_node import IRNode
 
 from dataclasses import dataclass
 
 from copy import copy
-
-ID = int
-@dataclass(frozen=True)
-class IRNode:
-	schema_node: SchemaNode
-	parent_ids: tuple[ID, ...]
-	id: ID 
-	input_shape: LockedShape
-	output_shape: LockedShape
-	index: CompileIndex
-	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompileIndex: {self.index}"
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_node_id"]
@@ -38,7 +26,7 @@ class CompilationTracker:
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		tracker_node = self._stacks[min_stack_index].pop()
 		schema_node = self._stacks[min_stack_index].get_schema()
-		index, sequence_index = indices.get_index(tracker_node.priority, sequence_index, schema_node, tracker_node.input_shape)
+		index, sequence_index = indices.get_index(self._id, sequence_index, schema_node, tracker_node.input_shape)
 		offset = index.get_shuffled(len(schema_node), 0)
 		input_shape = schema_node.get_input_shape([tracker_node.input_shape])
 		for group in (schema_node[(i + offset) % len(schema_node)] for i in range(len(schema_node))):

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from ..shared import LockedShape
+from ..shared import LockedShape, ID
 from .schema_graph import SchemaNode
 from .compile_indices import CompilationIndices 
-from .compile import IRNode, NodeTracker, NodeTrackerStack, CompilationTracker
+from .compile import NodeTracker, NodeTrackerStack, CompilationTracker
+from .ir_node import IRNode
 
 class Schema:
 	def __init__(self, starts: list[SchemaNode], ends: list[SchemaNode]) -> None:
@@ -18,10 +19,10 @@ class Schema:
 		self._starts.append(pattern)
 	def add_end(self, pattern: SchemaNode) -> None:
 		self._ends.append(pattern)
-	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_nodes: int) -> list[IRNode] | None:
+	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_id: ID) -> list[IRNode] | None:
 		tracker = CompilationTracker(
 			[NodeTrackerStack(schema_node, [NodeTracker(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
-			None, 0, max_nodes)
+			None, ID(0), max_id)
 		result = tracker.compile_ir(build_indices, 0)
 		if result is not None:
 			result.reverse()

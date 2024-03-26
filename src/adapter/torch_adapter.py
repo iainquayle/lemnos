@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ..shared import LockedShape
-from ..schema import IRNode, ID
+from ..shared import LockedShape, ID
+from ..schema import IRNode 
 from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6
 from ..format.format_torch import * 
 
@@ -85,7 +85,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 	init_statements: list[str] = []
 	forward_statements: list[str] = []
 	available_registers: list[ID] = []
-	max_register: ID = 0
+	max_register: ID = ID(0) 
 	for node in ir:
 		registers_in: list[ID] = []
 		register_out: ID
