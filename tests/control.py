@@ -21,6 +21,6 @@ class TestControl(unittest.TestCase):
 			def __len__(self):
 				return 10 
 			def __getitem__(self, index):
-				return torch.zeros(1, 1), torch.zeros(1, 1)
-		control = Control(schema, TestDataset(), TestDataset(), False)
+				return torch.zeros(1), torch.zeros(1)
+		control = Control(schema, TestDataset(), TestDataset(), compile_models=False)
 		control.search([input_shape], "", BCEWithLogitsLoss())

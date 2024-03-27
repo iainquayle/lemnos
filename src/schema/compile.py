@@ -10,18 +10,18 @@ from dataclasses import dataclass
 from copy import copy
 
 class CompilationTracker:
-	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_node_id"]
-	def __init__(self, stacks: list[NodeTrackerStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_node_id: ID) -> None:
+	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_id"]
+	def __init__(self, stacks: list[NodeTrackerStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_id: ID) -> None:
 		self._stacks: list[NodeTrackerStack] = stacks 
 		self._stacks_lookup: dict[SchemaNode, int] = {}
 		self._id: ID = id 
-		self._max_node_id: ID = max_node_id 
+		self._max_id: ID = max_id 
 		if stacks_lookup is not None:
 			self._stacks_lookup = stacks_lookup
 		else:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
 	def compile_ir(self, indices: CompilationIndices) -> list[IRNode] | None:
-		if self._id >= self._max_node_id:
+		if self._id >= self._max_id:
 			return None
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		tracker_node = self._stacks[min_stack_index].pop()
@@ -39,7 +39,7 @@ class CompilationTracker:
 			return [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, tracker_node.input_shape, output_shape, index)]
 		return None
 	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape) -> CompilationTracker:
-		next_tracker = CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id + 1, self._max_node_id)
+		next_tracker = CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id + 1, self._max_id)
 		for transition in children:
 			stack_index = next_tracker._stacks_lookup[transition.get_next()]
 			next_tracker._stacks[stack_index] = next_tracker._stacks[stack_index].next(parent, transition.get_join_type(), parent_output_shape, self._id, transition.get_priority())

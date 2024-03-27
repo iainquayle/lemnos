@@ -35,6 +35,7 @@ class Control:
 			schema: Schema, 
 			train_dataset: Dataset, 
 			validation_dataset: Dataset, 
+			max_id: ID = ID(1024),
 			compile_models: bool = True, 
 			compiler_backend: CompileBackend = CompileBackend.INDUCTOR, 
 			require_cuda: bool = True
@@ -42,10 +43,10 @@ class Control:
 		self._schema: Schema = schema
 		self._train_dataset: Dataset = train_dataset
 		self._validation_dataset: Dataset = validation_dataset
+		self._max_id: ID = max_id
 		self._compile_models: bool = compile_models
 		self._compiler_backend: CompileBackend = compiler_backend
 		self._require_cuda: bool = require_cuda
-		#should also hold onto data transformation modules? though this could technically be done in the dataset class?
 	def search(self, 
 			input_shapes: list[LockedShape], 
 			model_save_dir: str, 
@@ -67,11 +68,10 @@ class Control:
 		breed_iterations = 1
 		training_epochs = 1
 		failed_compilations = 0
-		#then wrap the pool in a function too?
 		i = 0
 		while i < breed_iterations: #will switch this to use a call back? allowing for a cli?
 			for j, indices in enumerate(test_indices):
-				if (ir := self._schema.compile_ir(input_shapes, indices, ID(1024))) is not None:
+				if (ir := self._schema.compile_ir(input_shapes, indices, self._max_id)) is not None:
 					model = ModelTracker(ir)
 					runnable_model: Any = get_module(f"M{i}_{j}", ir, DefaultComponentFormatter())
 					if self._compile_models:
