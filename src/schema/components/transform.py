@@ -77,7 +77,7 @@ class Conv(Transform):
 		else:
 			if self._group_size is not None and input_shape[0] % self._group_size != 0:
 				return None	
-			channels_raw = shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0)
+			channels_raw = shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(int(input_shape.get_product() / max(upper_shape.get_product(), 1))), 0), 0)
 			if self._group_size is None:
 				return upper_shape.to_locked(channels_raw)
 			else:
