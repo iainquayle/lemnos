@@ -1,8 +1,9 @@
 
 import unittest
 
-from src.control import Control
-from src.schema import Schema, SchemaNode, Concat, Conv
+from src.control.torch_control import  Control
+from src.schema import Schema, SchemaNode 
+from src.schema.components import *
 from src.shared import ShapeBound, LockedShape
 
 from torch.utils.data import Dataset
@@ -11,7 +12,7 @@ import torch
 
 class TestControl(unittest.TestCase):
 	def test_basic_optimization(self):
-		main = SchemaNode(ShapeBound((1, 1), (1, 10)), Concat(), Conv((.5, 2)))
+		main = SchemaNode(ShapeBound((1, 1), (1, 10)), None, None, Conv())
 		input_shape = LockedShape(1, 1)
 		schema = Schema([main], [main])
 		class TestDataset(Dataset):
@@ -20,6 +21,6 @@ class TestControl(unittest.TestCase):
 			def __len__(self):
 				return 10 
 			def __getitem__(self, index):
-				return torch.zeros(1, 1), torch.zeros(1, 1)
-		control = Control(schema, TestDataset(), TestDataset(), False)
+				return torch.zeros(1), torch.zeros(1)
+		control = Control(schema, TestDataset(), TestDataset(), compile_models=False)
 		control.search([input_shape], "", BCEWithLogitsLoss())

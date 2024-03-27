@@ -8,59 +8,61 @@ from .ir_node import IRNode
 from abc import ABC as Abstract, abstractmethod
 
 import random
+from copy import copy
 
 class CompilationIndices(Abstract):
 	@abstractmethod
-	def get_index(self, id: ID, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> tuple[CompileIndex, int]:	
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:	
 		pass
 
 class SequenceIndices(CompilationIndices):
 	__slots__ = ["_indices"]
-	def __init__(self, indices: dict[ID, CompileIndex]) -> None:
-		self._indices: dict[ID, CompileIndex] = indices
-	@staticmethod
-	def from_ir(ir: list[IRNode]) -> SequenceIndices:
-		indices: dict[ID, CompileIndex] = {}
-		for node in ir:
-			indices[node.id] = node.index
-		return SequenceIndices(indices)
-	def get_index(self, id: ID, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> tuple[CompileIndex, int]:
-		return self._indices[id], 0 
+	def __init__(self, ir: list[IRNode]) -> None:
+		self._indices: dict[ID, CompileIndex] = {node.id: node.index for node in ir} 
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:
+		return self._indices[id] 
 
 class BreedIndices(CompilationIndices):
-	__slots__ = ["_sequences", "_sequence_change_prod", "_mutate_prod"]
-	def __init__(self, sequence_change_prod: float = 0, mutate_prod: float = 0, sequences: list[list[tuple[CompileIndex, SchemaNode, LockedShape]]] = []) -> None:
-		if sequence_change_prod < 0 or sequence_change_prod > 1 or mutate_prod < 0 or mutate_prod > 1:
+	__slots__ = ["_sequences", "_sequence_change_prob", "_ignore_shape_prob", "_mutate_prob", "_sequence_index", "_previous_id"]
+	def __init__(self, ir_sequences: list[list[IRNode]] = [], sequence_change_prob: float = 0, ignore_shape_prob: float = 0, mutate_prob: float = 0) -> None:
+		if sequence_change_prob < 0 or sequence_change_prob > 1 or mutate_prob < 0 or mutate_prob > 1:
 			raise ValueError("Invalid probabilities")
-		self._sequences: list[list[tuple[CompileIndex, SchemaNode, LockedShape]]] = sequences
-		self._sequence_change_prod: float = sequence_change_prod
-		self._mutate_prod: float = mutate_prod
-	@staticmethod
-	def from_ir(ir: list[list[IRNode]], sequence_change_prod: float = 0, mutate_prod: float = 0) -> BreedIndices:
-		pass
-	def get_index(self, id: ID, sequence_index: int, schema_node: SchemaNode, shape_in: LockedShape) -> tuple[CompileIndex, int]:
-		def search_sequence(sequence_index: int) -> tuple[CompileIndex, int] | None:
+		self._sequences: list[list[IRNode]] = [copy(sequence) for sequence in ir_sequences if len(sequence) != 0]
+		for sequence in self._sequences:
+			sequence.sort(key=lambda node: node.id)
+		self._sequence_change_prob: float = sequence_change_prob
+		self._ignore_shape_prob: float = ignore_shape_prob
+		self._mutate_prob: float = mutate_prob
+		self._sequence_index: int = 0
+		self._previous_id: ID = ID(0)
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:
+		def search_sequence(sequence_index: int, previous_id: ID) -> tuple[CompileIndex, ID] | None:
 			sequence_index %= len(self._sequences)
 			min_diff: int = 2**32
-			result: CompileIndex | None = None
-			for index, node, shape in self._sequences[sequence_index]:
-				if node == schema_node and (diff := shape.upper_difference(shape_in)) < min_diff:
+			result: IRNode | None = None
+			if random.random() < self._ignore_shape_prob:
+				matching_nodes = [ir_node for ir_node in self._sequences[sequence_index]]
+				return random.choice(matching_nodes).index, previous_id 
+			for ir_node in self._sequences[sequence_index]:
+				if (ir_node.schema_node == schema_node 
+						and (diff := ir_node.input_shape.upper_difference(shape_in)) < min_diff 
+						and ir_node.id > previous_id):
 					min_diff = diff 
-					result = index 
+					result = ir_node 
 			if result is not None:
-				return result, min_diff 
+				return result.index, result.id
 			else:
 				return None
-		if random.random() > self._mutate_prod and len(self._sequences) != 0:
-			if random.random() > self._sequence_change_prod or len(self._sequences) == 1:
-				if (result := search_sequence(sequence_index)) is not None:
-					index, _ = result
-					return index, sequence_index
+		if random.random() < self._mutate_prob and len(self._sequences) != 0:
+			if random.random() < self._sequence_change_prob or len(self._sequences) == 1:
+				if (result := search_sequence(self._sequence_index, self._previous_id)) is not None:
+					index, self._previous_id = result
+					return index 
 			if len(self._sequences) > 1:
-				sequence_indices: list[int] = list(range(sequence_index)) + list(range(sequence_index + 1, len(self._sequences)))
+				sequence_indices: list[int] = list(range(self._sequence_index)) + list(range(self._sequence_index + 1, len(self._sequences)))
 				random.shuffle(sequence_indices)
 				for sequence in sequence_indices:
-					if (result := search_sequence(sequence)) is not None:
-						index, _ = result
-						return index, sequence 
-		return CompileIndex.random(), sequence_index 
+					if (result := search_sequence(sequence, ID(0))) is not None:
+						index, self._previous_id = result
+						return index 
+		return CompileIndex.random() 

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from typing import Iterable, Any
-from copy import copy
+
 from math import prod
+from copy import copy
+
 from abc import ABC as Abstract, abstractmethod
+
 #rules:
 #	if no remaining open dims
 #		dims to the right must be the same, dims to the left must be prod the same
@@ -16,7 +19,7 @@ class Shape(Abstract):
 	__slots__ = ("_shape", "_product_cache")
 	def __init__(self, *shape: int) -> None:
 		self._shape: tuple[int, ...] = tuple(shape)
-		self._product_cache: int = prod(self._shape)
+		self._product_cache: int = max(prod(self._shape), 1)
 	@abstractmethod
 	def upper_length(self) -> int:
 		pass
@@ -75,9 +78,6 @@ class Shape(Abstract):
 		return self._product_cache
 	def __repr__(self) -> str:
 		return str(self)
-	@abstractmethod
-	def get_listed_source(self) -> str:
-		pass
 
 class LockedShape(Shape):
 	def __init__(self, *shape: int) -> None:
@@ -112,14 +112,14 @@ class LockedShape(Shape):
 		elif self[0] % other.reverse_lower_product(reverse_index) != 0:
 				return None
 		return self if self.reverse_upper_equal(reverse_index, other) else None 
+	def scale(self, scalars: list[float]) -> LockedShape:
+		return LockedShape(*[int(scalar * element) for element, scalar in zip(self._shape, scalars)])
 	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, LockedShape) and self._shape == other._shape
 	def __copy__(self) -> LockedShape:
 		return LockedShape(*self._shape)
 	def __str__(self) -> str:
 		return f"LS({self._shape})"
-	def get_listed_source(self) -> str:
-		return f"({', '.join([str(x) for x in self._shape])})"
 		
 class OpenShape(Shape):
 	def upper_length(self) -> int:
@@ -151,56 +151,64 @@ class OpenShape(Shape):
 		return OpenShape(*self._shape)
 	def __str__(self) -> str:
 		return f"OS({self._shape})"
-	def get_listed_source(self) -> str:
-		return f"(-1, {', '.join([str(x) for x in self._shape])})"
 	def get_upper_diff(self, other: Shape) -> int:
 		return 0
-	
+
+_LOWER_INDEX = 0
+_UPPER_INDEX = 1
 class ShapeBound:
-	_LOWER_INDEX = 0
-	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
-	def __init__(self, *bounds: tuple[int, int] | int | None) -> None:
-		self._bounds: list[tuple[int, int] | None] = [(x, x) if isinstance(x, int) else x for x in bounds] 
+	def __init__(self, *bounds: tuple[int | None, int | None] | int | None) -> None:
+		if len(bounds) == 0:
+			raise Exception("bounds cannot be empty")
+		self._bounds: list[tuple[int | None, int | None]] = [bound if isinstance(bound, tuple) else (bound, bound) for bound in bounds] 
 		for i in range(len(self._bounds)):
-			element = self._bounds[i]
-			if element is not None:
-				if element[ShapeBound._LOWER_INDEX] > element[ShapeBound._UPPER_INDEX]:
-					self._bounds[i] = element[ShapeBound._UPPER_INDEX], element[ShapeBound._LOWER_INDEX]
-				if element[ShapeBound._LOWER_INDEX] <= 0 or element[ShapeBound._UPPER_INDEX] <= 0:
-					raise Exception("bound less than 1")
+			upper, lower = self._bounds[i]
+			if (lower is not None and upper is not None and
+					lower > upper):
+				self._bounds[i] = upper, lower
+			if ((lower is not None and lower <= 0) or 
+					(upper is not None and upper <= 0)):
+				raise Exception("bound less than 1")
 	def lower(self, index: int) -> int | None:
 		element = self._bounds[index]
-		return element[ShapeBound._LOWER_INDEX] if element is not None else None
+		return element[_LOWER_INDEX] if element is not None else None
 	def upper(self, index: int) -> int | None:
 		element = self._bounds[index]
-		return element[ShapeBound._UPPER_INDEX] if element is not None else None
+		return element[_UPPER_INDEX] if element is not None else None
 	def clamp(self, shape: Shape) -> Shape:
 		if shape.dimensionality() > len(self._bounds):
 			raise Exception("shape dimensionality greater than bounds")
-		new_shape = copy(shape)
+		new_shape = list(iter(shape))
 		for i in range(1, len(new_shape) + 1):
-			new_shape._shape[-i] = self.clamp_value(new_shape[-i], -i)
-		return new_shape
+			new_shape[-i] = self.clamp_value(new_shape[-i], -i)
+		return LockedShape(*new_shape) if shape.is_locked() else OpenShape(*new_shape)
 	def clamp_value(self, value: int, index: int) -> int:
-		element = self._bounds[index]
-		if element is not None:
-			return min(element[ShapeBound._UPPER_INDEX], max(element[ShapeBound._LOWER_INDEX], value))
-		else:
-			return value
+		lower, upper = self._bounds[index]
+		if lower is not None:
+			value = max(lower, value)
+		if upper is not None:
+			value = min(upper, value)
+		return value
 	def contains_value(self, value: int, index: int) -> bool:
-		#done this way to avoid None issue with lsp
-		element = self._bounds[index]
-		if element is not None:
-			return value >= element[ShapeBound._LOWER_INDEX] and value <= element[ShapeBound._UPPER_INDEX]
-		else:
-			return True
+		lower, upper = self._bounds[index]
+		if lower is not None and value < lower:
+			return False
+		if upper is not None and value > upper:
+			return False
+		return True
+	def get_bounds(self) -> list[tuple[int | None, int | None]]:
+		return copy(self._bounds)
+	def scale(self, scalars: list[float]) -> ShapeBound:
+		return ShapeBound(*[(int(scalar * lower) if lower is not None else None, int(scalar * upper) if upper is not None else None) for (lower, upper), scalar in zip(self._bounds, scalars)])
 	def __contains__(self, shape: Shape) -> bool:
 		for i in range(1, min(len(shape), len(self._bounds)) + 1):
 			if not self.contains_value(shape[-i], -i):
 				return False
 		return True
-	def __getitem__(self, index: int) -> tuple[int, int] | None:
+	def __iter__(self) -> Iterable[tuple[int | None, int | None]]:
+		return iter(self._bounds)
+	def __getitem__(self, index: int) -> tuple[int | None, int | None] | None:
 		return self._bounds[index]
 	def __len__(self) -> int:
 		return len(self._bounds)

@@ -11,12 +11,12 @@ class CompileIndex:
 	@staticmethod
 	def random() -> CompileIndex:
 		return CompileIndex(random.randint(0, 2**31 - 1))
-	def get_shuffled(self, bounds: tuple[int, int] | int, salt: int = 0) -> int:
-		if isinstance(bounds, int):
+	def get_shuffled(self, bounds: tuple[float, float] | float, salt: int = 0) -> float:
+		if isinstance(bounds, float) or isinstance(bounds, int):
 			bounds = (0, bounds)
 		elif bounds[0] > bounds[1]:
 			bounds = (bounds[1], bounds[0])
-		return random.Random(self._index + salt).randint(*bounds)
+		return random.Random(self._index + salt).uniform(*bounds)
 	def get(self) -> int:
 		return self._index
 	def __eq__(self, other: Any) -> bool:

@@ -1,29 +1,40 @@
 changes:
 	guarenteed:
-		fix the issue with the groups
-			create look ahead, that can define the modulo that a shape must conform to?
-				already have look ahead for joining existing nodes nodes, so not unheard of
-			also just refactor it
+		make control framework agnostic
+			move all that to the adapters
+		move the input shape for the control to the control, rather than inputting it into the search function
+		move padding to before dilation, maybe even stride too
 	possible:
+		move growth functions to the transitions
+			probably makes more sense, cant find a reason why it shouldnt be done 
+			make it so that if the transition group has more or less children, the same throughput is maintained
+			could add optional shape bounds to the transition
 		reimpl component interface, and add a validate shapes method	
 			there are a number of not just specific to transform that require certain characterisitics of the shapes
-		remove validate transform shape
-		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
-		move ir to the target module
-			keep the generation in the schema module
+		maybe move compile related stuff to its own module
+			cant be moved too far, ie probably not sibling with schema due to import issues
+		move conformance to its own module, then allow components to pull it in
+			perhaps put it under shared
+			perhpas rename shared to shape, as that seems to be the only thing it holds
+		reorganize the modules
+			components and compile in their own modules
+			compile only export ir, schema can get the rest directly
+		add a divisor option to the clamp val on shape bounds
+		make it so the divisor lookahead doesnt take into account the nodes hint
+
 problems:
-	issue with groups, the input shape needs to be divisible by the group size
-		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
-			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape
-			shouldnt be too hard to implement, as it would deal with all of the schema nodes in a transition that it owns
-		if all else fails, or as a fall back, could technically implement padding
+	memory leak somewhere, likely something to do with metrics, need to find it	
 
 design:
+	components < schema graph < compile < schema < adapter < control
 	adapters
 		allow this to work with any framework
 		currently, using isinstance, but could use a nice approach
 			look into the action/command? pattern and the visitor pattern, may provide some better structural ideas?
-	start by making control specific to torch, but attempt to make it more generic later and accept an adapter
+	make control agnostic
+		start by making control specific to torch, but attempt to make it more generic later and accept an adapter
 		adapter will use the source gen target and functions specific to the framework for training
 		though this may be a dumb idea or atleast the sin of premature planning
-
+	transitions:
+		are not split into different types as the coordination is done by compile modules
+		they would otherwise need take in data from the compile module to decide what node to return

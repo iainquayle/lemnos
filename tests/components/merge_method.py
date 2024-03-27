@@ -14,6 +14,7 @@ class TestMergeMethod(unittest.TestCase):
 		self.g = LockedShape(2, 2, 3)
 	def test_concat_get_merged(self) -> None:
 		self.assertEqual(Concat().get_merged_shape([self.d, self.a]), self.g)
+		self.assertEqual(Concat().get_merged_shape([LockedShape(2), LockedShape(4)]), LockedShape(6))
 	def test_add_get_merged(self) -> None:
 		self.assertEqual(Sum().get_merged_shape([self.d, self.a]), self.d)
 	def test_concat_get_conformance(self) -> None:

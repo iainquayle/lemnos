@@ -21,3 +21,5 @@ def function_(name: str, args: list[str], statements: list[str]) -> list[str]:
 	return [f"def {name}({arg_list_(*args)}):"] + [f"\t{statement}" for statement in statements]
 def class_(name: str, super_classes: list[str], members: list[str]) -> list[str]:
 	return [f"class {name}({arg_list_(*super_classes)}):"] + [f"\t{member}" for member in members]
+def print_(expr: str) -> str:
+	return f"print({expr})"

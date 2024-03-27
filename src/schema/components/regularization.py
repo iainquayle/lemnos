@@ -15,5 +15,5 @@ class ChannelDropout(Regularization):
 		self._probability: float = probability 
 	def get_probability(self) -> float:
 		return self._probability
-class BatchNormalization(Regularization):
+class BatchNorm(Regularization):
 	pass
