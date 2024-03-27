@@ -4,13 +4,12 @@ from ..shared import LockedShape, ID
 from ..schema import IRNode 
 from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6
 from ..format.format_torch import * 
+from torch.nn import Module
 
 from abc import ABC as Abstract, abstractmethod
 from enum import Enum
 
-import itertools
-
-class ShapeRequirement(Enum):
+class ShapeView(Enum):
 	FLAT = 'flat' 
 	REAL = 'real'
 	EITHER = 'either' 
@@ -23,7 +22,7 @@ class TorchComponentFormatter(Abstract):
 	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, component_name: str, input_exprs: list[str]) -> str:
 		pass
 	@abstractmethod
-	def get_shape_requirment(self, component: Component) -> ShapeRequirement:
+	def get_shape_requirment(self, component: Component) -> ShapeView:
 		pass
 
 class DefaultComponentFormatter(TorchComponentFormatter):
@@ -57,18 +56,18 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 				return input_exprs[0]
 			return cat_(input_exprs)
 		return call_(component_name, *input_exprs)
-	def get_shape_requirment(self, component: Component) -> ShapeRequirement:
+	def get_shape_requirment(self, component: Component) -> ShapeView:
 		if isinstance(component, Conv):
-			return ShapeRequirement.REAL
+			return ShapeView.REAL
 		elif isinstance(component, BatchNormalization):
-			return ShapeRequirement.REAL
+			return ShapeView.REAL
 		elif isinstance(component, ChannelDropout):
-			return ShapeRequirement.REAL
+			return ShapeView.REAL
 		elif isinstance(component, Full):
-			return ShapeRequirement.FLAT
+			return ShapeView.FLAT
 		elif isinstance(component, Concat) or isinstance(component, Sum):
-			return ShapeRequirement.FLAT
-		return ShapeRequirement.EITHER
+			return ShapeView.FLAT
+		return ShapeView.EITHER
 
 def _register_name(register: ID) -> str:
 	return f"r{register:04x}"
@@ -94,6 +93,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 			node_register[node.id] = max_register
 			registers_in = [max_register]
 			register_out = max_register
+			forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(max_register), node.output_shape)))
 			arg_registers.append(max_register)
 		else:
 			for id in node.parent_ids:
@@ -110,16 +110,20 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 		if node.id not in children_counts: #dont need to worry about register being reclaimed
 			return_registers.append(register_out)
 		forward_statement = [_register_name(register) for register in registers_in] 
-		current_shape = ShapeRequirement.FLAT
+		current_shape = ShapeView.FLAT
 		for i, component in enumerate(node.schema_node.get_components()):
 			if (init := component_formatter.get_init(component, node.input_shape, node.output_shape)) != "":
 				init_statements.append(assign_(self_(_component_name(node.id, i)), init))
-			if component_formatter.get_shape_requirment(component) == ShapeRequirement.REAL and current_shape == ShapeRequirement.FLAT:
+			if component_formatter.get_shape_requirment(component) == ShapeView.REAL and current_shape == ShapeView.FLAT:
 				forward_statement = [view_(expr, node.input_shape) for expr in forward_statement]
-			elif component_formatter.get_shape_requirment(component) == ShapeRequirement.FLAT and current_shape == ShapeRequirement.REAL:
+			elif component_formatter.get_shape_requirment(component) == ShapeView.FLAT and current_shape == ShapeView.REAL:
 				forward_statement = [flatten_view_(expr, node.input_shape) for expr in forward_statement]
 			current_shape = component_formatter.get_shape_requirment(component)
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
-		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeRequirement.REAL else forward_statement[0])))
+		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
-	return module_(name, init_statements, to_str_list(arg_registers), forward_statements)
+	return module_(name, init_statements, list(map(_register_name, arg_registers)), forward_statements)
+def get_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
+	source = generate_torch_module(name, ir, component_formatter)
+	exec(source)
+	return locals()[name]()

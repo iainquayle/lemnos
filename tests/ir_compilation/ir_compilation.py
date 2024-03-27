@@ -13,8 +13,8 @@ class TestCompilation(unittest.TestCase):
 		end_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "end")
 		start_schema.add_group((mid_schema, 0, JoinType.NEW), (end_schema, 1, JoinType.NEW))
 		mid_schema.add_group((end_schema, 0, JoinType.EXISTING))
-		tracker = CompilationTracker([NodeTrackerStack(start_schema, [NodeTracker(set(), [], LockedShape(1), 0)])], None, 0, 100) 
-		nodes = tracker.compile_ir(BreedIndices(), 0)
+		tracker = CompilationTracker([NodeTrackerStack(start_schema, [NodeTracker(set(), [], LockedShape(1), 0)])], None, ID(0), ID(100)) 
+		nodes = tracker.compile_ir(BreedIndices())
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 3)
@@ -23,8 +23,8 @@ class TestCompilation(unittest.TestCase):
 		end = SchemaNode(ShapeBound((1, 1), (1, 1)), Concat(), None, None, None, "end")
 		main.add_group((end, 0, JoinType.NEW))
 		main.add_group((main, 0, JoinType.NEW))
-		tracker = CompilationTracker([NodeTrackerStack(main, [NodeTracker(set(), [], LockedShape(1, 8), 0)])], None, 0, 100) 
-		nodes = tracker.compile_ir(BreedIndices(), 0)
+		tracker = CompilationTracker([NodeTrackerStack(main, [NodeTracker(set(), [], LockedShape(1, 8), 0)])], None, ID(0), ID(100)) 
+		nodes = tracker.compile_ir(BreedIndices())
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 4)
@@ -45,8 +45,8 @@ class TestCompilation(unittest.TestCase):
 		split_1.add_group( (main, 2, JoinType.NEW))
 		split_2.add_group( (main, 2, JoinType.EXISTING))
 		main.add_group( (end_node, 0, JoinType.NEW))
-		tracker = CompilationTracker([NodeTrackerStack(main, [NodeTracker(set(), [], LockedShape(1, 8), 0)])], None, 0, 100) 
-		nodes = tracker.compile_ir(BreedIndices(), 0)
+		tracker = CompilationTracker([NodeTrackerStack(main, [NodeTracker(set(), [], LockedShape(1, 8), 0)])], None, ID(0), ID(100)) 
+		nodes = tracker.compile_ir(BreedIndices())
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 11)

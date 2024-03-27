@@ -20,19 +20,19 @@ class CompilationTracker:
 			self._stacks_lookup = stacks_lookup
 		else:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
-	def compile_ir(self, indices: CompilationIndices, sequence_index: int) -> list[IRNode] | None:
+	def compile_ir(self, indices: CompilationIndices) -> list[IRNode] | None:
 		if self._id >= self._max_node_id:
 			return None
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		tracker_node = self._stacks[min_stack_index].pop()
 		schema_node = self._stacks[min_stack_index].get_schema()
-		index, sequence_index = indices.get_index(self._id, sequence_index, schema_node, tracker_node.input_shape)
+		index = indices.get_index(self._id, schema_node, tracker_node.input_shape)
 		offset = index.get_shuffled(len(schema_node), 0)
 		input_shape = schema_node.get_input_shape([tracker_node.input_shape])
 		for group in (schema_node[(i + offset) % len(schema_node)] for i in range(len(schema_node))):
 			if ((conformance := self.get_conformance(schema_node, group)) is not None
 					and (output_shape := schema_node.get_output_shape(input_shape, conformance, index)) is not None
-					and (ir := self.next(schema_node, group, output_shape).compile_ir(indices, sequence_index)) is not None):
+					and (ir := self.next(schema_node, group, output_shape).compile_ir(indices)) is not None):
 				return ir + [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, input_shape, output_shape, index)]
 		if (len(schema_node) == 0
 				and (output_shape := schema_node.get_output_shape(input_shape, OpenShape(), index)) is not None):

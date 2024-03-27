@@ -23,7 +23,7 @@ class Schema:
 		tracker = CompilationTracker(
 			[NodeTrackerStack(schema_node, [NodeTracker(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
 			None, ID(0), max_id)
-		result = tracker.compile_ir(build_indices, 0)
+		result = tracker.compile_ir(build_indices)
 		if result is not None:
 			result.reverse()
 			return result

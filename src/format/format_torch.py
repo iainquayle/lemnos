@@ -8,6 +8,8 @@ def view_(expr: str, shape: LockedShape) -> str:
 def flatten_view_(expr: str, size: int | LockedShape) -> str:
 	return f"{expr}.view(-1, {size if isinstance(size, int) else size.get_product()})"
 def sum_(exprs: list[str]) -> str:
+	if len(exprs) == 1:
+		return exprs[0]
 	return f"({' + '.join(exprs)})"
 def cat_(exprs: list[str]) -> str:
 	if len(exprs) == 1:
