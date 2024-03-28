@@ -11,10 +11,11 @@ _UPPER = 1
 class Transform(Abstract):
 	__slots__ = ["_size_coeffs_bounds"]
 	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
+		if isinstance(size_coeffs_bounds, int):
+			#wtf pyright
+			size_coeffs_bounds = (float(size_coeffs_bounds), float(size_coeffs_bounds))
 		if isinstance(size_coeffs_bounds, float):
 			size_coeffs_bounds = (size_coeffs_bounds, size_coeffs_bounds)
-		elif isinstance(size_coeffs_bounds, int):
-			raise ValueError("wtf")
 		elif size_coeffs_bounds[0] > size_coeffs_bounds[1]:
 			size_coeffs_bounds = (size_coeffs_bounds[1], size_coeffs_bounds[0])
 		self._size_coeffs_bounds: tuple[float, float] = size_coeffs_bounds
@@ -116,7 +117,7 @@ class _Clamptuple:
 		if len(self._val) == 0:
 			raise ValueError("empty tuple")
 	def __getitem__(self, index: int) -> int:
-		if index > len(self._val):
+		if index >= len(self._val):
 			return self._val[-1]
 		else:
 			return self._val[index]

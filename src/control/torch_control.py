@@ -13,9 +13,10 @@ from ..adapter import get_module, DefaultComponentFormatter, generate_torch_modu
 
 from torch.utils.data import Dataset, DataLoader
 from torch.nn import Module
+from torch import Tensor
 import torch
 
-from typing import Any
+from typing import Any, Callable
 from enum import Enum
 
 from random import random
@@ -26,9 +27,9 @@ class OptimizerType(Enum):
 class CompileBackend(Enum):
 	INDUCTOR = "inductor"
 	CUDA_GRAPHS = "cudagraphs"
-
 CUDA = "cuda"
 CPU = "cpu"
+AccuracyFunction = Callable[[Tensor, Tensor], float]
 
 class Control:
 	def __init__(self, 
@@ -49,14 +50,16 @@ class Control:
 		self._require_cuda: bool = require_cuda
 	def search(self, 
 			input_shapes: list[LockedShape], 
-			model_save_dir: str, 
+			save_dir: str, 
 			criterion: Module, 
+			accuracy_function: AccuracyFunction = lambda x, y: 0,
 			optimizer_type: OptimizerType = OptimizerType.ADAM, 
 			batch_size: int = 5, 
 			workers: int = 0, 
 			model_pool_size: int = 1,
 			training_epochs: int = 1,
 			breed_iterations: int = 1,
+			validation_multiple: int = 5
 		) -> None:
 		#look into taking in a sampler for the data loader, may be useful for large datasets
 		device_type = CUDA if torch.cuda.is_available() else CPU 
@@ -78,24 +81,24 @@ class Control:
 						runnable_model = torch.compile(runnable_model, backend=str(self._compiler_backend)) 
 					runnable_model.to(device)
 					optimizer = get_optimizer(optimizer_type, runnable_model)
-					for _ in range(1):
-						for _ in range(training_epochs):
-							model.record_training_epoch(train_epoch(runnable_model, criterion, optimizer, train_loader, device, device_type))
-						model.record_validation_epoch(validate_epoch(runnable_model, criterion, validation_loader, device, device_type))
+					for j in range(training_epochs):
+						print("Epoch", j)
+						model.record_training_epoch(train_epoch(runnable_model, criterion, accuracy_function, optimizer, train_loader, device, device_type))
+						if (j + 1) % validation_multiple == 0:
+							model.record_validation_epoch(validate_epoch(runnable_model, criterion, accuracy_function, validation_loader, device, device_type))
 					model_pool.append(model)
-					print(model.get_min_validation_loss())
 				else:
 					failed_compilations += 1
 					if failed_compilations > 10:
 						raise ValueError("Too many failed compilations")
-				model_pool = cull_models(model_pool, model_pool_size)
+				model_pool = cull_and_save_models(model_pool, model_pool_size, save_dir)
 				test_indices = [BreedIndices([tracker.get_ir() for tracker in model_pool if random() < .2], .2, .2, .2) for _ in range(model_pool_size)]
 			i += 1
 
-def cull_models(model_pool: list[ModelTracker], max_pool_size: int) -> list[ModelTracker]:
+def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, save_dir: str) -> list[ModelTracker]:
 	model_pool.sort(key=lambda model: model.get_min_validation_loss())
 	return model_pool[:max_pool_size]
-def train_epoch(model: Module, criterion: Module, optimizer: torch.optim.Optimizer, train_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
+def train_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, optimizer: torch.optim.Optimizer, train_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
 	metrics: EpochMetrics = EpochMetrics()
 	model.train()
 	scaler = torch.cuda.amp.GradScaler()
@@ -105,14 +108,14 @@ def train_epoch(model: Module, criterion: Module, optimizer: torch.optim.Optimiz
 		with torch.autocast(device_type=device_type, dtype=torch.float16):
 			output = model(data)
 			loss = criterion(output, truth)
-			metrics.record(loss.item(), 0)
+			accuracy = accuracy_function(output, truth)
+			metrics.record(loss.item(), accuracy)
 		scaler.scale(loss).backward()
 		scaler.step(optimizer)
 		scaler.update()
-		if i % 100 == 0:
-			print(i, loss.item())
+	print(metrics)
 	return metrics 
-def validate_epoch(model: Module, criterion: Module, validation_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
+def validate_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, validation_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
 	metrics: EpochMetrics = EpochMetrics()
 	model.eval()
 	with torch.no_grad():
@@ -121,9 +124,9 @@ def validate_epoch(model: Module, criterion: Module, validation_loader: DataLoad
 			with torch.autocast(device_type=device_type, dtype=torch.float16):
 				output = model(data)
 				loss = criterion(output, truth)
-				metrics.record(loss.item(), 0)
-			#print(truth, output)
-	print(metrics.get_loss())
+				accuracy = accuracy_function(output, truth)
+				metrics.record(loss.item(), accuracy)
+	print(metrics)
 	return metrics 
 
 
@@ -167,17 +170,19 @@ class EpochMetrics:
 		self._correct_total += correct 
 	def get_loss(self) -> float:
 		return self._loss_total / self._samples
-	#this will need to have a user defined function to calculate whether something is correct or not 
-	#thus will leave it alone rn
-	#def get_accuracy(self) -> float:	
-	#	return self._correct_total / self._samples
+	def get_accuracy(self) -> float:	
+		return self._correct_total / self._samples
+	def __str__(self) -> str:
+		return f"Loss: {self.get_loss()}, Accuracy: {self.get_accuracy()}"
+	def __repr__(self) -> str:
+		return str(self)
 
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
 		param_group["lr"] = learning_rate
 def get_optimizer(optimizer_type: OptimizerType, model: Any) -> torch.optim.Optimizer:
 	if optimizer_type == OptimizerType.ADAM:
-		return torch.optim.Adam(model.parameters(), lr=0.005)
+		return torch.optim.Adam(model.parameters(), lr=0.0001)
 	elif optimizer_type == OptimizerType.SGD:
 		return torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 	else:

@@ -137,5 +137,6 @@ schema = Schema([start], [end])
 #	print(generate_torch_module("M", ir))
 
 control = Control(schema, train, test, compile_models=False, max_id=ID(62))
-control.search([LockedShape(CLASS_SIZE, review_length)], "", torch.nn.BCEWithLogitsLoss(), workers=4, batch_size=64, model_pool_size=5, training_epochs=20)
+control.search([LockedShape(CLASS_SIZE, review_length)], "", torch.nn.BCEWithLogitsLoss(),
+	workers=4, batch_size=64, model_pool_size=5, training_epochs=30)
 
