@@ -28,14 +28,16 @@ def module_(name: str, init_statements: list[str], forward_args: list[str], forw
 		function_("__init__", ["self"],["super().__init__()"] + [import_()] + init_statements) +
 		function_("forward", ["self"] + forward_args, [import_()] + forward_statments))))
 
-def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], groups: int) -> str:
-	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {groups}, bias=True, padding_mode='zeros')")
+def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
+	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups}, bias=True, padding_mode='zeros')")
 def full_init_(input_shape: LockedShape, output_shape: LockedShape) -> str:
 	return nn_(f"Linear({input_shape.get_product()}, {output_shape.get_product()}, bias=True)") 
 def relu_init_() -> str:
 	return nn_("ReLU()")
 def relu6_init_() -> str:
 	return nn_("ReLU6()")
+def glu_init_() -> str:
+	return nn_("GLU()")
 def sigmoid_init_() -> str:
 	return nn_("Sigmoid()")
 def softmax_init_() -> str:

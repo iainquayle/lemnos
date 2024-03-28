@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..shared import LockedShape, ID
 from ..schema import IRNode 
-from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6
+from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6, GLU
 from ..format.format_torch import * 
 from torch.nn import Module
 
@@ -30,7 +30,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		if isinstance(component, Conv):
 			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
 				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_groups(output_shape))
+				component.get_dilation(input_shape), component.get_groups(output_shape))
 		elif isinstance(component, Full):
 			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):
@@ -41,6 +41,8 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 			return sigmoid_init_() 
 		elif isinstance(component, Softmax):
 			return softmax_init_() 
+		elif isinstance(component, GLU):
+			return glu_init_()
 		elif isinstance(component, BatchNormalization):
 			return batchnorm_init_(output_shape) 
 		elif isinstance(component, Dropout):
@@ -93,7 +95,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 			node_register[node.id] = max_register
 			registers_in = [max_register]
 			register_out = max_register
-			forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(max_register), node.output_shape)))
+			forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(max_register), node.input_shape)))
 			arg_registers.append(max_register)
 		else:
 			for id in node.parent_ids:
@@ -121,6 +123,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 			current_shape = component_formatter.get_shape_requirment(component)
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
 		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
+		#forward_statements.append(print_(_register_name(register_out) + ".shape"))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 	return module_(name, init_statements, list(map(_register_name, arg_registers)), forward_statements)
 def get_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:

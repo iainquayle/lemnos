@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from ..schema import Schema, BreedIndices, IRNode
 from ..shared import LockedShape, ID
-from ..adapter import get_module, DefaultComponentFormatter
+from ..adapter import get_module, DefaultComponentFormatter, generate_torch_module
 
 from torch.utils.data import Dataset, DataLoader
 from torch.nn import Module
@@ -54,7 +54,9 @@ class Control:
 			optimizer_type: OptimizerType = OptimizerType.ADAM, 
 			batch_size: int = 5, 
 			workers: int = 0, 
-			model_pool_size: int = 1
+			model_pool_size: int = 1,
+			training_epochs: int = 1,
+			breed_iterations: int = 1,
 		) -> None:
 		#look into taking in a sampler for the data loader, may be useful for large datasets
 		device_type = CUDA if torch.cuda.is_available() else CPU 
@@ -65,8 +67,6 @@ class Control:
 		validation_loader = DataLoader(self._validation_dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
 		test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 		model_pool: list[ModelTracker] = [] 
-		breed_iterations = 1
-		training_epochs = 1
 		failed_compilations = 0
 		i = 0
 		while i < breed_iterations: #will switch this to use a call back? allowing for a cli?
@@ -83,6 +83,7 @@ class Control:
 							model.record_training_epoch(train_epoch(runnable_model, criterion, optimizer, train_loader, device, device_type))
 						model.record_validation_epoch(validate_epoch(runnable_model, criterion, validation_loader, device, device_type))
 					model_pool.append(model)
+					print(model.get_min_validation_loss())
 				else:
 					failed_compilations += 1
 					if failed_compilations > 10:
@@ -98,7 +99,7 @@ def train_epoch(model: Module, criterion: Module, optimizer: torch.optim.Optimiz
 	metrics: EpochMetrics = EpochMetrics()
 	model.train()
 	scaler = torch.cuda.amp.GradScaler()
-	for data, truth in train_loader:
+	for i, (data, truth) in enumerate(train_loader):
 		data, truth = data.to(device), truth.to(device)
 		optimizer.zero_grad(set_to_none=True)
 		with torch.autocast(device_type=device_type, dtype=torch.float16):
@@ -108,6 +109,8 @@ def train_epoch(model: Module, criterion: Module, optimizer: torch.optim.Optimiz
 		scaler.scale(loss).backward()
 		scaler.step(optimizer)
 		scaler.update()
+		if i % 100 == 0:
+			print(i, loss.item())
 	return metrics 
 def validate_epoch(model: Module, criterion: Module, validation_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
 	metrics: EpochMetrics = EpochMetrics()
@@ -119,6 +122,8 @@ def validate_epoch(model: Module, criterion: Module, validation_loader: DataLoad
 				output = model(data)
 				loss = criterion(output, truth)
 				metrics.record(loss.item(), 0)
+			#print(truth, output)
+	print(metrics.get_loss())
 	return metrics 
 
 
@@ -172,7 +177,7 @@ def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) ->
 		param_group["lr"] = learning_rate
 def get_optimizer(optimizer_type: OptimizerType, model: Any) -> torch.optim.Optimizer:
 	if optimizer_type == OptimizerType.ADAM:
-		return torch.optim.Adam(model.parameters())
+		return torch.optim.Adam(model.parameters(), lr=0.005)
 	elif optimizer_type == OptimizerType.SGD:
 		return torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 	else:
