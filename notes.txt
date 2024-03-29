@@ -7,10 +7,13 @@ changes:
 	possible:
 		reimpl component interface, and add a validate shapes method	
 			there are a number of not just specific to transform that require certain characterisitics of the shapes
-		remove validate transform shape
-		make transforms return none if the output doesnt fit perfectly, ie 5 -> 2
-		move ir to the target module
-			keep the generation in the schema module
+		maybe move compile related stuff to its own module
+			cant be moved too far, ie probably not sibling with schema due to import issues
+		move size coeff,
+			rename to size change hints, 
+			maybe move it to schema node
+		make activations able to change the size as well
+			glu needs to halve the tensor size
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
@@ -19,11 +22,12 @@ problems:
 		if all else fails, or as a fall back, could technically implement padding
 
 design:
+	components < schema graph < compile < schema < adapter < control
 	adapters
 		allow this to work with any framework
 		currently, using isinstance, but could use a nice approach
 			look into the action/command? pattern and the visitor pattern, may provide some better structural ideas?
-	start by making control specific to torch, but attempt to make it more generic later and accept an adapter
+	make control agnostic
+		start by making control specific to torch, but attempt to make it more generic later and accept an adapter
 		adapter will use the source gen target and functions specific to the framework for training
 		though this may be a dumb idea or atleast the sin of premature planning
-
