@@ -4,6 +4,9 @@ changes:
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
 			also just refactor it
+		move the model saving to its own function
+		make control framework agnostic
+			move all that to the adapters
 	possible:
 		reimpl component interface, and add a validate shapes method	
 			there are a number of not just specific to transform that require certain characterisitics of the shapes

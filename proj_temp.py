@@ -111,12 +111,12 @@ depthwise = SchemaNode(ShapeBound(None, None), Sum(),
 shrink = SchemaNode(ShapeBound((16, 384), None), Sum(), 
 	Conv((0.25, 1), 1, 1), None, BatchNormalization())
 
-down_sample = SchemaNode(ShapeBound((16, 200), (1, review_length)), Sum(), 
+down_sample = SchemaNode(ShapeBound((16, 172), (1, review_length)), Sum(), 
 	Conv((0.20, 1.0), 4, 4), ReLU6(), BatchNormalization())
 
 end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
 
-start.add_group((skip, 0, JoinType.NEW))
+start.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 
 skip.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 expand.add_group((depthwise, 0, JoinType.NEW))
@@ -126,7 +126,7 @@ shrink.add_group((skip, 0, JoinType.EXISTING))
 skip.add_group((down_sample, 0, JoinType.NEW))
 skip.add_group((end, 0, JoinType.NEW))
 
-down_sample.add_group((skip, 0, JoinType.NEW))
+down_sample.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 down_sample.add_group((down_sample, 0, JoinType.NEW))
 down_sample.add_group((end, 0, JoinType.NEW))
 
@@ -136,7 +136,8 @@ schema = Schema([start], [end])
 #if ir is not None:
 #	print(generate_torch_module("M", ir))
 
-control = Control(schema, train, test, compile_models=False, max_id=ID(62))
-control.search([LockedShape(CLASS_SIZE, review_length)], "", torch.nn.BCEWithLogitsLoss(),
-	workers=4, batch_size=64, model_pool_size=5, training_epochs=30)
+control = Control(schema, train, test, compile_models=False, max_id=ID(62),
+	accuracy_function=lambda x, y: torch.sum((x > 0.5) == y).item() / len(y))
+control.search([LockedShape(CLASS_SIZE, review_length)], "./temp_saves", torch.nn.BCEWithLogitsLoss(),
+	workers=4, batch_size=64, model_pool_size=5, training_epochs=30, breed_iterations=10, validation_multiple=5)
 

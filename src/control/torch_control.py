@@ -1,7 +1,6 @@
 #
 #
 # TEMPORARY, will be replaced with generic control, taking framework adapters
-# ...maybe, unless I decide its a dumb idea and just make it torch specific, which is likely true
 #
 #
 
@@ -15,6 +14,8 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn import Module
 from torch import Tensor
 import torch
+
+from pandas import DataFrame
 
 from typing import Any, Callable
 from enum import Enum
@@ -39,7 +40,8 @@ class Control:
 			max_id: ID = ID(1024),
 			compile_models: bool = True, 
 			compiler_backend: CompileBackend = CompileBackend.INDUCTOR, 
-			require_cuda: bool = True
+			require_cuda: bool = True,
+			accuracy_function: AccuracyFunction = lambda x, y: 0,
 			) -> None:
 		self._schema: Schema = schema
 		self._train_dataset: Dataset = train_dataset
@@ -48,11 +50,11 @@ class Control:
 		self._compile_models: bool = compile_models
 		self._compiler_backend: CompileBackend = compiler_backend
 		self._require_cuda: bool = require_cuda
+		self._accuracy_function: AccuracyFunction = accuracy_function
 	def search(self, 
 			input_shapes: list[LockedShape], 
 			save_dir: str, 
 			criterion: Module, 
-			accuracy_function: AccuracyFunction = lambda x, y: 0,
 			optimizer_type: OptimizerType = OptimizerType.ADAM, 
 			batch_size: int = 5, 
 			workers: int = 0, 
@@ -83,9 +85,9 @@ class Control:
 					optimizer = get_optimizer(optimizer_type, runnable_model)
 					for j in range(training_epochs):
 						print("Epoch", j)
-						model.record_training_epoch(train_epoch(runnable_model, criterion, accuracy_function, optimizer, train_loader, device, device_type))
+						model.record_training_epoch(train_epoch(runnable_model, criterion, self._accuracy_function, optimizer, train_loader, device, device_type))
 						if (j + 1) % validation_multiple == 0:
-							model.record_validation_epoch(validate_epoch(runnable_model, criterion, accuracy_function, validation_loader, device, device_type))
+							model.record_validation_epoch(validate_epoch(runnable_model, criterion, self._accuracy_function, validation_loader, device, device_type))
 					model_pool.append(model)
 				else:
 					failed_compilations += 1
@@ -97,7 +99,13 @@ class Control:
 
 def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, save_dir: str) -> list[ModelTracker]:
 	model_pool.sort(key=lambda model: model.get_min_validation_loss())
-	return model_pool[:max_pool_size]
+	model_pool = model_pool[:max_pool_size]
+	for i, model in enumerate(model_pool):
+		with open(f"{save_dir}/model_{i}.py", "w") as file:
+			file.write(generate_torch_module(f"M{i}", model.get_ir()))
+		DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._train], "loss": [metrics.get_loss() for metrics in model._train]}).to_csv(f"{save_dir}/model_{i}_train.csv")
+		DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._validation], "loss": [metrics.get_loss() for metrics in model._validation]}).to_csv(f"{save_dir}/model_{i}_validation.csv")
+	return model_pool
 def train_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, optimizer: torch.optim.Optimizer, train_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
 	metrics: EpochMetrics = EpochMetrics()
 	model.train()
