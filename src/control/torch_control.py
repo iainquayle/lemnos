@@ -190,7 +190,7 @@ def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) ->
 		param_group["lr"] = learning_rate
 def get_optimizer(optimizer_type: OptimizerType, model: Any) -> torch.optim.Optimizer:
 	if optimizer_type == OptimizerType.ADAM:
-		return torch.optim.Adam(model.parameters(), lr=0.0001)
+		return torch.optim.Adam(model.parameters(), lr=0.0002)
 	elif optimizer_type == OptimizerType.SGD:
 		return torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 	else:

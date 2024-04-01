@@ -113,37 +113,31 @@ def char_to_class_index(char: str) -> int | None:
 print(CLASS_SIZE)
 
 dataset = TweetDataset("data/twitter.csv")
-train, test = random_split(dataset, [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)])
+SPLIT = 0.99
+train, test = random_split(dataset, [int(len(dataset) * SPLIT), len(dataset) - int(len(dataset) * SPLIT)])
 del dataset
 
 def get_schema_a():
 	start = SchemaNode(ShapeBound((5, 15), None), Sum(), 
 		Conv((0.1, 0.5), 1, 1), ReLU6(), BatchNormalization())
-
 	skip = SchemaNode(ShapeBound(None, (1, review_length)), Sum(), None, None, BatchNormalization())
-	expand = SchemaNode(ShapeBound((16, 384), None), Sum(), 
+	expand = SchemaNode(ShapeBound((32, 256), None), Sum(), 
 		Conv((1, 4), 1, 1), ReLU6(), BatchNormalization())
 	depthwise = SchemaNode(ShapeBound(None, None), Sum(), 
-		Conv(1.0, 7, 1, 1, 3, 1), ReLU6(), BatchNormalization())
-	shrink = SchemaNode(ShapeBound((16, 384), None), Sum(), 
+		Conv(1.0, 5, 1, 1, 2, 1), ReLU6(), BatchNormalization())
+	shrink = SchemaNode(ShapeBound((32, 128), None), Sum(), 
 		Conv((0.25, 1), 1, 1), None, BatchNormalization())
-
-	down_sample = SchemaNode(ShapeBound((16, 172), (1, review_length)), Sum(), 
+	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(), 
 		Conv((0.20, 1.0), 2, 2), ReLU6(), BatchNormalization())
-
 	end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
-
 	#start.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 	start.add_group((skip, 1, JoinType.NEW))
-
 	skip.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 	expand.add_group((depthwise, 0, JoinType.NEW))
 	depthwise.add_group((shrink, 0, JoinType.NEW))
 	shrink.add_group((skip, 0, JoinType.EXISTING))
-
 	skip.add_group((down_sample, 0, JoinType.NEW))
 	skip.add_group((end, 0, JoinType.NEW))
-
 	#down_sample.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 	down_sample.add_group((skip, 1, JoinType.NEW))
 	down_sample.add_group((down_sample, 0, JoinType.NEW))
@@ -152,7 +146,35 @@ def get_schema_a():
 	return Schema([start], [end])
 
 def get_schema_b():
-	pass
+	#two options, give each depthwise a seperate pointwise to allow for different dimensions
+	#	or as is now, have them all pull directly from the skip and have a fixed size
+	embed = SchemaNode(ShapeBound((5, 15), None), Sum(), 
+		Conv((0.1, 0.5), 1, 1), ReLU6(), BatchNormalization())
+	second = SchemaNode(ShapeBound((15, 64), None), Sum(), 
+		Conv((0.1, 0.5), 3, 1, 1, 1), ReLU6(), BatchNormalization())
+	skip = SchemaNode(ShapeBound(None, (1, review_length)), Sum(), None, None, BatchNormalization())
+	shrink = SchemaNode(ShapeBound((16, 256), None), Sum(), 
+		Conv((0.25, 1), 1, 1), None, BatchNormalization())
+	expand = SchemaNode(ShapeBound((32, 384), None), Sum(),
+		Conv((1, 4), 1, 1), ReLU6(), BatchNormalization())
+	depthwise_s = SchemaNode(ShapeBound(None, None), Sum(), 
+		Conv(1.0, 3, 1, 1, 1, 1), ReLU6(), BatchNormalization())
+	depthwise_m = SchemaNode(ShapeBound((5, review_length), None), Sum(),
+		Conv(1.0, 2, 1, 1, 3, 1), ReLU6(), BatchNormalization())
+	depthwise_l = SchemaNode(ShapeBound((7, review_length), None), Sum(),
+		Conv(1.0, 2, 1, 1, 5, 1), ReLU6(), BatchNormalization())
+	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(), 
+		Conv((0.20, 1.0), 2, 2), ReLU6(), BatchNormalization())
+	end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
+	embed.add_group((second, 0, JoinType.NEW))
+	second.add_group((down_sample, 0, JoinType.NEW))
+	second.add_group((skip, 2, JoinType.NEW), (expand, 0, JoinType.NEW))
+	expand.add_group((depthwise_s, 0, JoinType.NEW))
+	depthwise_s.add_group((shrink, 1, JoinType.AUTO))
+	depthwise_m.add_group((shrink, 1, JoinType.AUTO))
+	depthwise_l.add_group((shrink, 1, JoinType.AUTO))
+	shrink.add_group((skip, 0, JoinType.EXISTING))
+	return Schema([embed], [end])
 
 #ir = get_schema_a().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(62))
 #if ir is not None:
@@ -162,5 +184,5 @@ def get_schema_b():
 control = Control(get_schema_a(), train, test, compile_models=False, max_id=ID(52),
 	accuracy_function=lambda x, y: torch.sum((x > 0.5) == y).item() / len(y))
 control.search([LockedShape(CLASS_SIZE, TWEET_LENGTH)], "./temp_saves", torch.nn.BCEWithLogitsLoss(),
-	workers=4, batch_size=64, model_pool_size=5, training_epochs=30, breed_iterations=10, validation_multiple=5)
+	workers=4, batch_size=64, model_pool_size=5, training_epochs=15, breed_iterations=10, validation_multiple=3)
 
