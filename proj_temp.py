@@ -108,10 +108,6 @@ def char_to_class_index(char: str) -> int | None:
 	#print("Invalid character: " + char)
 	return None 
 
-
-
-print(CLASS_SIZE)
-
 dataset = TweetDataset("data/twitter.csv")
 SPLIT = 0.99
 train, test = random_split(dataset, [int(len(dataset) * SPLIT), len(dataset) - int(len(dataset) * SPLIT)])
@@ -150,10 +146,10 @@ def get_schema_b():
 	#	or as is now, have them all pull directly from the skip and have a fixed size
 	embed = SchemaNode(ShapeBound((5, 15), None), Sum(), 
 		Conv((0.1, 0.5), 1, 1), ReLU6(), BatchNormalization())
-	second = SchemaNode(ShapeBound((15, 64), None), Sum(), 
-		Conv((0.1, 0.5), 3, 1, 1, 1), ReLU6(), BatchNormalization())
+	second = SchemaNode(ShapeBound((32, 64), None), Sum(), 
+		Conv((1, 10), 3, 1, 1, 1), ReLU6(), BatchNormalization())
 	skip = SchemaNode(ShapeBound(None, (1, review_length)), Sum(), None, None, BatchNormalization())
-	shrink = SchemaNode(ShapeBound((16, 256), None), Sum(), 
+	shrink = SchemaNode(ShapeBound((32, 256), None), Sum(), 
 		Conv((0.25, 1), 1, 1), None, BatchNormalization())
 	expand = SchemaNode(ShapeBound((32, 384), None), Sum(),
 		Conv((1, 4), 1, 1), ReLU6(), BatchNormalization())
@@ -163,6 +159,10 @@ def get_schema_b():
 		Conv(1.0, 2, 1, 1, 3, 1), ReLU6(), BatchNormalization())
 	depthwise_l = SchemaNode(ShapeBound((7, review_length), None), Sum(),
 		Conv(1.0, 2, 1, 1, 5, 1), ReLU6(), BatchNormalization())
+	down_sample_point = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(),
+		Conv((1.0, 2.0), 1, 1), ReLU6(), BatchNormalization())
+	down_sample_depthwise = SchemaNode(ShapeBound(None, (1, review_length)), Sum(),
+		Conv((1.0, 1.0), 2, 2, 1, 0, 1), ReLU6(), BatchNormalization())
 	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(), 
 		Conv((0.20, 1.0), 2, 2), ReLU6(), BatchNormalization())
 	end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
@@ -170,19 +170,20 @@ def get_schema_b():
 	second.add_group((down_sample, 0, JoinType.NEW))
 	second.add_group((skip, 2, JoinType.NEW), (expand, 0, JoinType.NEW))
 	expand.add_group((depthwise_s, 0, JoinType.NEW))
+	skip.add_group((depthwise_s, 0, JoinType.NEW), (depthwise_m, 0, JoinType.NEW), (depthwise_l, 0, JoinType.NEW))
 	depthwise_s.add_group((shrink, 1, JoinType.AUTO))
 	depthwise_m.add_group((shrink, 1, JoinType.AUTO))
 	depthwise_l.add_group((shrink, 1, JoinType.AUTO))
 	shrink.add_group((skip, 0, JoinType.EXISTING))
+
+	down_sample_point.add_group((down_sample_depthwise, 0, JoinType.NEW))
 	return Schema([embed], [end])
 
 #ir = get_schema_a().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(62))
 #if ir is not None:
 #	print(generate_torch_module("M", ir))
 
-
 control = Control(get_schema_a(), train, test, compile_models=False, max_id=ID(52),
 	accuracy_function=lambda x, y: torch.sum((x > 0.5) == y).item() / len(y))
 control.search([LockedShape(CLASS_SIZE, TWEET_LENGTH)], "./temp_saves", torch.nn.BCEWithLogitsLoss(),
 	workers=4, batch_size=64, model_pool_size=5, training_epochs=15, breed_iterations=10, validation_multiple=3)
-

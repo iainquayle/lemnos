@@ -36,8 +36,8 @@ def relu_init_() -> str:
 	return nn_("ReLU()")
 def relu6_init_() -> str:
 	return nn_("ReLU6()")
-def glu_init_() -> str:
-	return nn_("GLU()")
+def silu_init_() -> str:
+	return nn_("SiLU()")
 def sigmoid_init_() -> str:
 	return nn_("Sigmoid()")
 def softmax_init_() -> str:

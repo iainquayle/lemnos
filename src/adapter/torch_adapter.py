@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..shared import LockedShape, ID
 from ..schema import IRNode 
-from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6, GLU
+from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6, SiLU
 from ..format.format_torch import * 
 from torch.nn import Module
 
@@ -41,8 +41,8 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 			return sigmoid_init_() 
 		elif isinstance(component, Softmax):
 			return softmax_init_() 
-		elif isinstance(component, GLU):
-			return glu_init_()
+		elif isinstance(component, SiLU):
+			return silu_init_()
 		elif isinstance(component, BatchNormalization):
 			return batchnorm_init_(output_shape) 
 		elif isinstance(component, Dropout):

@@ -5,8 +5,6 @@ from abc import ABC as Abstract
 class Activation(Abstract):
 	pass
 
-class GLU(Activation):
-	pass
 class ReLU(Activation):
 	pass
 class ReLU6(Activation):
@@ -14,4 +12,6 @@ class ReLU6(Activation):
 class Softmax(Activation):
 	pass
 class Sigmoid(Activation):
+	pass
+class SiLU(Activation):
 	pass
