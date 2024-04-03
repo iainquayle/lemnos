@@ -15,7 +15,7 @@ class Shape(Abstract):
 	__slots__ = ("_shape", "_product_cache")
 	def __init__(self, *shape: int) -> None:
 		self._shape: tuple[int, ...] = tuple(shape)
-		self._product_cache: int = prod(self._shape)
+		self._product_cache: int = max(prod(self._shape), 1)
 	@abstractmethod
 	def upper_length(self) -> int:
 		pass

@@ -5,7 +5,6 @@ changes:
 			add an explicit modulo hint to schemas
 			add a modulo requirment to schemas and their components?
 		add shape changes to activations
-		consider making empty shape have product of 1
 		fix the issue with the groups
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
