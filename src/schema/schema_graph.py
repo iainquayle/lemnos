@@ -8,13 +8,15 @@ from .components.merge_method import MergeMethod
 from .components.component import Component
 from .compile_index import CompileIndex 
 
-from typing import Iterator, Iterable 
+from typing import Iterator, Iterable, Callable 
 from typing_extensions import Self
 
 from enum import Enum
 
+type SizeFunction = Callable[[int], tuple[int, int]]
+
 class SchemaNode:
-	__slots__ = ["_transform", "_transition_groups", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
+	__slots__ = ["_transform", "_transition_groups", "_shape_size_function", "_modulo_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
 			merge_method: MergeMethod,
@@ -23,6 +25,8 @@ class SchemaNode:
 			regularization: Regularization | None = None,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
+		self._shape_size_function: SizeFunction 
+		self._modulo_hint: int = 1
 		self._transition_groups: list[TransitionGroup] = []
 		self._merge_method: MergeMethod = merge_method 
 		self._transform: Transform | None = transform 

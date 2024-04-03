@@ -1,5 +1,11 @@
 changes:
 	guarenteed:
+		move everything to do with size changes to the schema node
+			change size coeff to some callable item 
+			add an explicit modulo hint to schemas
+			add a modulo requirment to schemas and their components?
+		add shape changes to activations
+		make shape bounds noneable on one side, always use tuples
 		fix the issue with the groups
 			create look ahead, that can define the modulo that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
@@ -12,17 +18,13 @@ changes:
 			there are a number of not just specific to transform that require certain characterisitics of the shapes
 		maybe move compile related stuff to its own module
 			cant be moved too far, ie probably not sibling with schema due to import issues
-		move size coeff,
-			rename to size change hints, 
-			maybe move it to schema node
-		make activations able to change the size as well
-			glu needs to halve the tensor size
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
 			so just make a singular lookahead for closest valid shapes, and then choose the one that is closest to the desired shape
 			shouldnt be too hard to implement, as it would deal with all of the schema nodes in a transition that it owns
 		if all else fails, or as a fall back, could technically implement padding
+	investigate zero divide in tranform, line 72
 
 design:
 	components < schema graph < compile < schema < adapter < control

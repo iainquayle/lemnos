@@ -117,14 +117,14 @@ def get_schema_a():
 	start = SchemaNode(ShapeBound((5, 15), None), Sum(), 
 		Conv((0.1, 0.5), 1, 1), ReLU6(), BatchNormalization())
 	skip = SchemaNode(ShapeBound(None, (1, review_length)), Sum(), None, None, BatchNormalization())
-	expand = SchemaNode(ShapeBound((32, 256), None), Sum(), 
+	expand = SchemaNode(ShapeBound((32, 384), None), Sum(), 
 		Conv((1, 4), 1, 1), ReLU6(), BatchNormalization())
 	depthwise = SchemaNode(ShapeBound(None, None), Sum(), 
-		Conv(1.0, 5, 1, 1, 2, 1), ReLU6(), BatchNormalization())
-	shrink = SchemaNode(ShapeBound((32, 128), None), Sum(), 
+		Conv(1.0, 7, 1, 1, 2, 1), ReLU6(), BatchNormalization())
+	shrink = SchemaNode(ShapeBound((32, 256), None), Sum(), 
 		Conv((0.25, 1), 1, 1), None, BatchNormalization())
 	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(), 
-		Conv((0.20, 1.0), 2, 2), ReLU6(), BatchNormalization())
+		Conv((0.20, 1.0), 2, 2), SiLU(), BatchNormalization())
 	end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
 	#start.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 	start.add_group((skip, 1, JoinType.NEW))
@@ -159,7 +159,7 @@ def get_schema_b():
 		Conv(1.0, 2, 1, 1, 3, 1), ReLU6(), BatchNormalization())
 	depthwise_l = SchemaNode(ShapeBound((7, review_length), None), Sum(),
 		Conv(1.0, 2, 1, 1, 5, 1), ReLU6(), BatchNormalization())
-	down_sample_point = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(),
+	down_sample_point = SchemaNode(ShapeBound((16, 172), (1, review_length)), Sum(),
 		Conv((1.0, 2.0), 1, 1), ReLU6(), BatchNormalization())
 	down_sample_depthwise = SchemaNode(ShapeBound(None, (1, review_length)), Sum(),
 		Conv((1.0, 1.0), 2, 2, 1, 0, 1), ReLU6(), BatchNormalization())
