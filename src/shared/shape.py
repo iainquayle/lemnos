@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Iterable, Any
-from copy import copy
 from math import prod
 from abc import ABC as Abstract, abstractmethod
 #rules:
@@ -184,24 +183,25 @@ class ShapeBound:
 			new_shape[-i] = self.clamp_value(new_shape[-i], -i)
 		return LockedShape(*new_shape) if shape.is_locked() else OpenShape(*new_shape)
 	def clamp_value(self, value: int, index: int) -> int:
-		element = self._bounds[index]
-		if element is not None:
-			return min(element[ShapeBound._UPPER_INDEX], max(element[ShapeBound._LOWER_INDEX], value))
-		else:
-			return value
+		lower, upper = self._bounds[index]
+		if lower is not None:
+			value = max(lower, value)
+		if upper is not None:
+			value = min(upper, value)
+		return value
 	def contains_value(self, value: int, index: int) -> bool:
-		#done this way to avoid None issue with lsp
-		element = self._bounds[index]
-		if element is not None:
-			return value >= element[ShapeBound._LOWER_INDEX] and value <= element[ShapeBound._UPPER_INDEX]
-		else:
-			return True
+		lower, upper = self._bounds[index]
+		if lower is not None and value < lower:
+			return False
+		if upper is not None and value > upper:
+			return False
+		return True
 	def __contains__(self, shape: Shape) -> bool:
 		for i in range(1, min(len(shape), len(self._bounds)) + 1):
 			if not self.contains_value(shape[-i], -i):
 				return False
 		return True
-	def __getitem__(self, index: int) -> tuple[int, int] | None:
+	def __getitem__(self, index: int) -> tuple[int | None, int | None] | None:
 		return self._bounds[index]
 	def __len__(self) -> int:
 		return len(self._bounds)

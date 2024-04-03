@@ -69,7 +69,7 @@ class Conv(Transform):
 			raise ValueError("input shape must have at least 2 dimensions")
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.is_locked():
-			channels = output_conformance.get_product() // upper_shape.get_product()
+			channels = output_conformance.get_product() // max(upper_shape.get_product(), 1)
 			if self._group_size is not None and (input_shape[0] % self._group_size != 0 or channels % self._group_size != 0):
 				#keep the input shape check separate incase the grouping problem is fixed using padding
 				return None
