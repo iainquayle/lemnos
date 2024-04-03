@@ -155,20 +155,21 @@ class OpenShape(Shape):
 		return f"(-1, {', '.join([str(x) for x in self._shape])})"
 	def get_upper_diff(self, other: Shape) -> int:
 		return 0
-	
+
 class ShapeBound:
 	_LOWER_INDEX = 0
 	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
-	def __init__(self, *bounds: tuple[int, int] | int | None) -> None:
-		self._bounds: list[tuple[int, int] | None] = [(x, x) if isinstance(x, int) else x for x in bounds] 
+	def __init__(self, *bounds: tuple[int | None, int | None] | int | None) -> None:
+		self._bounds: list[tuple[int | None, int | None]] = [bound if isinstance(bound, tuple) else (bound, bound) for bound in bounds] 
 		for i in range(len(self._bounds)):
-			element = self._bounds[i]
-			if element is not None:
-				if element[ShapeBound._LOWER_INDEX] > element[ShapeBound._UPPER_INDEX]:
-					self._bounds[i] = element[ShapeBound._UPPER_INDEX], element[ShapeBound._LOWER_INDEX]
-				if element[ShapeBound._LOWER_INDEX] <= 0 or element[ShapeBound._UPPER_INDEX] <= 0:
-					raise Exception("bound less than 1")
+			upper, lower = self._bounds[i]
+			if (lower is not None and upper is not None and
+					lower > upper):
+				self._bounds[i] = upper, lower
+			if ((lower is not None and lower <= 0) or 
+					(upper is not None and upper <= 0)):
+				raise Exception("bound less than 1")
 	def lower(self, index: int) -> int | None:
 		element = self._bounds[index]
 		return element[ShapeBound._LOWER_INDEX] if element is not None else None
@@ -178,10 +179,10 @@ class ShapeBound:
 	def clamp(self, shape: Shape) -> Shape:
 		if shape.dimensionality() > len(self._bounds):
 			raise Exception("shape dimensionality greater than bounds")
-		new_shape = copy(shape)
+		new_shape = list(iter(shape))
 		for i in range(1, len(new_shape) + 1):
-			new_shape._shape[-i] = self.clamp_value(new_shape[-i], -i)
-		return new_shape
+			new_shape[-i] = self.clamp_value(new_shape[-i], -i)
+		return LockedShape(*new_shape) if shape.is_locked() else OpenShape(*new_shape)
 	def clamp_value(self, value: int, index: int) -> int:
 		element = self._bounds[index]
 		if element is not None:
