@@ -47,4 +47,5 @@ inclusion of schema bound size change function, shape changing activations, and 
 			for the activation, it needs to be passed through and doubled if it is set to something specific
 				but needs
 			for the transform, it could be seen as being passed through, though they are much more flexible
-	
+	the grouping in conv transform will need to be switched to groups rather than group size
+		perhaps mke it forgiving, make it such that it will default to a single group if it cant fit correctly
