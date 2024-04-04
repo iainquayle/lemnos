@@ -35,3 +35,16 @@ design:
 		start by making control specific to torch, but attempt to make it more generic later and accept an adapter
 		adapter will use the source gen target and functions specific to the framework for training
 		though this may be a dumb idea or atleast the sin of premature planning
+
+inclusion of schema bound size change function, shape changing activations, and ability to specifiy modulo
+	activation
+		needs to be able to modify the conformance shape, the modulo, and the size change bounds that come from the function
+	transform
+		needs to be able to modify the modulo
+	in essence, both have very similar needs
+		both need to modify the modulo
+		the conformance shape can be thought of similarily?
+			for the activation, it needs to be passed through and doubled if it is set to something specific
+				but needs
+			for the transform, it could be seen as being passed through, though they are much more flexible
+	

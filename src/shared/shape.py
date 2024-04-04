@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Any
 from math import prod
 from abc import ABC as Abstract, abstractmethod
+from copy import copy
 #rules:
 #	if no remaining open dims
 #		dims to the right must be the same, dims to the left must be prod the same
@@ -160,6 +161,8 @@ class ShapeBound:
 	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
 	def __init__(self, *bounds: tuple[int | None, int | None] | int | None) -> None:
+		if len(bounds) == 0:
+			raise Exception("bounds cannot be empty")
 		self._bounds: list[tuple[int | None, int | None]] = [bound if isinstance(bound, tuple) else (bound, bound) for bound in bounds] 
 		for i in range(len(self._bounds)):
 			upper, lower = self._bounds[i]
@@ -196,11 +199,15 @@ class ShapeBound:
 		if upper is not None and value > upper:
 			return False
 		return True
+	def get_bounds(self) -> list[tuple[int | None, int | None]]:
+		return copy(self._bounds)
 	def __contains__(self, shape: Shape) -> bool:
 		for i in range(1, min(len(shape), len(self._bounds)) + 1):
 			if not self.contains_value(shape[-i], -i):
 				return False
 		return True
+	def __iter__(self) -> Iterable[tuple[int | None, int | None]]:
+		return iter(self._bounds)
 	def __getitem__(self, index: int) -> tuple[int | None, int | None] | None:
 		return self._bounds[index]
 	def __len__(self) -> int:

@@ -25,10 +25,14 @@ class Transform(Abstract):
 	@abstractmethod
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
 		pass
+	def get_modulo(self) -> int | None:
+		return None
+	#remove this
 	def get_coeff_bounds(self, size: int) -> tuple[int, int]:
 		lower = int(self._size_coeffs_bounds[_LOWER] * size)
 		upper = int(self._size_coeffs_bounds[_UPPER] * size)
 		return (lower, upper)
+	#def 
 
 class Full(Transform):
 	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
@@ -69,7 +73,7 @@ class Conv(Transform):
 			raise ValueError("input shape must have at least 2 dimensions")
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.is_locked():
-			channels = output_conformance.get_product() // max(upper_shape.get_product(), 1)
+			channels = output_conformance.get_product() // upper_shape.get_product()
 			if self._group_size is not None and (input_shape[0] % self._group_size != 0 or channels % self._group_size != 0):
 				#keep the input shape check separate incase the grouping problem is fixed using padding
 				return None
@@ -78,7 +82,7 @@ class Conv(Transform):
 		else:
 			if self._group_size is not None and input_shape[0] % self._group_size != 0:
 				return None	
-			channels_raw = shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(int(input_shape.get_product() / max(upper_shape.get_product(), 1))), 0), 0)
+			channels_raw = shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(int(input_shape.get_product() / upper_shape.get_product())), 0), 0)
 			if self._group_size is None:
 				return upper_shape.to_locked(channels_raw)
 			else:
@@ -97,6 +101,8 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
+	def get_modulo(self) -> int | None:
+		return self._group_size
 	def get_kernel(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._kernel.expand(input_shape.dimensionality() - 1)
 	def get_stride(self, input_shape: LockedShape) -> tuple[int, ...]:
