@@ -1,108 +1,97 @@
 from __future__ import annotations
 
 from ...shared import Shape, LockedShape, OpenShape, ShapeBound 
-from ..compile_index import CompileIndex 
+
+import math
 
 from abc import ABC as Abstract, abstractmethod 
-
-_LOWER = 0
-_UPPER = 1
+from enum import Enum
 
 class Transform(Abstract):
-	__slots__ = ["_size_coeffs_bounds"]
-	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
-		if isinstance(size_coeffs_bounds, int):
-			#wtf pyright
-			size_coeffs_bounds = (float(size_coeffs_bounds), float(size_coeffs_bounds))
-		if isinstance(size_coeffs_bounds, float):
-			size_coeffs_bounds = (size_coeffs_bounds, size_coeffs_bounds)
-		elif size_coeffs_bounds[0] > size_coeffs_bounds[1]:
-			size_coeffs_bounds = (size_coeffs_bounds[1], size_coeffs_bounds[0])
-		self._size_coeffs_bounds: tuple[float, float] = size_coeffs_bounds
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
 	@abstractmethod
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, divisor: int, growth_factor: float) -> LockedShape | None:
 		pass
-	def get_modulo(self) -> int | None:
+	def get_divisor(self) -> int | None:
 		return None
-	#remove this
-	def get_coeff_bounds(self, size: int) -> tuple[int, int]:
-		lower = int(self._size_coeffs_bounds[_LOWER] * size)
-		upper = int(self._size_coeffs_bounds[_UPPER] * size)
-		return (lower, upper)
-	#def 
 
 class Full(Transform):
-	def __init__(self, size_coeffs_bounds: float | tuple[float, float]) -> None:
-		super().__init__(size_coeffs_bounds)
+	def __init__(self) -> None:
+		pass
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality()
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, divisor: int, growth_factor: float) -> LockedShape | None:
 		upper_shape = input_shape.to_open()
 		if output_conformance.is_locked():
-			return upper_shape.to_locked(output_conformance.get_product() // upper_shape.get_product())
+			channel_raw = output_conformance.get_product() // upper_shape.get_product()
+			if channel_raw % divisor == 0:
+				return upper_shape.to_locked(channel_raw) 
+			return None
 		else:
-			return upper_shape.to_locked(shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(input_shape[0]), 0), 0))
-
+			if (channel_raw := _closest_divisible(int(input_shape[0] * growth_factor), divisor, shape_bounds)) is not None:
+				return upper_shape.to_locked(channel_raw)
+class GroupType(Enum):
+	DEPTHWISE = "depthwise"
 class Conv(Transform):
-	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_group_size"]
+	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups"]
 	def __init__(self,
-			size_coeffs_bounds: float | tuple[float, float],
 			kernel: tuple | int = 1, 
 			stride: tuple | int = 1, 
 			dilation: tuple | int = 1,
 			padding: tuple | int = 0,
-			group_size: int | None = None, 
+			groups: int | GroupType = 1, #none would be depthwise, so needs to be switched to some other signifier than None
 			) -> None:
-		super().__init__(size_coeffs_bounds)
 		self._kernel: _Clamptuple = _Clamptuple(kernel)
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
 		self._padding: _Clamptuple = _Clamptuple(padding)
-		self._group_size: int | None = group_size 
+		if isinstance(groups, int) and groups < 1:
+			raise ValueError("groups must be greater than 0")
+		self._groups: int | GroupType = groups
 	def output_dim_to_input_dim(self, output_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return (output_shape[i + 1] - 1) * self._stride[i] + (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1)) - self._padding[i] * 2
 	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, index: CompileIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, divisor: int, growth_factor: float) -> LockedShape | None:
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
+		groups: int = 1 
+		if isinstance(self._groups, int):
+			divisor = math.lcm(divisor, self._groups)
+			groups = self._groups
+		elif self._groups == GroupType.DEPTHWISE:
+			divisor = math.lcm(divisor, input_shape[0])
+			groups = input_shape[0]
+		else:
+			raise NotImplementedError("group type not supported yet")
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.is_locked():
 			channels = output_conformance.get_product() // upper_shape.get_product()
-			if self._group_size is not None and (input_shape[0] % self._group_size != 0 or channels % self._group_size != 0):
-				#keep the input shape check separate incase the grouping problem is fixed using padding
-				return None
-			else:
+			if input_shape[0] % groups == 0 and channels % divisor == 0 and shape_bounds.contains_value(channels, 0):
 				return upper_shape.to_locked(channels)
+			return None
 		else:
-			if self._group_size is not None and input_shape[0] % self._group_size != 0:
+			if input_shape[0] % groups != 0:
 				return None	
-			channels_raw = shape_bounds.clamp_value(index.get_shuffled(self.get_coeff_bounds(int(input_shape.get_product() / upper_shape.get_product())), 0), 0)
-			if self._group_size is None:
-				return upper_shape.to_locked(channels_raw)
-			else:
-				#this aint right...
-				output_shape = None
-				channels_factor = input_shape[0] // self._group_size
-				if shape_bounds.contains_value(channels := channels_raw // channels_factor * channels_factor, 0):
-					output_shape = upper_shape.to_locked(channels)
-				if (output_shape is None 
-						or (shape_bounds.contains_value(channels := (channels_raw // channels_factor + 1) * channels_factor, 0)
-						and channels - channels_raw < channels_raw - output_shape[0])):
-					output_shape = upper_shape.to_locked(channels)
-				return output_shape
+			channels_raw = shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0)
+			if (channels := _closest_divisible(channels_raw, divisor, shape_bounds)) is not None:
+				return upper_shape.to_locked(channels)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
-	def get_modulo(self) -> int | None:
-		return self._group_size
+	def get_divisor(self) -> int:
+		if isinstance(self._groups, int):
+			return self._groups
+		elif self._groups == GroupType.DEPTHWISE:
+			return 1
+		else:
+			raise NotImplementedError("group type not supported yet")
 	def get_kernel(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._kernel.expand(input_shape.dimensionality() - 1)
 	def get_stride(self, input_shape: LockedShape) -> tuple[int, ...]:
@@ -111,11 +100,21 @@ class Conv(Transform):
 		return self._dilation.expand(input_shape.dimensionality() - 1)
 	def get_padding(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._padding.expand(input_shape.dimensionality() - 1)
-	def get_group_size(self) -> int | None:
-		return self._group_size
-	def get_groups(self, output_shape: LockedShape) -> int:
-		return 1 if self._group_size is None else output_shape[0] // self._group_size
+	def get_groups(self) -> int | GroupType:
+		return self._groups
 
+def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
+	lower, upper = _closest_divisibles(value, divisor)
+	if shape_bound.contains_value(lower, 0) and abs(value - lower) < abs(value - upper):
+		return lower
+	elif shape_bound.contains_value(upper, 0) and abs(value - upper) < abs(value - lower):
+		return upper
+	else:
+		return None 
+def _closest_divisibles(value: int, divisor: int) -> tuple[int, int]:
+	lower = value // divisor * divisor
+	upper = lower + divisor
+	return lower, upper
 class _Clamptuple:
 	slot = ["_val"]
 	def __init__(self, val: tuple[int, ...] | int) -> None:

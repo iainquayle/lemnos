@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, OpenShape, Shape, ShapeBound, lcm
+from ..shared import LockedShape, OpenShape, Shape, ShapeBound
 from .components.transform import Transform
 from .components.activation import Activation
 from .components.regularization import Regularization
@@ -31,23 +31,23 @@ class ExponentialGrowth:
 		return int(center * (1 - self._variability)), int(center * (1 + self._variability))
 
 class SchemaNode:
-	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_modulo_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
+	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
 			merge_method: MergeMethod | None = None,
 			transform: Transform | None = None,
 			activation: Activation | None = None,
 			regularization: Regularization | None = None,
-			modulo_hint: int = 1,
+			divisor_hint: int = 1,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
-		self._growth_function: Callable[[LockedShape], tuple[int, int]] | None = None 
+		self._growth_function: Callable[[LockedShape], float] | None = None 
 		self._transition_groups: list[TransitionGroup] = []
 		self._merge_method: MergeMethod | None = merge_method 
 		self._transform: Transform | None = transform 
 		self._activation: Activation | None = activation 
 		self._regularization: Regularization | None = regularization 
-		self._modulo_hint: int = modulo_hint 
+		self._divisor_hint: int = divisor_hint 
 		self.debug_name: str = debug_name 
 	def add_group(self, *transitions: tuple[SchemaNode, int, JoinType] | Transition) -> Self:
 		self._transition_groups.append(TransitionGroup([transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
@@ -59,9 +59,10 @@ class SchemaNode:
 			return input_shapes[0].squash(self.dimensionality())
 		else:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, conformance_modulo: int, index: CompileIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, divisor: int, index: CompileIndex) -> LockedShape | None:
 		if self._activation is not None:
 			output_conformance = self._activation.get_conformance(output_conformance)
+		growth_factor = self._growth_function(input_shape) if self._growth_function is not None else 1
 		output_shape = self._transform.get_output_shape(input_shape, output_conformance, self._shape_bounds, index) if self._transform is not None else input_shape
 		if output_shape is not None and output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
 			return output_shape 
@@ -74,23 +75,16 @@ class SchemaNode:
 			return OpenShape()
 		else:
 			return self._merge_method.get_conformance_shape(input_shapes)
-	def get_conformance_modulo(self) -> int:
+	def get_conformance_divisor(self) -> int:
 		if self._transform is not None:
-			if (transform_modulo := self._transform.get_modulo()) is None:
+			if (transform_divisor := self._transform.get_divisor()) is None:
 				return 1
 			else:
-				return math.lcm(transform_modulo, self._activation.get_modulo()) if self._activation is not None else transform_modulo
+				return math.lcm(transform_divisor, self._activation.get_divisor()) if self._activation is not None else transform_divisor
 		elif self._activation is not None:
-			return self._activation.get_modulo()
+			return self._activation.get_divisor()
 		else:
 			return 1
-	def get_bounds(self, bounds: ShapeBound, input_shape: LockedShape) -> ShapeBound:
-		if self._growth_function is None:
-			return self._shape_bounds
-		else:
-			lower, upper = self._growth_function(input_shape)
-			listed_bounds = bounds.get_bounds()
-			
 	def get_transform(self) -> Transform | None:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod | None:

@@ -1,12 +1,13 @@
 changes:
 	guarenteed:
+		do the divisors for a schema node need to stack instead of be lcm
 		move everything to do with size changes to the schema node
 			change size coeff to some callable item 
-			add an explicit modulo hint to schemas
-			add a modulo requirment to schemas and their components?
+			add an explicit divisor hint to schemas
+			add a divisor requirment to schemas and their components?
 		add shape changes to activations
 		fix the issue with the groups
-			create look ahead, that can define the modulo that a shape must conform to?
+			create look ahead, that can define the divisor that a shape must conform to?
 				already have look ahead for joining existing nodes nodes, so not unheard of
 			also just refactor it
 		move the model saving to its own function
@@ -17,6 +18,8 @@ changes:
 			there are a number of not just specific to transform that require certain characterisitics of the shapes
 		maybe move compile related stuff to its own module
 			cant be moved too far, ie probably not sibling with schema due to import issues
+		make the conv groups be able to take on some kind of enum?
+			would like to make depthwise more clear than using none, as well may be able to add more group types
 problems:
 	issue with groups, the input shape needs to be divisible by the group size
 		!! node already do a singular lookahead when it comes to finding a valid output shape for joining existing nodes
@@ -36,13 +39,13 @@ design:
 		adapter will use the source gen target and functions specific to the framework for training
 		though this may be a dumb idea or atleast the sin of premature planning
 
-inclusion of schema bound size change function, shape changing activations, and ability to specifiy modulo
+inclusion of schema bound size change function, shape changing activations, and ability to specifiy divisor
 	activation
-		needs to be able to modify the conformance shape, the modulo, and the size change bounds that come from the function
+		needs to be able to modify the conformance shape, the divisor, and the size change bounds that come from the function
 	transform
-		needs to be able to modify the modulo
+		needs to be able to modify the divisor
 	in essence, both have very similar needs
-		both need to modify the modulo
+		both need to modify the divisor
 		the conformance shape can be thought of similarily?
 			for the activation, it needs to be passed through and doubled if it is set to something specific
 				but needs

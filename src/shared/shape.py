@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from typing import Iterable, Any
+
 from math import prod
-from abc import ABC as Abstract, abstractmethod
 from copy import copy
+
+from abc import ABC as Abstract, abstractmethod
+
 #rules:
 #	if no remaining open dims
 #		dims to the right must be the same, dims to the left must be prod the same
@@ -75,9 +78,6 @@ class Shape(Abstract):
 		return self._product_cache
 	def __repr__(self) -> str:
 		return str(self)
-	@abstractmethod
-	def get_listed_source(self) -> str:
-		pass
 
 class LockedShape(Shape):
 	def __init__(self, *shape: int) -> None:
@@ -118,8 +118,6 @@ class LockedShape(Shape):
 		return LockedShape(*self._shape)
 	def __str__(self) -> str:
 		return f"LS({self._shape})"
-	def get_listed_source(self) -> str:
-		return f"({', '.join([str(x) for x in self._shape])})"
 		
 class OpenShape(Shape):
 	def upper_length(self) -> int:
@@ -151,14 +149,12 @@ class OpenShape(Shape):
 		return OpenShape(*self._shape)
 	def __str__(self) -> str:
 		return f"OS({self._shape})"
-	def get_listed_source(self) -> str:
-		return f"(-1, {', '.join([str(x) for x in self._shape])})"
 	def get_upper_diff(self, other: Shape) -> int:
 		return 0
 
+_LOWER_INDEX = 0
+_UPPER_INDEX = 1
 class ShapeBound:
-	_LOWER_INDEX = 0
-	_UPPER_INDEX = 1
 	__slots__ = ("_bounds")
 	def __init__(self, *bounds: tuple[int | None, int | None] | int | None) -> None:
 		if len(bounds) == 0:
@@ -174,10 +170,10 @@ class ShapeBound:
 				raise Exception("bound less than 1")
 	def lower(self, index: int) -> int | None:
 		element = self._bounds[index]
-		return element[ShapeBound._LOWER_INDEX] if element is not None else None
+		return element[_LOWER_INDEX] if element is not None else None
 	def upper(self, index: int) -> int | None:
 		element = self._bounds[index]
-		return element[ShapeBound._UPPER_INDEX] if element is not None else None
+		return element[_UPPER_INDEX] if element is not None else None
 	def clamp(self, shape: Shape) -> Shape:
 		if shape.dimensionality() > len(self._bounds):
 			raise Exception("shape dimensionality greater than bounds")
@@ -201,6 +197,8 @@ class ShapeBound:
 		return True
 	def get_bounds(self) -> list[tuple[int | None, int | None]]:
 		return copy(self._bounds)
+	def scale(self, scalars: list[float]) -> ShapeBound:
+		return ShapeBound(*[(int(scalar * lower) if lower is not None else None, int(scalar * upper) if upper is not None else None) for (lower, upper), scalar in zip(self._bounds, scalars)])
 	def __contains__(self, shape: Shape) -> bool:
 		for i in range(1, min(len(shape), len(self._bounds)) + 1):
 			if not self.contains_value(shape[-i], -i):

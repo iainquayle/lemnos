@@ -7,7 +7,7 @@ from abc import ABC as Abstract
 class Activation(Abstract):
 	def get_conformance(self, conformance: Shape) -> Shape:
 		return conformance
-	def get_modulo(self) -> int:
+	def get_divisor(self) -> int:
 		return 1 
 	def get_bounds(self, bounds: ShapeBound) -> ShapeBound:
 		return bounds
@@ -18,7 +18,7 @@ class GLU(Activation):
 			return conformance
 		else:
 			return conformance.to_open().to_locked(conformance[0] * 2)
-	def get_modulo(self) -> int:
+	def get_divisor(self) -> int:
 		return 2
 	def get_bounds(self, bounds: ShapeBound) -> ShapeBound:
 		listed_bounds = bounds.get_bounds() 
