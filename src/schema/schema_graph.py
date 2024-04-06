@@ -14,6 +14,7 @@ from typing import Iterator, Iterable, Callable
 from typing_extensions import Self
 
 from enum import Enum
+from dataclasses import dataclass
 
 class ExponentialGrowth:
 	def __init__(self, intercept: int, exponent: float, variability: float) -> None:
@@ -29,6 +30,16 @@ class ExponentialGrowth:
 	def __call__(self, shape: LockedShape, index: CompileIndex) -> float:
 		center = 1 / ((shape.get_product() / self._zero) ** self._exponent)
 		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
+
+@dataclass
+class Conformance:
+	shape: Shape
+	divisor: int
+	def common(self, other: Conformance) -> Conformance | None:
+		if (shape := self.shape.common_lossless(other.shape)) is not None:
+			return Conformance(shape, math.lcm(self.divisor, other.divisor))
+		else:
+			return None
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
@@ -71,13 +82,13 @@ class SchemaNode:
 				return output_shape 
 		else:
 			return None
-	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
+	def get_conformance_shape(self, sibling_shapes: list[LockedShape]) -> Shape:
 		if self._merge_method is None:
-			if len(input_shapes) > 1:
+			if len(sibling_shapes) > 1:
 				raise ValueError("No merge method defined for multiple inputs")
 			return OpenShape()
 		else:
-			return self._merge_method.get_conformance_shape(input_shapes)
+			return self._merge_method.get_conformance_shape(sibling_shapes)
 	def get_divisor(self) -> int:
 		divisor = self._divisor_hint
 		if self._transform is not None:
@@ -85,6 +96,13 @@ class SchemaNode:
 		if self._activation is not None:
 			divisor = self._activation.get_divisor(divisor)
 		return divisor
+	def get_conformance(self, sibling_shapes: list[LockedShape]) -> Conformance | None:
+		if self._merge_method is None:
+			if len(sibling_shapes) > 1:
+				raise ValueError("No merge method defined for multiple inputs")
+			return Conformance(OpenShape(), 1)
+		elif (conformance_shape := self._merge_method.get_conformance_shape(sibling_shapes)) is not None:
+			return Conformance(conformance_shape, self.get_divisor()) 
 	def get_transform(self) -> Transform | None:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod | None:
