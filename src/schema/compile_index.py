@@ -17,6 +17,8 @@ class CompileIndex:
 		elif bounds[0] > bounds[1]:
 			bounds = (bounds[1], bounds[0])
 		return random.Random(self._index + salt).randint(*bounds)
+	def get_shuffled_float(self, bounds: tuple[float, float] | float, salt: int = 0) -> float:
+		return 0
 	def get(self) -> int:
 		return self._index
 	def __eq__(self, other: Any) -> bool:

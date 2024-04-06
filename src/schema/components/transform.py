@@ -14,8 +14,8 @@ class Transform(Abstract):
 	@abstractmethod
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, divisor: int, growth_factor: float) -> LockedShape | None:
 		pass
-	def get_divisor(self) -> int | None:
-		return None
+	def get_divisor(self) -> int:
+		return 1 
 
 class Full(Transform):
 	def __init__(self) -> None:
@@ -80,6 +80,8 @@ class Conv(Transform):
 			channels_raw = shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0)
 			if (channels := _closest_divisible(channels_raw, divisor, shape_bounds)) is not None:
 				return upper_shape.to_locked(channels)
+			else:
+				return None
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
@@ -105,9 +107,9 @@ class Conv(Transform):
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)
-	if shape_bound.contains_value(lower, 0) and abs(value - lower) < abs(value - upper):
+	if shape_bound.contains_value(lower, 0) and (abs(value - lower) < abs(value - upper) or not shape_bound.contains_value(upper, 0)):
 		return lower
-	elif shape_bound.contains_value(upper, 0) and abs(value - upper) < abs(value - lower):
+	elif shape_bound.contains_value(upper, 0):
 		return upper
 	else:
 		return None 

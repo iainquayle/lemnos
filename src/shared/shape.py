@@ -112,6 +112,8 @@ class LockedShape(Shape):
 		elif self[0] % other.reverse_lower_product(reverse_index) != 0:
 				return None
 		return self if self.reverse_upper_equal(reverse_index, other) else None 
+	def scale(self, scalars: list[float]) -> LockedShape:
+		return LockedShape(*[int(scalar * element) for element, scalar in zip(self._shape, scalars)])
 	def __eq__(self, other: Any) -> bool:
 		return other is not None and isinstance(other, LockedShape) and self._shape == other._shape
 	def __copy__(self) -> LockedShape:
