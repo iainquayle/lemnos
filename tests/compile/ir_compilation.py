@@ -2,15 +2,15 @@ import unittest
 
 from src.schema import SchemaNode, JoinType 
 from src.schema.compile import NodeTracker, NodeTrackerStack, CompilationTracker
-from src.schema.components import Concat, Sum, Conv, ReLU, BatchNormalization, Full
+from src.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full
 from src.schema.compile_indices import BreedIndices
 from src.shared import *
 
 class TestCompilation(unittest.TestCase):
 	def test_split(self):
-		start_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "start")
-		mid_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "mid")
-		end_schema = SchemaNode(ShapeBound((1, 10)), Concat(), None, None, None, "end")
+		start_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "start")
+		mid_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "mid")
+		end_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "end")
 		start_schema.add_group((mid_schema, 0, JoinType.NEW), (end_schema, 1, JoinType.NEW))
 		mid_schema.add_group((end_schema, 0, JoinType.EXISTING))
 		tracker = CompilationTracker([NodeTrackerStack(start_schema, [NodeTracker(set(), [], LockedShape(1), 0)])], None, ID(0), ID(100)) 
@@ -19,8 +19,8 @@ class TestCompilation(unittest.TestCase):
 			self.fail()
 		self.assertEqual(len(nodes), 3)
 	def test_loop(self):
-		main = SchemaNode(ShapeBound((1, 1), (1, 16)), Concat(), Conv( (.1, 2), kernel=2, stride=2), None, None, "main")
-		end = SchemaNode(ShapeBound((1, 1), (1, 1)), Concat(), None, None, None, "end")
+		main = SchemaNode(ShapeBound((1, 1), (1, 16)), None, Concat(), Conv(kernel=2, stride=2), None, None, 1, "main")
+		end = SchemaNode(ShapeBound((1, 1), (1, 1)), None, Concat(), None, None, None, 1, "end")
 		main.add_group((end, 0, JoinType.NEW))
 		main.add_group((main, 0, JoinType.NEW))
 		tracker = CompilationTracker([NodeTrackerStack(main, [NodeTracker(set(), [], LockedShape(1, 8), 0)])], None, ID(0), ID(100)) 
@@ -29,18 +29,20 @@ class TestCompilation(unittest.TestCase):
 			self.fail()
 		self.assertEqual(len(nodes), 4)
 	def test_split_loop(self):
-		main = SchemaNode( ShapeBound(None, None), Sum(), None, None, None, "main")
+		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, 1, "main")
 		split_1 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
+			None,
 			Concat(), 
-			Conv((.1, 2.0), kernel=2, stride=2),
+			Conv(kernel=2, stride=2),
 			ReLU(), 
-			BatchNormalization(), "split_1")
+			BatchNorm(), 1, "split_1")
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
+			None,
 			Concat(), 
-			Conv((.1, 2.0), kernel=2, stride=2),
+			Conv(kernel=2, stride=2),
 			ReLU(), 
-			BatchNormalization(), "split_2")
-		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), Concat(), Full((0.1, 2.0)), None, None, "end")
+			BatchNorm(), 1, "split_2")
+		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, Concat(), Full(), None, None, 1, "end")
 		main.add_group( (split_1, 0, JoinType.NEW), (split_2, 1, JoinType.NEW))
 		split_1.add_group( (main, 2, JoinType.NEW))
 		split_2.add_group( (main, 2, JoinType.EXISTING))

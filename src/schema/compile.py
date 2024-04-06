@@ -8,6 +8,7 @@ from .ir_node import IRNode
 from dataclasses import dataclass
 
 from copy import copy
+import math
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_id"]
@@ -27,15 +28,15 @@ class CompilationTracker:
 		tracker_node = self._stacks[min_stack_index].pop()
 		schema_node = self._stacks[min_stack_index].get_schema()
 		index = indices.get_index(self._id, schema_node, tracker_node.input_shape)
-		offset = index.get_shuffled(len(schema_node), 0)
+		offset: int = int(index.get_shuffled(len(schema_node), 0))
 		input_shape = schema_node.get_input_shape([tracker_node.input_shape])
 		for group in (schema_node[(i + offset) % len(schema_node)] for i in range(len(schema_node))):
-			if ((conformance := self.get_conformance(schema_node, group)) is not None
-					and (output_shape := schema_node.get_output_shape(input_shape, conformance, index)) is not None
+			if ((conformance_and_divisor := self.get_conformance_and_divisor(schema_node, group)) is not None
+					and (output_shape := schema_node.get_output_shape(input_shape, *conformance_and_divisor, index)) is not None
 					and (ir := self.next(schema_node, group, output_shape).compile_ir(indices)) is not None):
 				return ir + [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, input_shape, output_shape, index)]
 		if (len(schema_node) == 0
-				and (output_shape := schema_node.get_output_shape(input_shape, OpenShape(), index)) is not None):
+				and (output_shape := schema_node.get_output_shape(input_shape, OpenShape(), 1, index)) is not None):
 			return [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, tracker_node.input_shape, output_shape, index)]
 		return None
 	def next(self, parent: SchemaNode, children: TransitionGroup, parent_output_shape: LockedShape) -> CompilationTracker:
@@ -44,15 +45,17 @@ class CompilationTracker:
 			stack_index = next_tracker._stacks_lookup[transition.get_next()]
 			next_tracker._stacks[stack_index] = next_tracker._stacks[stack_index].next(parent, transition.get_join_type(), parent_output_shape, self._id, transition.get_priority())
 		return next_tracker
-	def get_conformance(self, parent: SchemaNode, children: TransitionGroup) -> Shape | None:
+	def get_conformance_and_divisor(self, parent: SchemaNode, children: TransitionGroup) -> tuple[Shape, int] | None:
 		common_conformance: Shape = OpenShape() 
+		divisor = 1
 		for transition in children:
 			if ((conformance := self[transition.get_next()].get_conformance(parent, transition.get_join_type())) is not None
 					and (conformance := common_conformance.common_lossless(conformance)) is not None):
 				common_conformance = conformance
+				divisor = math.lcm(divisor, transition.get_next().get_divisor())
 			else:
 				return None
-		return common_conformance
+		return common_conformance, divisor
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
 	def __getitem__(self, key: SchemaNode) -> NodeTrackerStack:

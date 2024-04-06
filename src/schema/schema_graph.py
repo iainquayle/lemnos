@@ -27,13 +27,14 @@ class ExponentialGrowth:
 		self._variability: float = variability
 		self._zero: int = intercept 
 	def __call__(self, shape: LockedShape, index: CompileIndex) -> float:
-		center = ((shape.get_product() / self._zero) ** self._exponent) * self._zero
-		return 1
+		center = 1 / ((shape.get_product() / self._zero) ** self._exponent)
+		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
+			growth_function: Callable[[LockedShape, CompileIndex], float] | None = None,
 			merge_method: MergeMethod | None = None,
 			transform: Transform | None = None,
 			activation: Activation | None = None,
@@ -41,7 +42,7 @@ class SchemaNode:
 			divisor_hint: int = 1,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
-		self._growth_function: Callable[[LockedShape, CompileIndex], float] | None = None 
+		self._growth_function: Callable[[LockedShape, CompileIndex], float] | None = growth_function 
 		self._transition_groups: list[TransitionGroup] = []
 		self._merge_method: MergeMethod | None = merge_method 
 		self._transform: Transform | None = transform 
@@ -60,10 +61,6 @@ class SchemaNode:
 		else:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, divisor: int, index: CompileIndex) -> LockedShape | None:
-		#steps
-		#	modify shape conformance, bounds, divisor, growth factor
-		#	get the output shape from the transform
-		#	modify the output shape
 		divisor = math.lcm(divisor, self._divisor_hint)
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
 		conformance, bounds, divisor, growth_factor = self._activation.scale_build_conformances(output_conformance, self._shape_bounds, divisor, growth_factor) if self._activation is not None else (output_conformance, self._shape_bounds, divisor, growth_factor)
