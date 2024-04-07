@@ -11,21 +11,6 @@ from torch import Tensor
 from torch.utils.data import Dataset, random_split
 import pandas as pd
 
-review_length = 2**14
-class IMDBDataset(Dataset):
-	def __init__(self, path: str):
-		csv = pd.read_csv(path)
-		self.data = [review[0:] for review in csv["review"]]
-		self.labels = [Tensor([1 if sentiment == 'positive' else 0]) for sentiment in csv["sentiment"]]
-	def __len__(self) -> int:
-		return len(self.data)	
-	def __getitem__(self, index: int) -> tuple[Tensor, Tensor]:
-		tensor = torch.zeros(CLASS_SIZE, review_length, dtype=torch.float32)
-		for i, char in enumerate(self.data[index]):
-			if (char_index := char_to_class_index(char)) is not None:
-				tensor[char_index][i] = 1.0
-		return tensor, self.labels[index]
-
 TWEET_LENGTH = 256 
 class TweetDataset(Dataset):
 	def __init__(self, path: str):
@@ -108,10 +93,6 @@ def char_to_class_index(char: str) -> int | None:
 	#print("Invalid character: " + char)
 	return None 
 
-dataset = TweetDataset("data/twitter.csv")
-SPLIT = 0.99
-train, test = random_split(dataset, [int(len(dataset) * SPLIT), len(dataset) - int(len(dataset) * SPLIT)])
-del dataset
 
 def get_schema_a():
 	start = SchemaNode(ShapeBound((5, 15), None), 
@@ -120,7 +101,7 @@ def get_schema_a():
 		Conv(1, 1), 
 		ReLU6(), 
 		BatchNorm())
-	skip = SchemaNode(ShapeBound(None, (1, review_length)), 
+	skip = SchemaNode(ShapeBound(None, (1, None)), 
 		None,
 		Sum(), 
 		None, 
@@ -144,7 +125,7 @@ def get_schema_a():
 		Conv(1, 1), 
 		None, 
 		BatchNorm())
-	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), 
+	down_sample = SchemaNode(ShapeBound((16, 256), (1, None)), 
 		PowerGrowth(220, .5, .25),
 		Sum(), 
 		Conv(2, 2), 
@@ -172,28 +153,77 @@ def get_schema_a():
 def get_schema_b():
 	#two options, give each depthwise a seperate pointwise to allow for different dimensions
 	#	or as is now, have them all pull directly from the skip and have a fixed size
-	embed = SchemaNode(ShapeBound((5, 15), None), Sum(), 
-		Conv((0.1, 0.5), 1, 1), ReLU6(), BatchNormalization())
-	second = SchemaNode(ShapeBound((32, 64), None), Sum(), 
-		Conv((1, 10), 3, 1, 1, 1), ReLU6(), BatchNormalization())
-	skip = SchemaNode(ShapeBound(None, (1, review_length)), Sum(), None, None, BatchNormalization())
-	shrink = SchemaNode(ShapeBound((32, 256), None), Sum(), 
-		Conv((0.25, 1), 1, 1), None, BatchNormalization())
-	expand = SchemaNode(ShapeBound((32, 384), None), Sum(),
-		Conv((1, 4), 1, 1), ReLU6(), BatchNormalization())
-	depthwise_s = SchemaNode(ShapeBound(None, None), Sum(), 
-		Conv(1.0, 3, 1, 1, 1, 1), ReLU6(), BatchNormalization())
-	depthwise_m = SchemaNode(ShapeBound((5, review_length), None), Sum(),
-		Conv(1.0, 2, 1, 1, 3, 1), ReLU6(), BatchNormalization())
-	depthwise_l = SchemaNode(ShapeBound((7, review_length), None), Sum(),
-		Conv(1.0, 2, 1, 1, 5, 1), ReLU6(), BatchNormalization())
-	down_sample_point = SchemaNode(ShapeBound((16, 172), (1, review_length)), Sum(),
-		Conv((1.0, 2.0), 1, 1), ReLU6(), BatchNormalization())
-	down_sample_depthwise = SchemaNode(ShapeBound(None, (1, review_length)), Sum(),
-		Conv((1.0, 1.0), 2, 2, 1, 0, 1), ReLU6(), BatchNormalization())
-	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(), 
-		Conv((0.20, 1.0), 2, 2), ReLU6(), BatchNormalization())
-	end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
+	embed = SchemaNode(ShapeBound((5, 15), None), 
+		LinearGrowth(1/5, .5),
+		Sum(), 
+		Conv(1, 1), ReLU6(), 
+		BatchNorm())
+	second = SchemaNode(ShapeBound((32, 64), None), 
+		LinearGrowth(5, .5),
+		Sum(), 
+		Conv(3, 1, 1, 1),
+		ReLU6(),
+		BatchNorm())
+	skip = SchemaNode(ShapeBound(None, (1, None)), 
+		None,
+		Sum(), 
+		None, 
+		None, 
+		BatchNorm())
+	shrink = SchemaNode(ShapeBound((32, 256), None), 
+		LinearGrowth(1/5, .5),
+		Sum(), 
+		Conv(1, 1), 
+		None, 
+		BatchNorm())
+	expand = SchemaNode(ShapeBound((32, 384), None), 
+		None,
+		Sum(),
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm())
+	depthwise_s = SchemaNode(ShapeBound(None, None), 
+		None,
+		Sum(), 
+		Conv(3, 1, 1, 1, 1), 
+		ReLU6(), 
+		BatchNorm())
+	depthwise_m = SchemaNode(ShapeBound((5, None), None), 
+		None,
+		Sum(),
+		Conv(2, 1, 1, 3, 1), 
+		ReLU6(), 
+		BatchNorm())
+	depthwise_l = SchemaNode(ShapeBound((7, None), None), 
+		None,
+		Sum(),
+		Conv(2, 1, 1, 5, 1), 
+		ReLU6(), 
+		BatchNorm())
+	down_sample_point = SchemaNode(ShapeBound((16, 172), (1, None)), 
+		PowerGrowth(220, .5, .25),
+		Sum(),
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm())
+	down_sample_depthwise = SchemaNode(ShapeBound(None, (1, None)), 
+		None,
+		Sum(),
+		Conv(2, 2, 1, 0, 1), 
+		ReLU6(), 
+		BatchNorm())
+	down_sample = SchemaNode(ShapeBound((16, 256), (1, None)), 
+		None,
+		Sum(), 
+		Conv(2, 2), 
+		ReLU6(), 
+		BatchNorm())
+	end = SchemaNode(ShapeBound(1, 1), 
+		None,
+		Sum(), 
+		Full(), 
+		None, 
+		None)
 	embed.add_group((second, 0, JoinType.NEW))
 	second.add_group((down_sample, 0, JoinType.NEW))
 	second.add_group((skip, 2, JoinType.NEW), (expand, 0, JoinType.NEW))
@@ -207,9 +237,15 @@ def get_schema_b():
 	down_sample_point.add_group((down_sample_depthwise, 0, JoinType.NEW))
 	return Schema([embed], [end])
 
-#ir = get_schema_a().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(62))
-#if ir is not None:
-#	print(generate_torch_module("M", ir))
+ir = get_schema_a().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(62))
+if ir is not None:
+	print(generate_torch_module("M", ir))
+
+exit()
+dataset = TweetDataset("data/twitter.csv")
+SPLIT = 0.99
+train, test = random_split(dataset, [int(len(dataset) * SPLIT), len(dataset) - int(len(dataset) * SPLIT)])
+del dataset
 
 control = Control(get_schema_a(), train, test, compile_models=False, max_id=ID(52),
 	accuracy_function=lambda x, y: torch.sum((x > 0.5) == y).item() / len(y))

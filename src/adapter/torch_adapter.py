@@ -58,7 +58,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		elif isinstance(component, Concat):
 			if len(input_exprs) == 1:
 				return input_exprs[0]
-			return cat_(input_exprs)
+			return self_(cat_(input_exprs))
 		return call_(component_name, *input_exprs)
 	def get_shape_requirment(self, component: Component) -> ShapeView:
 		if isinstance(component, Conv):
