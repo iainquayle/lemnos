@@ -12,7 +12,7 @@ import torch
 
 class TestControl(unittest.TestCase):
 	def test_basic_optimization(self):
-		main = SchemaNode(ShapeBound((1, 1), (1, 10)), Concat(), Conv((.5, 2)))
+		main = SchemaNode(ShapeBound((1, 1), (1, 10)), None, None, Conv())
 		input_shape = LockedShape(1, 1)
 		schema = Schema([main], [main])
 		class TestDataset(Dataset):

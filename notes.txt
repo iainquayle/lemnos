@@ -1,9 +1,5 @@
 changes:
 	guarenteed:
-		make a conformance struct
-			contains
-				shape, divisor, maybe bounds (for nodes that dont have a transform but likely not)
-			let it deal with combining the conformance shapes and the divisors
 		move the model saving to its own function
 		make control framework agnostic
 			move all that to the adapters
@@ -14,6 +10,13 @@ changes:
 			cant be moved too far, ie probably not sibling with schema due to import issues
 		make the conv groups be able to take on some kind of enum?
 			would like to make depthwise more clear than using none, as well may be able to add more group types
+		move growth functions to their own module
+		move conformance to its own module, then allow components to pull it in
+			perhaps put it under shared
+		maybe move components to their own module
+			but they are heavily linked to the schema as of right now
+			but it could be argued that the ir node could copy them directly, then the schema wouldnt need to be held in IR
+
 problems:
 
 design:
@@ -26,6 +29,10 @@ design:
 		start by making control specific to torch, but attempt to make it more generic later and accept an adapter
 		adapter will use the source gen target and functions specific to the framework for training
 		though this may be a dumb idea or atleast the sin of premature planning
+	
+	transitions:
+		are not split into different types as the coordination is done by compile modules
+		they would otherwise need take in data from the compile module to decide what node to return
 
 v2 possibilities
 	it may be easier to make it start from the bottom of the graph and work up

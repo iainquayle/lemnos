@@ -102,8 +102,8 @@ class Conv(Transform):
 		return self._dilation.expand(input_shape.dimensionality() - 1)
 	def get_padding(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._padding.expand(input_shape.dimensionality() - 1)
-	def get_groups(self) -> int | GroupType:
-		return self._groups
+	def get_groups(self, input_shape: LockedShape) -> int:
+		return self._groups if isinstance(self._groups, int) else input_shape[0]
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)

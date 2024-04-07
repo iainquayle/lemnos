@@ -7,10 +7,10 @@ from src.shared import *
 
 class TestStack(unittest.TestCase):
 	def setUp(self):
-		self.s1 = SchemaNode(ShapeBound(1), Concat())
-		self.s2 = SchemaNode(ShapeBound(1), Concat())
-		self.s3 = SchemaNode(ShapeBound(1), Concat())
-		self.s4 = SchemaNode(ShapeBound(1), Concat())
+		self.s1 = SchemaNode(ShapeBound(1), None, Concat())
+		self.s2 = SchemaNode(ShapeBound(1), None, Concat())
+		self.s3 = SchemaNode(ShapeBound(1), None, Concat())
+		self.s4 = SchemaNode(ShapeBound(1), None, Concat())
 	def test_record(self):
 		stack1 = NodeTrackerStack(self.s1, [])
 		self.assertRaises(ValueError, stack1.next, self.s2, JoinType.EXISTING, LockedShape(1), 0, 0)
@@ -28,8 +28,5 @@ class TestStack(unittest.TestCase):
 
 class TestTracker(unittest.TestCase):
 	def setUp(self):
-		self.s1 = SchemaNode(ShapeBound(1), Concat())
-		self.s2 = SchemaNode(ShapeBound(1), Concat())
-		self.s3 = SchemaNode(ShapeBound(1), Concat())
-		self.s4 = SchemaNode(ShapeBound(1), Concat())
+		pass
 		

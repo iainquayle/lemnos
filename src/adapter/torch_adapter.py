@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..shared import LockedShape, ID
 from ..schema import IRNode 
-from ..schema.components import Component, Concat, Sum, Conv, Full, ReLU, Sigmoid, Softmax, Dropout, BatchNormalization, ChannelDropout, ReLU6, SiLU
+from ..schema.components import *
 from ..format.format_torch import * 
 from torch.nn import Module
 
@@ -30,7 +30,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		if isinstance(component, Conv):
 			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
 				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_dilation(input_shape), component.get_groups(output_shape))
+				component.get_dilation(input_shape), component.get_groups(input_shape))
 		elif isinstance(component, Full):
 			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):
@@ -43,12 +43,14 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 			return softmax_init_() 
 		elif isinstance(component, SiLU):
 			return silu_init_()
-		elif isinstance(component, BatchNormalization):
+		elif isinstance(component, BatchNorm):
 			return batchnorm_init_(output_shape) 
 		elif isinstance(component, Dropout):
 			return dropout_init_(component.get_probability()) 
 		elif isinstance(component, ChannelDropout):
 			return channeldropout_init_(component.get_probability()) 
+		elif isinstance(component, GLU):
+			raise NotImplementedError("GLU not implemented")
 		return "" 
 	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, component_name: str, input_exprs: list[str]) -> str:
 		if isinstance(component, Sum):
@@ -61,7 +63,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 	def get_shape_requirment(self, component: Component) -> ShapeView:
 		if isinstance(component, Conv):
 			return ShapeView.REAL
-		elif isinstance(component, BatchNormalization):
+		elif isinstance(component, BatchNorm):
 			return ShapeView.REAL
 		elif isinstance(component, ChannelDropout):
 			return ShapeView.REAL
