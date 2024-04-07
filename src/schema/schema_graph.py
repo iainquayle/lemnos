@@ -31,7 +31,7 @@ class ExponentialGrowth:
 		center = 1 / ((shape.get_product() / self._zero) ** self._exponent)
 		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
 
-@dataclass
+@dataclass(frozen=False)
 class Conformance:
 	shape: Shape
 	divisor: int
@@ -71,38 +71,28 @@ class SchemaNode:
 			return input_shapes[0].squash(self.dimensionality())
 		else:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
-	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, divisor: int, index: CompileIndex) -> LockedShape | None:
-		divisor = math.lcm(divisor, self._divisor_hint)
+	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompileIndex) -> LockedShape | None:
+		conformance_divisor = math.lcm(conformance.divisor, self._divisor_hint)
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
-		conformance, bounds, divisor, growth_factor = self._activation.scale_build_conformances(output_conformance, self._shape_bounds, divisor, growth_factor) if self._activation is not None else (output_conformance, self._shape_bounds, divisor, growth_factor)
-		output_shape = self._transform.get_output_shape(input_shape, conformance, bounds, divisor, growth_factor) if self._transform is not None else input_shape
+		conformance_shape = conformance.shape
+		bounds = self._shape_bounds
+		if self._activation is not None:
+			conformance_shape, bounds, conformance_divisor, growth_factor = self._activation.scale_build_conformances(conformance_shape, bounds, conformance_divisor, growth_factor)
+		output_shape = self._transform.get_output_shape(input_shape, conformance_shape, bounds, conformance_divisor, growth_factor) if self._transform is not None else input_shape
 		if output_shape is not None:
 			output_shape = self._activation.scale_output_shape(output_shape) if self._activation is not None else output_shape
-			if output_shape in self._shape_bounds and output_conformance.compatible(output_shape): 
+			if output_shape in self._shape_bounds and conformance_shape.compatible(output_shape): 
 				return output_shape 
 		else:
 			return None
-	def get_conformance_shape(self, sibling_shapes: list[LockedShape]) -> Shape:
-		if self._merge_method is None:
-			if len(sibling_shapes) > 1:
-				raise ValueError("No merge method defined for multiple inputs")
-			return OpenShape()
-		else:
-			return self._merge_method.get_conformance_shape(sibling_shapes)
-	def get_divisor(self) -> int:
-		divisor = self._divisor_hint
-		if self._transform is not None:
-			divisor = math.lcm(divisor, self._transform.get_divisor())
-		if self._activation is not None:
-			divisor = self._activation.get_divisor(divisor)
-		return divisor
 	def get_conformance(self, sibling_shapes: list[LockedShape]) -> Conformance | None:
 		if self._merge_method is None:
 			if len(sibling_shapes) > 1:
 				raise ValueError("No merge method defined for multiple inputs")
-			return Conformance(OpenShape(), 1)
+			return Conformance(OpenShape(), self._divisor_hint)
 		elif (conformance_shape := self._merge_method.get_conformance_shape(sibling_shapes)) is not None:
-			return Conformance(conformance_shape, self.get_divisor()) 
+			divisor = math.lcm(self._divisor_hint, self._transform.get_divisor()) if self._transform is not None else self._divisor_hint 
+			return Conformance(conformance_shape, self._activation.get_divisor(divisor) if self._activation is not None else divisor)
 	def get_transform(self) -> Transform | None:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod | None:

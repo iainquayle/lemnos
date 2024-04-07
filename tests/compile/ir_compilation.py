@@ -8,8 +8,8 @@ from src.shared import *
 
 class TestCompilation(unittest.TestCase):
 	def test_split(self):
-		start_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "start")
-		mid_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "mid")
+		start_schema = SchemaNode(ShapeBound((1, 10)), None, None, None, None, None, 1, "start")
+		mid_schema = SchemaNode(ShapeBound((1, 10)), None, None, None, None, None, 1, "mid")
 		end_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "end")
 		start_schema.add_group((mid_schema, 0, JoinType.NEW), (end_schema, 1, JoinType.NEW))
 		mid_schema.add_group((end_schema, 0, JoinType.EXISTING))
@@ -18,9 +18,20 @@ class TestCompilation(unittest.TestCase):
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 3)
+	def test_divisor_hint(self):
+		start_schema = SchemaNode(ShapeBound((1, 10), 1), None, None, Conv(), None, None, 1, "start")
+		hinted = SchemaNode(ShapeBound((1, 10), 1), None, None, None, None, None, 2, "mid")
+		end = SchemaNode(ShapeBound((1, 10), 1), None, None, Conv(groups=2), None, None, 1, "end")
+		start_schema.add_group((hinted, 0, JoinType.NEW))
+		hinted.add_group((end, 0, JoinType.NEW))
+		tracker = CompilationTracker([NodeTrackerStack(start_schema, [NodeTracker(set(), [], LockedShape(1, 1), 0)])], None, ID(0), ID(100)) 
+		nodes = tracker.compile_ir(BreedIndices())
+		if nodes is None:
+			self.fail()
+		self.assertEqual(len(nodes), 3)
 	def test_loop(self):
-		main = SchemaNode(ShapeBound((1, 1), (1, 16)), None, Concat(), Conv(kernel=2, stride=2), None, None, 1, "main")
-		end = SchemaNode(ShapeBound((1, 1), (1, 1)), None, Concat(), None, None, None, 1, "end")
+		main = SchemaNode(ShapeBound((1, 1), (1, 16)), None, None, Conv(kernel=2, stride=2), None, None, 1, "main")
+		end = SchemaNode(ShapeBound((1, 1), (1, 1)), None, None, None, None, None, 1, "end")
 		main.add_group((end, 0, JoinType.NEW))
 		main.add_group((main, 0, JoinType.NEW))
 		tracker = CompilationTracker([NodeTrackerStack(main, [NodeTracker(set(), [], LockedShape(1, 8), 0)])], None, ID(0), ID(100)) 
@@ -32,17 +43,17 @@ class TestCompilation(unittest.TestCase):
 		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, 1, "main")
 		split_1 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
-			Concat(), 
+			None, 
 			Conv(kernel=2, stride=2),
 			ReLU(), 
 			BatchNorm(), 1, "split_1")
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
-			Concat(), 
+			None, 
 			Conv(kernel=2, stride=2),
 			ReLU(), 
 			BatchNorm(), 1, "split_2")
-		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, Concat(), Full(), None, None, 1, "end")
+		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, 1, "end")
 		main.add_group( (split_1, 0, JoinType.NEW), (split_2, 1, JoinType.NEW))
 		split_1.add_group( (main, 2, JoinType.NEW))
 		split_2.add_group( (main, 2, JoinType.EXISTING))
