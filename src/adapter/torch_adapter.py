@@ -50,7 +50,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		elif isinstance(component, ChannelDropout):
 			return channeldropout_init_(component.get_probability()) 
 		elif isinstance(component, GLU):
-			raise NotImplementedError("GLU not implemented")
+			return glu_init_()
 		return "" 
 	def get_forward(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, component_name: str, input_exprs: list[str]) -> str:
 		if isinstance(component, Sum):

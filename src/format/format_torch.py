@@ -48,3 +48,5 @@ def dropout_init_(p: float) -> str:
 	return nn_(f"Dropout(p={p})")
 def channeldropout_init_(p: float) -> str:
 	return nn_(f"ChannelDropout(p={p})")
+def glu_init_() -> str:
+	return nn_("GLU(dim=1)")

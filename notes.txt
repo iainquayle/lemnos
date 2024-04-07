@@ -13,6 +13,7 @@ changes:
 		move growth functions to their own module
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
+			perhpas rename shared to shape, as that seems to be the only thing it holds
 		maybe move components to their own module
 			but they are heavily linked to the schema as of right now
 			but it could be argued that the ir node could copy them directly, then the schema wouldnt need to be held in IR
@@ -30,7 +31,6 @@ design:
 		start by making control specific to torch, but attempt to make it more generic later and accept an adapter
 		adapter will use the source gen target and functions specific to the framework for training
 		though this may be a dumb idea or atleast the sin of premature planning
-	
 	transitions:
 		are not split into different types as the coordination is done by compile modules
 		they would otherwise need take in data from the compile module to decide what node to return

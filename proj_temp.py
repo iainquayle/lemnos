@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.shared import LockedShape, ID
-from src.schema import Schema, SchemaNode, JoinType, BreedIndices
+from src.schema import Schema, SchemaNode, JoinType, BreedIndices, PowerGrowth, LinearGrowth
 from src.schema.components import *
 from src.adapter import generate_torch_module, get_module
 from src.control.torch_control import Control 
@@ -114,18 +114,46 @@ train, test = random_split(dataset, [int(len(dataset) * SPLIT), len(dataset) - i
 del dataset
 
 def get_schema_a():
-	start = SchemaNode(ShapeBound((5, 15), None), Sum(), 
-		Conv((0.1, 0.5), 1, 1), ReLU6(), BatchNormalization())
-	skip = SchemaNode(ShapeBound(None, (1, review_length)), Sum(), None, None, BatchNormalization())
-	expand = SchemaNode(ShapeBound((32, 384), None), Sum(), 
-		Conv((1, 4), 1, 1), ReLU6(), BatchNormalization())
-	depthwise = SchemaNode(ShapeBound(None, None), Sum(), 
-		Conv(1.0, 7, 1, 1, 2, 1), ReLU6(), BatchNormalization())
-	shrink = SchemaNode(ShapeBound((32, 256), None), Sum(), 
-		Conv((0.25, 1), 1, 1), None, BatchNormalization())
-	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), Sum(), 
-		Conv((0.20, 1.0), 2, 2), SiLU(), BatchNormalization())
-	end = SchemaNode(ShapeBound(1, 1), Sum(), Full((0.1, 10)), None, None)
+	start = SchemaNode(ShapeBound((5, 15), None), 
+		LinearGrowth(1/5, .5),
+		None, 
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm())
+	skip = SchemaNode(ShapeBound(None, (1, review_length)), 
+		None,
+		Sum(), 
+		None, 
+		None, 
+		BatchNorm())
+	expand = SchemaNode(ShapeBound((32, 384), None), 
+		LinearGrowth(1/5, .5),
+		None, 
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm())
+	depthwise = SchemaNode(ShapeBound(None, None), 
+		None,
+		Sum(), 
+		Conv(7, 1, 1, 2, 1), 
+		ReLU6(), 
+		BatchNorm())
+	shrink = SchemaNode( ShapeBound((32, 256), None), 
+		LinearGrowth(1/5, .5),
+		Sum(), 
+		Conv(1, 1), 
+		None, 
+		BatchNorm())
+	down_sample = SchemaNode(ShapeBound((16, 256), (1, review_length)), 
+		PowerGrowth(220, .5, .25),
+		Sum(), 
+		Conv(2, 2), 
+		SiLU(), 
+		BatchNorm())
+	end = SchemaNode(ShapeBound(1, 1), 
+		None,
+		Sum(), 
+		Full(), None, None)
 	#start.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))
 	start.add_group((skip, 1, JoinType.NEW))
 	skip.add_group((expand, 0, JoinType.NEW), (skip, 1, JoinType.NEW))

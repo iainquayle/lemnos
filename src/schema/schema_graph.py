@@ -16,20 +16,6 @@ from typing_extensions import Self
 from enum import Enum
 from dataclasses import dataclass
 
-class ExponentialGrowth:
-	def __init__(self, intercept: int, exponent: float, variability: float) -> None:
-		if intercept <= 0:
-			raise ValueError("intercept must be greater than zero")
-		if exponent <= 0:
-			raise ValueError("Exponent must be greater than zero")
-		if variability < 0 or variability > 1:
-			raise ValueError("Variability must be between 0 and 1")
-		self._exponent: float = exponent
-		self._variability: float = variability
-		self._zero: int = intercept 
-	def __call__(self, shape: LockedShape, index: CompileIndex) -> float:
-		center = 1 / ((shape.get_product() / self._zero) ** self._exponent)
-		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
 
 @dataclass(frozen=False)
 class Conformance:
@@ -73,7 +59,7 @@ class SchemaNode:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompileIndex) -> LockedShape | None:
 		conformance_divisor = math.lcm(conformance.divisor, self._divisor_hint)
-		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
+		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1#index.get_shuffled((,), 0)
 		conformance_shape = conformance.shape
 		bounds = self._shape_bounds
 		if self._activation is not None:
