@@ -37,11 +37,11 @@ class TestTorchModule(unittest.TestCase):
 		start = SchemaNode( ShapeBound((1, 10)), None, None, None, None, None, 1, "in")
 		end = SchemaNode( ShapeBound((1, 1)), None, None, Full(), None, None, 1, "out")
 		start.add_group( (end, 0, JoinType.NEW))
-		ir = Schema([start], [end]).compile_ir([LockedShape(1, 10)], BreedIndices(), ID(100))
+		ir = Schema([start], [end]).compile_ir([LockedShape(10)], BreedIndices(), ID(100))
 		if ir is None:
 			self.fail()
 		module = torch_adapter.get_module("test", ir)
-		self.assertEqual(module(torch.ones(1, 10)).shape, torch.Size([1, 1]))
+		self.assertEqual(module(torch.ones(10)).shape, torch.Size([1, 1]))
 	def test_conv_full(self):
 		start = SchemaNode( ShapeBound((1, 10), (1, 8)), None, None, Conv(kernel=2, stride=2), ReLU(), BatchNorm(), 1, "in")
 		end = SchemaNode( ShapeBound((1, 1)), None, None, Full(), None, None, 1, "out")

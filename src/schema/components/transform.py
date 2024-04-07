@@ -30,8 +30,10 @@ class Full(Transform):
 				return upper_shape.to_locked(channel_raw) 
 			return None
 		else:
-			if (channel_raw := _closest_divisible(int(input_shape[0] * growth_factor), divisor, shape_bounds)) is not None:
+			channel_raw = shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0)
+			if (channel_raw := _closest_divisible(channel_raw, divisor, shape_bounds)) is not None:
 				return upper_shape.to_locked(channel_raw)
+			return None
 class GroupType(Enum):
 	DEPTHWISE = "depthwise"
 class Conv(Transform):

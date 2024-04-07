@@ -13,7 +13,7 @@ class TestCompilation(unittest.TestCase):
 		end_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "end")
 		start_schema.add_group((mid_schema, 0, JoinType.NEW), (end_schema, 1, JoinType.NEW))
 		mid_schema.add_group((end_schema, 0, JoinType.EXISTING))
-		tracker = CompilationTracker([NodeTrackerStack(start_schema, [NodeTracker(set(), [], LockedShape(1), 0)])], None, ID(0), ID(100)) 
+		tracker = CompilationTracker([NodeTrackerStack(start_schema, [NodeTracker(set(), [], LockedShape(5), 0)])], None, ID(0), ID(100)) 
 		nodes = tracker.compile_ir(BreedIndices())
 		if nodes is None:
 			self.fail()
