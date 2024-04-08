@@ -14,7 +14,7 @@ def sum_(exprs: list[str]) -> str:
 def cat_(exprs: list[str]) -> str:
 	if len(exprs) == 1:
 		return exprs[0]
-	return torch_(f"cat({arg_list_(*exprs)}, dim=1)")
+	return torch_(f"cat(({arg_list_(*exprs)}), dim=1)")
 def import_() -> str:
 	return "import torch"
 def torch_(expr: str) -> str:

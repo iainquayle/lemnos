@@ -3,6 +3,7 @@ changes:
 		move the model saving to its own function
 		make control framework agnostic
 			move all that to the adapters
+		print comments beside lines with the debug name of the node which the code is generated from
 	possible:
 		reimpl component interface, and add a validate shapes method	
 			there are a number of not just specific to transform that require certain characterisitics of the shapes
@@ -18,6 +19,9 @@ changes:
 			but they are heavily linked to the schema as of right now
 			but it could be argued that the ir node could copy them directly, then the schema wouldnt need to be held in IR
 		add a divisor option to the clamp val on shape bounds
+		consider making growth functions return the channels rather than a growth factor like they do now
+			doesnt make much of a difference, but would mean that the inputted shape is always used, and theres no repeated calculations
+		make it so the divisor lookahead doesnt take into account the nodes hint
 
 problems:
 

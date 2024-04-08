@@ -35,6 +35,7 @@ class CompilationTracker:
 					and (ir := self.next(schema_node, group, output_shape).compile_ir(indices)) is not None):
 				return ir + [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, input_shape, output_shape, index)]
 		if (len(schema_node) == 0
+	  			#conformance should take into account the divisor hint
 				and (output_shape := schema_node.get_output_shape(input_shape, Conformance(OpenShape(), 1), index)) is not None):
 			return [IRNode(schema_node, tuple(tracker_node.parent_ids), self._id, tracker_node.input_shape, output_shape, index)]
 		return None

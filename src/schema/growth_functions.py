@@ -26,5 +26,4 @@ class LinearGrowth:
 		self._slope: float = slope
 		self._variability: float = variability
 	def __call__(self, shape: LockedShape, index: CompileIndex) -> float:
-		center = shape[0] * self._slope
-		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
+		return index.get_shuffled((self._slope * (1 - self._variability), self._slope * (1 + self._variability)))

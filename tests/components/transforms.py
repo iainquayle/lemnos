@@ -24,6 +24,12 @@ class TestConv(unittest.TestCase):
 		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1, padding=1, dilation=2, bias=False)
 		transform = Conv(kernel=2, stride=1, padding=1, dilation=2)
 		self.assertEqual(transform.input_dim_to_output_dim(shape, 1), reference(input).shape[2])
+		input = zeros(1, 1, 8)
+		shape = LockedShape(*input.size()[1:])
+		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1, padding=2, dilation=4, bias=False)
+		transform = Conv(kernel=2, stride=1, padding=2, dilation=4)
+		self.assertEqual(transform.input_dim_to_output_dim(shape, 1), reference(input).shape[2])
+		#print(reference(input).shape[2])
 	def test_output_to_input_dim(self) -> None:
 		pass
 	def test_mould_output_shape_valid_upper(self) -> None:
