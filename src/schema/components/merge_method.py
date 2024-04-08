@@ -38,7 +38,7 @@ class Concat(MergeMethod):
 		for shape in inputs_iter:
 			if len(shape) > len(largest_shape):
 				largest_shape = shape
-			total_size += largest_shape.get_product()
+			total_size += shape.get_product()
 		largest_shape = largest_shape.to_open()
 		return largest_shape.to_locked(total_size // largest_shape.get_product())
 
