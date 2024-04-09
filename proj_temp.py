@@ -11,11 +11,17 @@ from torch import Tensor
 from torch.utils.data import Dataset, random_split
 import pandas as pd
 
+import re
+
 TWEET_LENGTH = 256 
+def _clean_tweet(tweet: str) -> str:
+	tweet = re.sub("@[a-zA-Z_0-9]+", "@someone", tweet)
+	tweet = re.sub("https?://[a-zA-Z0-9./]+", "http://link", tweet)
+	return tweet[:TWEET_LENGTH]
 class TweetDataset(Dataset):
 	def __init__(self, path: str):
 		csv = pd.read_csv(path, encoding="ISO-8859-1")
-		self.data = [tweet[:TWEET_LENGTH] for tweet in csv["text"]]
+		self.data = [_clean_tweet(tweet) for tweet in csv["text"]]
 		self.labels = [Tensor([1 if sentiment == 4 else 0]) for sentiment in csv["sentiment"]]
 		print(self.labels[0])
 	def __len__(self) -> int:
@@ -158,8 +164,8 @@ def get_schema_b():
 		Sum(), 
 		Conv(1, 1), ReLU6(), 
 		BatchNorm())
-	second = SchemaNode(ShapeBound((32, 64), None), 
-		LinearGrowth(4, .5),
+	second = SchemaNode(ShapeBound((40, 64), None), 
+		LinearGrowth(4, .3),
 		Sum(), 
 		Conv(3, 1, 1, 1),
 		ReLU6(),
@@ -176,19 +182,19 @@ def get_schema_b():
 		Conv(1, 1), 
 		None, 
 		BatchNorm(), 1, "shrink")
-	expand_s = SchemaNode(ShapeBound((32, 384), None), 
+	expand_s = SchemaNode(ShapeBound((32, 128), None), 
 		LinearGrowth(3/4, .25),
 		Sum(),
 		Conv(1, 1), 
 		ReLU6(), 
 		BatchNorm(), 8, "expand_s")
-	expand_m = SchemaNode(ShapeBound((32, 384), None),
+	expand_m = SchemaNode(ShapeBound((32, 128), None),
 		LinearGrowth(3/4, .25),
 		Sum(),
 		Conv(1, 1), 
 		ReLU6(), 
 		BatchNorm(), 8, "expand_m")
-	expand_l = SchemaNode(ShapeBound((32, 384), None),
+	expand_l = SchemaNode(ShapeBound((32, 128), None),
 		LinearGrowth(3/4, .25),
 		Sum(),
 		Conv(1, 1), 
@@ -200,13 +206,13 @@ def get_schema_b():
 		Conv(3, 1, 1, 1, 1), 
 		ReLU6(), 
 		BatchNorm(), 1, "depthwise_s")
-	depthwise_m = SchemaNode(ShapeBound((5, None), None), 
+	depthwise_m = SchemaNode(ShapeBound(None, None), 
 		None,
 		Sum(),
 		Conv(2, 1, 4, 2, 1), 
 		ReLU6(), 
 		BatchNorm(), 1, "depthwise_m")
-	depthwise_l = SchemaNode(ShapeBound((7, None), None), 
+	depthwise_l = SchemaNode(ShapeBound(None, None), 
 		None,
 		Sum(),
 		Conv(2, 1, 6, 3, 1), 
@@ -272,4 +278,4 @@ del dataset
 control = Control(get_schema_b(), train, test, compile_models=False, max_id=ID(100),
 	accuracy_function=lambda x, y: torch.sum((x > 0.5) == y).item() / len(y))
 control.search([LockedShape(CLASS_SIZE, TWEET_LENGTH)], "./temp_saves", torch.nn.BCEWithLogitsLoss(),
-	workers=4, batch_size=64, model_pool_size=5, training_epochs=18, breed_iterations=10, validation_multiple=3)
+	workers=4, batch_size=64, model_pool_size=5, training_epochs=18, breed_iterations=10, validation_multiple=1)

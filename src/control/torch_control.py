@@ -69,7 +69,7 @@ class Control:
 			raise ValueError("CUDA set to required but not available")
 		device = torch.device(device_type)
 		train_loader = DataLoader(self._train_dataset, batch_size=batch_size, shuffle=True, num_workers=workers, persistent_workers=workers > 0, pin_memory=True)
-		validation_loader = DataLoader(self._validation_dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
+		validation_loader = DataLoader(self._validation_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 		test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 		model_pool: list[ModelTracker] = [] 
 		failed_compilations = 0
@@ -94,7 +94,7 @@ class Control:
 					if failed_compilations > 10:
 						raise ValueError("Too many failed compilations")
 				model_pool = cull_and_save_models(model_pool, model_pool_size, save_dir)
-				test_indices = [BreedIndices([tracker.get_ir() for tracker in model_pool if random() < .2], .2, .2, .2) for _ in range(model_pool_size)]
+			test_indices = [BreedIndices([tracker.get_ir() for tracker in model_pool if random() < .2], .2, .2, .2) for _ in range(model_pool_size)]
 			i += 1
 
 def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, save_dir: str) -> list[ModelTracker]:

@@ -1,17 +1,16 @@
 changes:
 	guarenteed:
-		move the model saving to its own function
 		make control framework agnostic
 			move all that to the adapters
-		print comments beside lines with the debug name of the node which the code is generated from
 	possible:
+		move growth functions to the transitions
+			probably makes more sense, cant find a reason why it shouldnt be done 
+			make it so that if the transition group has more or less children, the same throughput is maintained
+			could add optional shape bounds to the transition
 		reimpl component interface, and add a validate shapes method	
 			there are a number of not just specific to transform that require certain characterisitics of the shapes
 		maybe move compile related stuff to its own module
 			cant be moved too far, ie probably not sibling with schema due to import issues
-		make the conv groups be able to take on some kind of enum?
-			would like to make depthwise more clear than using none, as well may be able to add more group types
-		move growth functions to their own module
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
 			perhpas rename shared to shape, as that seems to be the only thing it holds
@@ -19,8 +18,6 @@ changes:
 			but they are heavily linked to the schema as of right now
 			but it could be argued that the ir node could copy them directly, then the schema wouldnt need to be held in IR
 		add a divisor option to the clamp val on shape bounds
-		consider making growth functions return the channels rather than a growth factor like they do now
-			doesnt make much of a difference, but would mean that the inputted shape is always used, and theres no repeated calculations
 		make it so the divisor lookahead doesnt take into account the nodes hint
 
 problems:
@@ -38,9 +35,3 @@ design:
 	transitions:
 		are not split into different types as the coordination is done by compile modules
 		they would otherwise need take in data from the compile module to decide what node to return
-
-v2 possibilities
-	it may be easier to make it start from the bottom of the graph and work up
-	would likely help for things that require certain divisors
-	the issue is it will likely be worse for components that jump up in dimensionality
-		maybe? though it may be just as complicated as it currently is
