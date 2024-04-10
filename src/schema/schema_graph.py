@@ -26,6 +26,10 @@ class Conformance:
 			return Conformance(shape, math.lcm(self.divisor, other.divisor))
 		else:
 			return None
+	def common_divisor(self, divisor: int) -> Conformance:
+		return Conformance(self.shape, math.lcm(self.divisor, divisor))
+	def common_shape(self, shape: Shape) -> Conformance | None:
+		return self.common(Conformance(shape, 1))
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
@@ -102,13 +106,14 @@ class JoinType(Enum):
 MAX_PRIORITY: int = 128 
 MIN_PRIORITY: int = 0 
 class Transition:
-	__slots__ = ["_next", "_priority", "_join_type"]
+	__slots__ = ["_next", "_priority", "_join_type", "_growth_function"]
 	def __init__(self, next: SchemaNode, priority: int, join_type: JoinType = JoinType.NEW) -> None:
 		if priority > MAX_PRIORITY or priority < MIN_PRIORITY:
 			raise ValueError("Priority out of bounds")
 		self._next: SchemaNode = next
 		self._priority: int = priority 
 		self._join_type: JoinType = join_type 
+		self._growth_function: Callable[[LockedShape, CompileIndex], float] | None = None
 	def get_next(self) -> SchemaNode:
 		return self._next
 	def get_priority(self) -> int:

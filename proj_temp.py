@@ -265,6 +265,118 @@ def get_schema_b():
 	#down_sample_point.add_group((down_sample_depthwise, 0, JoinType.NEW))
 	return Schema([embed], [end])
 
+
+def get_schema_c():
+	embed = SchemaNode(ShapeBound((10, 16), None), 
+		LinearGrowth(1/5, .5),
+		Sum(), 
+		Conv(1, 1), ReLU6(), 
+		BatchNorm())
+	second = SchemaNode(ShapeBound((40, 64), None), 
+		LinearGrowth(4, .3),
+		Sum(), 
+		Conv(2, 1, 1, 1),
+		ReLU6(),
+		BatchNorm(), 8, "second")
+	skip = SchemaNode(ShapeBound(None, (1, None)), 
+		None,
+		Sum(), 
+		None, 
+		None, 
+		BatchNorm(), 1, "skip")
+	shrink = SchemaNode(ShapeBound((32, 256), None), 
+		None,
+		Concat(), 
+		Conv(1, 1), 
+		None, 
+		BatchNorm(), 1, "shrink")
+	expand_s = SchemaNode(ShapeBound((32, 128), None), 
+		LinearGrowth(3/4, .25),
+		Sum(),
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm(), 8, "expand_s")
+	expand_m = SchemaNode(ShapeBound((32, 128), None),
+		LinearGrowth(3/4, .25),
+		Sum(),
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm(), 8, "expand_m")
+	expand_l = SchemaNode(ShapeBound((32, 128), None),
+		LinearGrowth(3/4, .25),
+		Sum(),
+		Conv(1, 1), 
+		ReLU6(), 
+		BatchNorm(), 8, "expand_l")
+	depthwise_s = SchemaNode(ShapeBound(None, None), 
+		None,
+		Sum(), 
+		Conv(3, 1, 1, 1, 1), 
+		ReLU6(), 
+		BatchNorm(), 1, "depthwise_s")
+	depthwise_m = SchemaNode(ShapeBound(None, None), 
+		None,
+		Sum(),
+		Conv(2, 1, 4, 2, 1), 
+		ReLU6(), 
+		BatchNorm(), 1, "depthwise_m")
+	depthwise_l = SchemaNode(ShapeBound(None, None), 
+		None,
+		Sum(),
+		Conv(2, 1, 6, 3, 1), 
+		ReLU6(), 
+		BatchNorm(), 1, "depthwise_l")
+	down_sample_point = SchemaNode(ShapeBound((32, 256), (1, None)), 
+		PowerGrowth(220, .6, .25),
+		Sum(),
+		Conv(1, 1), 
+		SiLU(), 
+		BatchNorm(), 8)
+	down_sample_depthwise = SchemaNode(ShapeBound(None, (1, None)), 
+		None,
+		Sum(),
+		Conv(2, 2, 1, 0, 1), 
+		SiLU(), 
+		BatchNorm())
+	down_sample = SchemaNode(ShapeBound((16, 256), (1, None)), 
+		PowerGrowth(220, .6, .25),
+		Sum(), 
+		Conv(2, 2), 
+		SiLU(), 
+		BatchNorm(), 8, "down_sample")
+	end = SchemaNode(ShapeBound(1, 1), 
+		None,
+		Sum(), 
+		Full(), 
+		None, 
+		None)
+	embed.add_group((second, 0, JoinType.NEW))
+	second.add_group((down_sample, 0, JoinType.NEW))
+	#second.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW))
+	second.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW), (expand_m, 0, JoinType.NEW), (expand_l, 0, JoinType.NEW))
+	#skip.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW))
+	skip.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW), (expand_m, 0, JoinType.NEW), (expand_l, 0, JoinType.NEW))
+	skip.add_group((down_sample, 0, JoinType.NEW))
+	expand_s.add_group((depthwise_s, 0, JoinType.NEW))
+	expand_m.add_group((depthwise_m, 1, JoinType.NEW))
+	expand_l.add_group((depthwise_l, 1, JoinType.NEW))
+	depthwise_s.add_group((shrink, 2, JoinType.NEW))
+	depthwise_m.add_group((shrink, 2, JoinType.EXISTING))
+	depthwise_l.add_group((shrink, 2, JoinType.EXISTING))
+	shrink.add_group((skip, 0, JoinType.EXISTING))
+	#something with cat is breaking shit
+	down_sample.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW), (expand_m, 0, JoinType.NEW), (expand_l, 0, JoinType.NEW))
+	#down_sample.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW))
+	down_sample.add_group((down_sample, 0, JoinType.NEW))
+	down_sample.add_group((end, 0, JoinType.NEW))
+	skip.add_group((end, 0, JoinType.NEW))
+	#down_sample_point.add_group((down_sample_depthwise, 0, JoinType.NEW))
+	return Schema([embed], [end])
+
+
+
+
+
 #ir = get_schema_b().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(90))
 #if ir is not None:
 	print(generate_torch_module("M", ir))

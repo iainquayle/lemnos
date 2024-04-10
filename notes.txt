@@ -2,6 +2,7 @@ changes:
 	guarenteed:
 		make control framework agnostic
 			move all that to the adapters
+		move the input shape for the control to the control, rather than inputting it into the search function
 	possible:
 		move growth functions to the transitions
 			probably makes more sense, cant find a reason why it shouldnt be done 
@@ -14,13 +15,14 @@ changes:
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
 			perhpas rename shared to shape, as that seems to be the only thing it holds
-		maybe move components to their own module
-			but they are heavily linked to the schema as of right now
-			but it could be argued that the ir node could copy them directly, then the schema wouldnt need to be held in IR
+		reorganize the modules
+			components and compile in their own modules
+			compile only export ir, schema can get the rest directly
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 
 problems:
+	memory leak somewhere, likely something to do with metrics, need to find it	
 
 design:
 	components < schema graph < compile < schema < adapter < control
