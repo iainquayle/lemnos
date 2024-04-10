@@ -3,6 +3,7 @@ changes:
 		make control framework agnostic
 			move all that to the adapters
 		move the input shape for the control to the control, rather than inputting it into the search function
+		move padding to before dilation, maybe even stride too
 	possible:
 		move growth functions to the transitions
 			probably makes more sense, cant find a reason why it shouldnt be done 

@@ -34,6 +34,7 @@ class Full(Transform):
 			if (channel_raw := _closest_divisible(channel_raw, divisor, shape_bounds)) is not None:
 				return upper_shape.to_locked(channel_raw)
 			return None
+
 class GroupType(Enum):
 	DEPTHWISE = "depthwise"
 class Conv(Transform):
@@ -106,6 +107,9 @@ class Conv(Transform):
 		return self._padding.expand(input_shape.dimensionality() - 1)
 	def get_groups(self, input_shape: LockedShape) -> int:
 		return self._groups if isinstance(self._groups, int) else input_shape[0]
+
+class ConvMixGroups(Conv):
+	pass
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)

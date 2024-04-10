@@ -13,7 +13,7 @@ import pandas as pd
 
 import re
 
-TWEET_LENGTH = 256 
+TWEET_LENGTH = 257 
 def _clean_tweet(tweet: str) -> str:
 	tweet = re.sub("@[a-zA-Z_0-9]+", "@someone", tweet)
 	tweet = re.sub("https?://[a-zA-Z0-9./]+", "http://link", tweet)
@@ -267,83 +267,72 @@ def get_schema_b():
 
 
 def get_schema_c():
+	shrink_groups = 8
 	embed = SchemaNode(ShapeBound((10, 16), None), 
 		LinearGrowth(1/5, .5),
 		Sum(), 
 		Conv(1, 1), ReLU6(), 
 		BatchNorm())
-	second = SchemaNode(ShapeBound((40, 64), None), 
+	second = SchemaNode(ShapeBound((40, 80), None), 
 		LinearGrowth(4, .3),
 		Sum(), 
-		Conv(2, 1, 1, 1),
+		Conv(2, 1, 1, 0),
 		ReLU6(),
-		BatchNorm(), 8, "second")
+		BatchNorm(), shrink_groups, "second")
 	skip = SchemaNode(ShapeBound(None, (1, None)), 
 		None,
 		Sum(), 
 		None, 
 		None, 
 		BatchNorm(), 1, "skip")
-	shrink = SchemaNode(ShapeBound((32, 256), None), 
-		None,
-		Concat(), 
-		Conv(1, 1), 
-		None, 
-		BatchNorm(), 1, "shrink")
-	expand_s = SchemaNode(ShapeBound((32, 128), None), 
+	expand_p = SchemaNode(ShapeBound((32, 256), None), 
 		LinearGrowth(3/4, .25),
 		Sum(),
 		Conv(1, 1), 
 		ReLU6(), 
-		BatchNorm(), 8, "expand_s")
-	expand_m = SchemaNode(ShapeBound((32, 128), None),
+		BatchNorm(), shrink_groups, "expand_s")
+	expand_2 = SchemaNode(ShapeBound((32, 256), None),
 		LinearGrowth(3/4, .25),
 		Sum(),
 		Conv(1, 1), 
 		ReLU6(), 
-		BatchNorm(), 8, "expand_m")
-	expand_l = SchemaNode(ShapeBound((32, 128), None),
+		BatchNorm(), shrink_groups, "expand_m")
+	expand_6 = SchemaNode(ShapeBound((32, 256), (6, None)),
 		LinearGrowth(3/4, .25),
 		Sum(),
 		Conv(1, 1), 
 		ReLU6(), 
-		BatchNorm(), 8, "expand_l")
-	depthwise_s = SchemaNode(ShapeBound(None, None), 
-		None,
-		Sum(), 
-		Conv(3, 1, 1, 1, 1), 
-		ReLU6(), 
-		BatchNorm(), 1, "depthwise_s")
-	depthwise_m = SchemaNode(ShapeBound(None, None), 
+		BatchNorm(), shrink_groups, "expand_l")
+	depthwise_2 = SchemaNode(ShapeBound(None, None), 
 		None,
 		Sum(),
-		Conv(2, 1, 4, 2, 1), 
+		Conv(2, 1, 2, 1, 1), 
 		ReLU6(), 
 		BatchNorm(), 1, "depthwise_m")
-	depthwise_l = SchemaNode(ShapeBound(None, None), 
+	depthwise_6 = SchemaNode(ShapeBound(None, None), 
 		None,
 		Sum(),
 		Conv(2, 1, 6, 3, 1), 
 		ReLU6(), 
 		BatchNorm(), 1, "depthwise_l")
-	down_sample_point = SchemaNode(ShapeBound((32, 256), (1, None)), 
-		PowerGrowth(220, .6, .25),
+	shrink = SchemaNode(ShapeBound((32, 384), None), 
+		None,
+		Concat(), 
+		Conv(1, 1, 1, 0, 1), 
+		None, 
+		BatchNorm(), 1, "shrink")
+	down_sample_point = SchemaNode(ShapeBound((32, 384), (1, None)), 
+		PowerGrowth(340, .5, .25),
 		Sum(),
 		Conv(1, 1), 
 		SiLU(), 
-		BatchNorm(), 8)
+		BatchNorm(), shrink_groups)
 	down_sample_depthwise = SchemaNode(ShapeBound(None, (1, None)), 
 		None,
 		Sum(),
 		Conv(2, 2, 1, 0, 1), 
 		SiLU(), 
 		BatchNorm())
-	down_sample = SchemaNode(ShapeBound((16, 256), (1, None)), 
-		PowerGrowth(220, .6, .25),
-		Sum(), 
-		Conv(2, 2), 
-		SiLU(), 
-		BatchNorm(), 8, "down_sample")
 	end = SchemaNode(ShapeBound(1, 1), 
 		None,
 		Sum(), 
@@ -351,33 +340,32 @@ def get_schema_c():
 		None, 
 		None)
 	embed.add_group((second, 0, JoinType.NEW))
-	second.add_group((down_sample, 0, JoinType.NEW))
-	#second.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW))
-	second.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW), (expand_m, 0, JoinType.NEW), (expand_l, 0, JoinType.NEW))
-	#skip.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW))
-	skip.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW), (expand_m, 0, JoinType.NEW), (expand_l, 0, JoinType.NEW))
-	skip.add_group((down_sample, 0, JoinType.NEW))
-	expand_s.add_group((depthwise_s, 0, JoinType.NEW))
-	expand_m.add_group((depthwise_m, 1, JoinType.NEW))
-	expand_l.add_group((depthwise_l, 1, JoinType.NEW))
-	depthwise_s.add_group((shrink, 2, JoinType.NEW))
-	depthwise_m.add_group((shrink, 2, JoinType.EXISTING))
-	depthwise_l.add_group((shrink, 2, JoinType.EXISTING))
-	shrink.add_group((skip, 0, JoinType.EXISTING))
-	#something with cat is breaking shit
-	down_sample.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW), (expand_m, 0, JoinType.NEW), (expand_l, 0, JoinType.NEW))
-	#down_sample.add_group((skip, 3, JoinType.NEW), (expand_s, 0, JoinType.NEW))
-	down_sample.add_group((down_sample, 0, JoinType.NEW))
-	down_sample.add_group((end, 0, JoinType.NEW))
+
+	second.add_group((skip, 3, JoinType.NEW), (expand_p, 0, JoinType.NEW), (expand_2, 0, JoinType.NEW))
+
+	skip.add_group((skip, 3, JoinType.NEW), (expand_p, 0, JoinType.NEW), (expand_2, 0, JoinType.NEW), (expand_6, 0, JoinType.NEW))
+	skip.add_group((skip, 3, JoinType.NEW), (expand_p, 0, JoinType.NEW), (expand_2, 0, JoinType.NEW))
+	skip.add_group((down_sample_point, 0, JoinType.NEW))
 	skip.add_group((end, 0, JoinType.NEW))
-	#down_sample_point.add_group((down_sample_depthwise, 0, JoinType.NEW))
+	expand_p.add_group((shrink, 3, JoinType.NEW))
+	expand_2.add_group((depthwise_2, 1, JoinType.NEW))
+	expand_6.add_group((depthwise_6, 1, JoinType.NEW))
+	depthwise_2.add_group((shrink, 2, JoinType.EXISTING))
+	depthwise_6.add_group((shrink, 2, JoinType.EXISTING))
+	shrink.add_group((skip, 0, JoinType.EXISTING))
+
+	down_sample_point.add_group((down_sample_depthwise, 0, JoinType.NEW))
+	down_sample_depthwise.add_group((skip, 3, JoinType.NEW), (expand_p, 0, JoinType.NEW), (expand_2, 0, JoinType.NEW), (expand_6, 0, JoinType.NEW))
+	down_sample_depthwise.add_group((down_sample_point, 0, JoinType.NEW))
+	down_sample_depthwise.add_group((end, 0, JoinType.NEW))
+
 	return Schema([embed], [end])
 
 
 
 
 
-#ir = get_schema_b().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(90))
+#ir = get_schema_c().compile_ir([LockedShape(CLASS_SIZE, TWEET_LENGTH)], BreedIndices(), ID(90))
 #if ir is not None:
 	print(generate_torch_module("M", ir))
 
