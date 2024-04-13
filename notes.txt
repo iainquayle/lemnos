@@ -1,11 +1,7 @@
 changes:
 	guarenteed:
 		make control framework agnostic
-			move all that to the adapters
-			make classes for eqpoch training and evaluation
-				decision to make, should it hold the data loader, or should the data be passed in?
-				data loaders are somewhat dependent on the framework, as well as it doesnt necessarily have anything to do with the control
-				control shoud be entirley about orchestrating the evaluation of models and the breeding of them
+			design below
 		move padding to before dilation, maybe even stride too
 		make mix conv transform
 			to achieve with torch, use torch map, on each batch channel, with a tensor of longs that are the indices
@@ -38,3 +34,8 @@ design:
 	transitions:
 		are not split into different types as the coordination is done by compile modules
 		they would otherwise need take in data from the compile module to decide what node to return
+
+control split
+	make a model train and eval interface to inherit from
+	move everything to do with training and validating to its own modules
+	perhaps make a builder, which can have ir passed in, gives back a module
