@@ -2,23 +2,23 @@ changes:
 	guarenteed:
 		make control framework agnostic
 			move all that to the adapters
-		move the input shape for the control to the control, rather than inputting it into the search function
+			make classes for eqpoch training and evaluation
+				decision to make, should it hold the data loader, or should the data be passed in?
+				data loaders are somewhat dependent on the framework, as well as it doesnt necessarily have anything to do with the control
+				control shoud be entirley about orchestrating the evaluation of models and the breeding of them
 		move padding to before dilation, maybe even stride too
+		make mix conv transform
+			to achieve with torch, use torch map, on each batch channel, with a tensor of longs that are the indices
 	possible:
 		move growth functions to the transitions
 			probably makes more sense, cant find a reason why it shouldnt be done 
 			make it so that if the transition group has more or less children, the same throughput is maintained
 			could add optional shape bounds to the transition
-		reimpl component interface, and add a validate shapes method	
-			there are a number of not just specific to transform that require certain characterisitics of the shapes
-		maybe move compile related stuff to its own module
-			cant be moved too far, ie probably not sibling with schema due to import issues
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
 			perhpas rename shared to shape, as that seems to be the only thing it holds
 		reorganize the modules
 			components and compile in their own modules
-			compile only export ir, schema can get the rest directly
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 

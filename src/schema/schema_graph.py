@@ -63,7 +63,7 @@ class SchemaNode:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompileIndex) -> LockedShape | None:
 		conformance_divisor = math.lcm(conformance.divisor, self._divisor_hint)
-		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1#index.get_shuffled((,), 0)
+		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
 		conformance_shape = conformance.shape
 		bounds = self._shape_bounds
 		if self._activation is not None:
