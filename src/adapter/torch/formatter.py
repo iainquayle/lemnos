@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, ID
-from ..schema import IRNode 
-from ..schema.components import *
-from ..format.format_torch import * 
+from ...shared import LockedShape, ID
+from ...schema import IRNode 
+from ...schema.components import *
+from ...format.format_torch import * 
 from torch.nn import Module
 
 from abc import ABC as Abstract, abstractmethod

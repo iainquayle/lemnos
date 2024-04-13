@@ -1,9 +1,3 @@
-#
-#
-# TEMPORARY, will be replaced with generic control, taking framework adapters
-#
-#
-
 from __future__ import annotations
 
 from ..schema import Schema, BreedIndices, IRNode
@@ -35,8 +29,11 @@ AccuracyFunction = Callable[[Tensor, Tensor], float]
 class Control:
 	def __init__(self, 
 			schema: Schema, 
+			input_shapes: list[LockedShape],
 			train_dataset: Dataset, 
 			validation_dataset: Dataset, 
+			train_epoch: TrainEpoch,
+			validate_epoch: ValidateEpoch,
 			max_id: ID = ID(1024),
 			compile_models: bool = True, 
 			compiler_backend: CompileBackend = CompileBackend.INDUCTOR, 
@@ -44,6 +41,9 @@ class Control:
 			accuracy_function: AccuracyFunction = lambda x, y: 0,
 			) -> None:
 		self._schema: Schema = schema
+		self._input_shapes: list[LockedShape] = input_shapes
+		self._train_epoch: TrainEpoch = train_epoch 
+		self._validate_epoch: ValidateEpoch = validate_epoch 
 		self._train_dataset: Dataset = train_dataset
 		self._validation_dataset: Dataset = validation_dataset
 		self._max_id: ID = max_id
@@ -52,7 +52,6 @@ class Control:
 		self._require_cuda: bool = require_cuda
 		self._accuracy_function: AccuracyFunction = accuracy_function
 	def search(self, 
-			input_shapes: list[LockedShape], 
 			save_dir: str, 
 			criterion: Module, 
 			optimizer_type: OptimizerType = OptimizerType.ADAM, 
@@ -63,7 +62,6 @@ class Control:
 			breed_iterations: int = 1,
 			validation_multiple: int = 5
 		) -> None:
-		#look into taking in a sampler for the data loader, may be useful for large datasets
 		device_type = CUDA if torch.cuda.is_available() else CPU 
 		if self._require_cuda and not device_type == CUDA:
 			raise ValueError("CUDA set to required but not available")
@@ -76,7 +74,7 @@ class Control:
 		i = 0
 		while i < breed_iterations: #will switch this to use a call back? allowing for a cli?
 			for j, indices in enumerate(test_indices):
-				if (ir := self._schema.compile_ir(input_shapes, indices, self._max_id)) is not None:
+				if (ir := self._schema.compile_ir(self._input_shapes, indices, self._max_id)) is not None:
 					model = ModelTracker(ir)
 					runnable_model: Any = get_module(f"M{i}_{j}", ir, DefaultComponentFormatter())
 					if self._compile_models:
@@ -106,6 +104,9 @@ def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, sav
 		DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._train], "loss": [metrics.get_loss() for metrics in model._train]}).to_csv(f"{save_dir}/model_{i}_train.csv")
 		DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._validation], "loss": [metrics.get_loss() for metrics in model._validation]}).to_csv(f"{save_dir}/model_{i}_validation.csv")
 	return model_pool
+
+
+
 def train_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, optimizer: torch.optim.Optimizer, train_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
 	metrics: EpochMetrics = EpochMetrics()
 	model.train()
@@ -184,6 +185,9 @@ class EpochMetrics:
 		return f"Loss: {self.get_loss()}, Accuracy: {self.get_accuracy()}"
 	def __repr__(self) -> str:
 		return str(self)
+
+TrainEpoch = Callable[[Module, Module, AccuracyFunction, torch.optim.Optimizer, DataLoader, torch.device, str], EpochMetrics]
+ValidateEpoch = Callable[[Module, Module, AccuracyFunction, DataLoader, torch.device, str], EpochMetrics]
 
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
