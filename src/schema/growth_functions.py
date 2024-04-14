@@ -18,6 +18,7 @@ class PowerGrowth:
 	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
 		center = 1 / ((shape[0] / self._zero) ** self._exponent)
 		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
+
 class LinearGrowth:
 	__slots__ = ["_slope", "_variability"]
 	def __init__(self, slope: float, variability: float) -> None:
