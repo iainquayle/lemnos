@@ -1,41 +1,40 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, OpenShape, Shape, ShapeBound
+from ..shared import LockedShape, OpenShape, Shape, ShapeBound, ID
 from .components.transform import Transform
 from .components.activation import Activation
 from .components.regularization import Regularization
 from .components.merge_method import MergeMethod
 from .components.component import Component
-from .compile_index import CompileIndex 
 
+import random
 import math
+from copy import copy
 
-from typing import Iterator, Iterable, Callable 
+from typing import Iterator, Iterable, Callable, Any
 from typing_extensions import Self
 
-from enum import Enum
 from dataclasses import dataclass
+from abc import ABC as Abstract, abstractmethod
 
 
-@dataclass(frozen=False)
-class Conformance:
-	shape: Shape
-	divisor: int
-	def common(self, other: Conformance) -> Conformance | None:
-		if (shape := self.shape.common_lossless(other.shape)) is not None:
-			return Conformance(shape, math.lcm(self.divisor, other.divisor))
-		else:
-			return None
-	def common_divisor(self, divisor: int) -> Conformance:
-		return Conformance(self.shape, math.lcm(self.divisor, divisor))
-	def common_shape(self, shape: Shape) -> Conformance | None:
-		return self.common(Conformance(shape, 1))
+@dataclass(frozen=True)
+class IRNode:
+	schema_node: SchemaNode
+	parent_ids: tuple[ID, ...]
+	id: ID 
+	input_shape: LockedShape
+	output_shape: LockedShape
+	index: CompilationIndex
+	def __str__(self) -> str:
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompilationIndex: {self.index}"
+
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
-			growth_function: Callable[[LockedShape, CompileIndex], float] | None = None,
+			growth_function: Callable[[LockedShape, CompilationIndex], float] | None = None,
 			merge_method: MergeMethod | None = None,
 			transform: Transform | None = None,
 			activation: Activation | None = None,
@@ -43,7 +42,7 @@ class SchemaNode:
 			divisor_hint: int = 1,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
-		self._growth_function: Callable[[LockedShape, CompileIndex], float] | None = growth_function 
+		self._growth_function: Callable[[LockedShape, CompilationIndex], float] | None = growth_function 
 		self._transition_groups: list[TransitionGroup] = []
 		self._merge_method: MergeMethod | None = merge_method 
 		self._transform: Transform | None = transform 
@@ -51,9 +50,23 @@ class SchemaNode:
 		self._regularization: Regularization | None = regularization 
 		self._divisor_hint: int = divisor_hint 
 		self.debug_name: str = debug_name 
-	def add_group(self, *transitions: tuple[SchemaNode, int, JoinType] | Transition) -> Self:
-		self._transition_groups.append(TransitionGroup([transition if isinstance(transition, Transition) else Transition(*transition) for transition in transitions]))
-		return self
+	def compile(self, node: CompilationNode, tracker: CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
+		if id >= max_id:
+			return None
+		input_shape = self.get_input_shape([node.input_shape])
+		index = indices.get_index(id, self, input_shape)
+		offset: int = int(index.get_shuffled(len(self), 0))
+		for group in (self[(i + offset) % len(self)] for i in range(len(self))):
+			if ((conformance := group.get_conformance(tracker, self)) is not None
+					and (output_shape := self.get_output_shape(input_shape, conformance, index)) is not None):
+				next_tracker = group.join_nodes(tracker, self, output_shape, id)
+				next_schema, next_node = next_tracker.pop_min()
+				if (ir := next_schema.compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
+					return ir + [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
+		if (len(self) == 0
+				and (output_shape := self.get_output_shape(input_shape, Conformance(OpenShape(), 1), index)) is not None):
+			return [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
+		return None
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
 		if self._merge_method is None:
 			if len(input_shapes) > 1:
@@ -61,7 +74,7 @@ class SchemaNode:
 			return input_shapes[0].squash(self.dimensionality())
 		else:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
-	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompileIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompilationIndex) -> LockedShape | None:
 		conformance_divisor = math.lcm(conformance.divisor, self._divisor_hint)
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
 		conformance_shape = conformance.shape
@@ -83,6 +96,9 @@ class SchemaNode:
 		elif (conformance_shape := self._merge_method.get_conformance_shape(sibling_shapes)) is not None:
 			divisor = math.lcm(self._divisor_hint, self._transform.get_divisor()) if self._transform is not None else self._divisor_hint 
 			return Conformance(conformance_shape, self._activation.get_divisor(divisor) if self._activation is not None else divisor)
+	def add_group(self, *transitions: Transition) -> Self:
+		self._transition_groups.append(TransitionGroup(transitions))
+		return self
 	def get_transform(self) -> Transform | None:
 		return self._transform
 	def get_merge_method(self) -> MergeMethod | None:
@@ -98,29 +114,6 @@ class SchemaNode:
 	def __len__(self) -> int:
 		return len(self._transition_groups)
 
-class JoinType(Enum):
-	EXISTING = "existing"
-	NEW = "new"
-	AUTO = "auto"
-
-MAX_PRIORITY: int = 128 
-MIN_PRIORITY: int = 0 
-class Transition:
-	__slots__ = ["_next", "_priority", "_join_type", "_growth_function"]
-	def __init__(self, next: SchemaNode, priority: int, join_type: JoinType = JoinType.NEW) -> None:
-		if priority > MAX_PRIORITY or priority < MIN_PRIORITY:
-			raise ValueError("Priority out of bounds")
-		self._next: SchemaNode = next
-		self._priority: int = priority 
-		self._join_type: JoinType = join_type 
-		self._growth_function: Callable[[LockedShape, CompileIndex], float] | None = None
-	def get_next(self) -> SchemaNode:
-		return self._next
-	def get_priority(self) -> int:
-		return self._priority
-	def get_join_type(self) -> JoinType:
-		return self._join_type
-
 class TransitionGroup:
 	__slots__ = ["_transitions"]
 	def __init__(self, transitions: Iterable[Transition]) -> None:
@@ -130,8 +123,185 @@ class TransitionGroup:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.get_next())
 		self._transitions: tuple[Transition, ...] = tuple(transitions) 
+	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+		conformance: Conformance = Conformance(OpenShape(), 1)
+		for transition in self._transitions:
+			if ((next_conformance := transition.get_conformance(tracker, parent)) is not None
+					and (next_conformance := conformance.common(next_conformance)) is not None):
+				conformance = next_conformance 
+			else:
+				return None
+		return conformance
+	def join_nodes(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, id: ID) -> CompilationTracker:
+		next_tracker = copy(tracker)
+		for transition in self._transitions:
+			transition.join_node(next_tracker, parent, parent_shape, id)
+		return next_tracker
 	def __iter__(self) -> Iterator[Transition]:
 		return iter(self._transitions)
 	def __len__(self) -> int:
 		return len(self._transitions)
 
+MAX_PRIORITY: int = 128 
+MIN_PRIORITY: int = 0 
+class Transition(Abstract):
+	__slots__ = ["_next", "_priority", "_growth_function"]
+	def __init__(self, next: SchemaNode, priority: int) -> None:
+		if priority > MAX_PRIORITY or priority < MIN_PRIORITY:
+			raise ValueError("Priority out of bounds")
+		self._next: SchemaNode = next
+		self._priority: int = priority 
+	def get_next(self) -> SchemaNode:
+		return self._next
+	def get_priority(self) -> int:
+		return self._priority
+	@abstractmethod
+	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+		pass
+	@abstractmethod
+	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+		pass
+
+class New(Transition):
+	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+		return self._next.get_conformance([])
+	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
+		return tracker 
+
+class Existing(Transition):
+	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+		return tracker[self._next].get_conformance(parent)
+	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
+		return tracker
+
+class Auto(Transition):
+	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+		if (conformance := tracker[self._next].get_conformance(parent)) is not None:
+			return conformance
+		return self._next.get_conformance([])
+	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+		if tracker[self._next].join_existing(parent, parent_shape, parent_id, self._priority):
+			return tracker
+		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
+		return tracker
+
+@dataclass(frozen=False)
+class Conformance:
+	shape: Shape
+	divisor: int
+	def common(self, other: Conformance) -> Conformance | None:
+		if (shape := self.shape.common_lossless(other.shape)) is not None:
+			return Conformance(shape, math.lcm(self.divisor, other.divisor))
+		else:
+			return None
+	def common_divisor(self, divisor: int) -> Conformance:
+		return Conformance(self.shape, math.lcm(self.divisor, divisor))
+	def common_shape(self, shape: Shape) -> Conformance | None:
+		return self.common(Conformance(shape, 1))
+
+class CompilationTracker:
+	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_id"]
+	def __init__(self, stacks: list[CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None) -> None:
+		self._stacks: list[CompilationNodeStack] = stacks 
+		self._stacks_lookup: dict[SchemaNode, int] = {}
+		if stacks_lookup is not None:
+			self._stacks_lookup = stacks_lookup
+		else:
+			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
+	def pop_min(self) -> tuple[SchemaNode, CompilationNode]: 
+		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
+		if len(self._stacks[min_stack_index]) == 0:
+			raise ValueError("Empty stack")
+		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
+	def stacks_str(self) -> str:
+		return "\n".join([str(stack) for stack in self._stacks])
+	def __getitem__(self, key: SchemaNode) -> CompilationNodeStack:
+		if key in self._stacks_lookup:
+			self._stacks[self._stacks_lookup[key]] = copy(self._stacks[self._stacks_lookup[key]])
+			return self._stacks[self._stacks_lookup[key]]
+		self._stacks.append(CompilationNodeStack(key, []))
+		self._stacks_lookup[key] = len(self._stacks) - 1
+		return self._stacks[-1]
+	def __len__(self) -> int:
+		return len(self._stacks)
+	def __copy__(self) -> CompilationTracker:
+		return CompilationTracker(copy(self._stacks), copy(self._stacks_lookup))
+
+class CompilationNodeStack:
+	__slots__ = ["_stack", "_schema_node"]
+	def __init__(self, schema_node: SchemaNode, stack: list[CompilationNode]) -> None:
+		self._schema_node: SchemaNode = schema_node
+		self._stack: list[CompilationNode] = stack
+	def get_conformance(self, parent: SchemaNode) -> Conformance | None:
+		if (node := self.get_available(parent)) is not None:
+			return self._schema_node.get_conformance([node.input_shape])
+		return None
+	def join_existing(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> Conformance | None:
+		if (node := self.get_available(parent)) is not None:
+			self._stack[self._stack.index(node)] = node.copy_and_record(parent, self._schema_node.get_input_shape([node.input_shape, parent_output_shape]), parent_id, priority)
+			return self._schema_node.get_conformance([node.input_shape])
+		return None
+	def join_new(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> Conformance:
+		self._stack.append(CompilationNode({parent}, [parent_id], parent_output_shape, priority))
+		if (conformance := self._schema_node.get_conformance([])) is not None:
+			return conformance
+		raise ValueError("No conformance on new node")
+	def get_available(self, parent: SchemaNode) -> CompilationNode | None:
+		if (node_index := self._get_available_index(parent)) is not None:
+			return self._stack[node_index]
+		return None
+	def _get_available_index(self, parent: SchemaNode) -> int | None:
+		for i in reversed(range(len(self._stack))):
+			if parent not in self._stack[i].parent_nodes:
+				return i
+		return None
+	def get_schema(self) -> SchemaNode:
+		return self._schema_node
+	def pop(self) -> CompilationNode:
+		return self._stack.pop()
+	def peek(self) -> CompilationNode:
+		return self._stack[-1]
+	def get_priority(self) -> int:
+		return self.peek().priority if len(self._stack) > 0 else MAX_PRIORITY + 1
+	def __len__(self) -> int:
+		return len(self._stack)
+	def __copy__(self) -> CompilationNodeStack:
+		return CompilationNodeStack(self._schema_node, copy(self._stack))
+
+@dataclass(frozen=True)
+class CompilationNode:
+	parent_nodes: set[SchemaNode]
+	parent_ids: list[ID]
+	input_shape: LockedShape 
+	priority: int
+	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> CompilationNode:
+		return CompilationNode(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
+
+class CompilationIndices(Abstract):
+	@abstractmethod
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:	
+		pass
+
+class CompilationIndex:
+	__slots__ = ["_index"]
+	def __init__(self, index: int = 0) -> None:
+		self._index: int = index
+	@staticmethod
+	def random() -> CompilationIndex:
+		return CompilationIndex(random.randint(0, 2**31 - 1))
+	def get_shuffled(self, bounds: tuple[float, float] | float, salt: int = 0) -> float:
+		if isinstance(bounds, float) or isinstance(bounds, int):
+			bounds = (0, bounds)
+		elif bounds[0] > bounds[1]:
+			bounds = (bounds[1], bounds[0])
+		return random.Random(self._index + salt).uniform(*bounds)
+	def get(self) -> int:
+		return self._index
+	def __eq__(self, other: Any) -> bool:
+		return isinstance(other, CompilationIndex) and self._index == other._index
+	def __str__(self) -> str:
+		return str(self._index)
+	def __repr__(self) -> str:
+		return f"CompilationIndex({self._index})"

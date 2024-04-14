@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, ID
-from .schema_graph import SchemaNode
-from .compile_indices import CompilationIndices 
-from .compile import NodeTracker, NodeTrackerStack, CompilationTracker
-from .ir_node import IRNode
+from .schema_graph import SchemaNode, IRNode, CompilationIndices, CompilationTracker, CompilationNode, CompilationNodeStack
 
 class Schema:
 	def __init__(self, starts: list[SchemaNode], ends: list[SchemaNode]) -> None:
@@ -21,8 +18,9 @@ class Schema:
 		self._ends.append(pattern)
 	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_id: ID) -> list[IRNode] | None:
 		tracker = CompilationTracker(
-			[NodeTrackerStack(schema_node, [NodeTracker(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
-			None, ID(0), max_id)
+			[CompilationNodeStack(schema_node, [CompilationNode(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
+			None)
+		return
 		result = tracker.compile_ir(build_indices)
 		if result is not None:
 			result.reverse()
