@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .compile_index import CompileIndex
+from .schema_graph import CompilationIndex 
 from ..shared import LockedShape
 
 class PowerGrowth:
@@ -15,7 +15,7 @@ class PowerGrowth:
 		self._exponent: float = exponent
 		self._variability: float = variability
 		self._zero: int = intercept 
-	def __call__(self, shape: LockedShape, index: CompileIndex) -> float:
+	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
 		center = 1 / ((shape[0] / self._zero) ** self._exponent)
 		return index.get_shuffled((center * (1 - self._variability), center * (1 + self._variability)))
 class LinearGrowth:
@@ -27,5 +27,5 @@ class LinearGrowth:
 			raise ValueError("Variability must be between 0 and 1")
 		self._slope: float = slope
 		self._variability: float = variability
-	def __call__(self, shape: LockedShape, index: CompileIndex) -> float:
+	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
 		return index.get_shuffled((self._slope * (1 - self._variability), self._slope * (1 + self._variability)))
