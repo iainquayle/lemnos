@@ -77,12 +77,12 @@ class SchemaNode:
 		for group in (self[(i + offset) % len(self)] for i in range(len(self))):
 			if ((conformance := group.get_conformance(tracker, self)) is not None
 					and (output_shape := self.get_output_shape(input_shape, conformance, index)) is not None):
-				next_tracker = group.join_nodes(tracker, self, input_shape, id)
+				next_tracker = group.join_nodes(tracker, self, output_shape, id)
 				next_schema, next_node = next_tracker.pop_min()
 				if (ir := next_schema.compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
 					return ir + [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
 		if (len(self) == 0
-				and (output_shape := self.get_output_shape(input_shape, Conformance(OpenShape(), self._divisor_hint), index)) is not None):
+				and (output_shape := self.get_output_shape(input_shape, Conformance(OpenShape(), 1), index)) is not None):
 			return [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
 		return None
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
@@ -149,6 +149,7 @@ class TransitionGroup:
 				conformance = next_conformance 
 			else:
 				return None
+		return conformance
 	def join_nodes(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, id: ID) -> CompilationTracker:
 		next_tracker = copy(tracker)
 		for transition in self._transitions:
@@ -183,25 +184,25 @@ class New(Transition):
 	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return self._next.get_conformance([])
 	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
-		tracker[parent].join_new(parent, parent_shape, parent_id, self._priority)
+		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
 		return tracker 
 
 class Existing(Transition):
 	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
-		return tracker[parent].get_conformance(parent)
+		return tracker[self._next].get_conformance(parent)
 	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
-		tracker[parent].join_new(parent, parent_shape, parent_id, self._priority)
+		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
 		return tracker
 
 class Auto(Transition):
 	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
-		if (conformance := tracker[parent].get_conformance(parent)) is not None:
+		if (conformance := tracker[self._next].get_conformance(parent)) is not None:
 			return conformance
 		return self._next.get_conformance([])
 	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
-		if tracker[parent].join_existing(parent, parent_shape, parent_id, self._priority):
+		if tracker[self._next].join_existing(parent, parent_shape, parent_id, self._priority):
 			return tracker
-		tracker[parent].join_new(parent, parent_shape, parent_id, self._priority)
+		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
 		return tracker
 
 
@@ -218,6 +219,8 @@ class CompilationTracker:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
 	def pop_min(self) -> tuple[SchemaNode, NodeTracker]: 
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
+		if len(self._stacks[min_stack_index]) == 0:
+			raise ValueError("Empty stack")
 		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
