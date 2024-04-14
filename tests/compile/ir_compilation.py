@@ -1,7 +1,6 @@
 import unittest
 
 from src.schema.schema_graph import *  
-#from src.schema.compile import CompilationNode, CompilationNodeStack, CompilationTracker
 from src.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full
 from src.schema.compilation_indices import BreedIndices
 from src.shared import *
@@ -13,7 +12,7 @@ class TestCompilation(unittest.TestCase):
 		end_schema = SchemaNode(ShapeBound((1, 10)), None, Concat(), None, None, None, 1, "end")
 		start_schema.add_group(New(mid_schema, 0), New(end_schema, 1))
 		mid_schema.add_group(Existing(end_schema, 0))
-		tracker = CompilationTracker([CompilationNodeStack(start_schema, [CompilationNode(set(), [], LockedShape(5), 0)])], None, ID(0), ID(100)) 
+		tracker = CompilationTracker([CompilationNodeStack(start_schema, [CompilationNode(set(), [], LockedShape(5), 0)])], None) 
 		schema, node = tracker.pop_min()
 		nodes = schema.compile(node, tracker, BreedIndices(), ID(0), ID(5))
 		if nodes is None:
@@ -25,7 +24,7 @@ class TestCompilation(unittest.TestCase):
 		end = SchemaNode(ShapeBound((1, 10), 1), None, None, Conv(groups=2), None, None, 1, "end")
 		start_schema.add_group(New(hinted, 0))
 		hinted.add_group(New(end, 0))
-		tracker = CompilationTracker([CompilationNodeStack(start_schema, [CompilationNode(set(), [], LockedShape(1, 1), 0)])], None, ID(0), ID(100)) 
+		tracker = CompilationTracker([CompilationNodeStack(start_schema, [CompilationNode(set(), [], LockedShape(1, 1), 0)])], None) 
 		schema, node = tracker.pop_min()
 		nodes = schema.compile(node, tracker, BreedIndices(), ID(0), ID(5))
 		if nodes is None:
@@ -36,7 +35,7 @@ class TestCompilation(unittest.TestCase):
 		end = SchemaNode(ShapeBound((1, 1), (1, 1)), None, None, None, None, None, 1, "end")
 		main.add_group(New(end, 0))
 		main.add_group(New(main, 0))
-		tracker = CompilationTracker([CompilationNodeStack(main, [CompilationNode(set(), [], LockedShape(1, 8), 0)])], None, ID(0), ID(100)) 
+		tracker = CompilationTracker([CompilationNodeStack(main, [CompilationNode(set(), [], LockedShape(1, 8), 0)])], None) 
 		schema, node = tracker.pop_min()
 		nodes = schema.compile(node, tracker, BreedIndices(), ID(0), ID(5))
 		if nodes is None:
@@ -61,7 +60,7 @@ class TestCompilation(unittest.TestCase):
 		split_1.add_group( New(main, 2))
 		split_2.add_group( Existing(main, 2))
 		main.add_group( New(end_node, 0))
-		tracker = CompilationTracker([CompilationNodeStack(main, [CompilationNode(set(), [], LockedShape(1, 8), 0)])], None, ID(0), ID(100)) 
+		tracker = CompilationTracker([CompilationNodeStack(main, [CompilationNode(set(), [], LockedShape(1, 8), 0)])], None)   
 		schema, node = tracker.pop_min()
 		nodes = schema.compile(node, tracker, BreedIndices(), ID(0), ID(12))
 		if nodes is None:

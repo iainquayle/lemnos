@@ -203,11 +203,9 @@ class Conformance:
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_id"]
-	def __init__(self, stacks: list[CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_id: ID) -> None:
+	def __init__(self, stacks: list[CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None) -> None:
 		self._stacks: list[CompilationNodeStack] = stacks 
 		self._stacks_lookup: dict[SchemaNode, int] = {}
-		self._id: ID = id 
-		self._max_id: ID = max_id 
 		if stacks_lookup is not None:
 			self._stacks_lookup = stacks_lookup
 		else:
@@ -229,7 +227,7 @@ class CompilationTracker:
 	def __len__(self) -> int:
 		return len(self._stacks)
 	def __copy__(self) -> CompilationTracker:
-		return CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id, self._max_id)
+		return CompilationTracker(copy(self._stacks), copy(self._stacks_lookup))
 
 class CompilationNodeStack:
 	__slots__ = ["_stack", "_schema_node"]

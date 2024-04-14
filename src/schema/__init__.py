@@ -1,6 +1,4 @@
-#from .ir_node import IRNode 
-#from .schema_graph import SchemaNode, Transition, TransitionGroup 
-#from .schema import Schema
-#from .compile_indices import BreedIndices, SequenceIndices 
-#from .compile_index import CompileIndex 
-#from .growth_functions import *
+from .schema_graph import SchemaNode, Transition, TransitionGroup, IRNode, CompilationIndex
+from .schema import Schema
+from .compilation_indices import *
+from .growth_functions import *
