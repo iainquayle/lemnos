@@ -6,31 +6,17 @@ from .components.activation import Activation
 from .components.regularization import Regularization
 from .components.merge_method import MergeMethod
 from .components.component import Component
-from .compile_index import CompileIndex 
 
+import random
 import math
 from copy import copy
 
-from typing import Iterator, Iterable, Callable 
+from typing import Iterator, Iterable, Callable, Any
 from typing_extensions import Self
 
-from enum import Enum
 from dataclasses import dataclass
 from abc import ABC as Abstract, abstractmethod
 
-@dataclass(frozen=False)
-class Conformance:
-	shape: Shape
-	divisor: int
-	def common(self, other: Conformance) -> Conformance | None:
-		if (shape := self.shape.common_lossless(other.shape)) is not None:
-			return Conformance(shape, math.lcm(self.divisor, other.divisor))
-		else:
-			return None
-	def common_divisor(self, divisor: int) -> Conformance:
-		return Conformance(self.shape, math.lcm(self.divisor, divisor))
-	def common_shape(self, shape: Shape) -> Conformance | None:
-		return self.common(Conformance(shape, 1))
 
 @dataclass(frozen=True)
 class IRNode:
@@ -39,20 +25,16 @@ class IRNode:
 	id: ID 
 	input_shape: LockedShape
 	output_shape: LockedShape
-	index: CompileIndex
+	index: CompilationIndex
 	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompileIndex: {self.index}"
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompilationIndex: {self.index}"
 
-class CompilationIndices(Abstract):
-	@abstractmethod
-	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:	
-		pass
 
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
-			growth_function: Callable[[LockedShape, CompileIndex], float] | None = None,
+			growth_function: Callable[[LockedShape, CompilationIndex], float] | None = None,
 			merge_method: MergeMethod | None = None,
 			transform: Transform | None = None,
 			activation: Activation | None = None,
@@ -60,7 +42,7 @@ class SchemaNode:
 			divisor_hint: int = 1,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
-		self._growth_function: Callable[[LockedShape, CompileIndex], float] | None = growth_function 
+		self._growth_function: Callable[[LockedShape, CompilationIndex], float] | None = growth_function 
 		self._transition_groups: list[TransitionGroup] = []
 		self._merge_method: MergeMethod | None = merge_method 
 		self._transform: Transform | None = transform 
@@ -68,7 +50,7 @@ class SchemaNode:
 		self._regularization: Regularization | None = regularization 
 		self._divisor_hint: int = divisor_hint 
 		self.debug_name: str = debug_name 
-	def compile(self, node: NodeTracker, tracker: CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
+	def compile(self, node: CompilationNode, tracker: CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
 		if id >= max_id:
 			return None
 		input_shape = self.get_input_shape([node.input_shape])
@@ -92,7 +74,7 @@ class SchemaNode:
 			return input_shapes[0].squash(self.dimensionality())
 		else:
 			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
-	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompileIndex) -> LockedShape | None:
+	def get_output_shape(self, input_shape: LockedShape, conformance: Conformance, index: CompilationIndex) -> LockedShape | None:
 		conformance_divisor = math.lcm(conformance.divisor, self._divisor_hint)
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
 		conformance_shape = conformance.shape
@@ -205,11 +187,24 @@ class Auto(Transition):
 		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
 		return tracker
 
+@dataclass(frozen=False)
+class Conformance:
+	shape: Shape
+	divisor: int
+	def common(self, other: Conformance) -> Conformance | None:
+		if (shape := self.shape.common_lossless(other.shape)) is not None:
+			return Conformance(shape, math.lcm(self.divisor, other.divisor))
+		else:
+			return None
+	def common_divisor(self, divisor: int) -> Conformance:
+		return Conformance(self.shape, math.lcm(self.divisor, divisor))
+	def common_shape(self, shape: Shape) -> Conformance | None:
+		return self.common(Conformance(shape, 1))
 
 class CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_id"]
-	def __init__(self, stacks: list[NodeTrackerStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_id: ID) -> None:
-		self._stacks: list[NodeTrackerStack] = stacks 
+	def __init__(self, stacks: list[CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None, id: ID, max_id: ID) -> None:
+		self._stacks: list[CompilationNodeStack] = stacks 
 		self._stacks_lookup: dict[SchemaNode, int] = {}
 		self._id: ID = id 
 		self._max_id: ID = max_id 
@@ -217,18 +212,18 @@ class CompilationTracker:
 			self._stacks_lookup = stacks_lookup
 		else:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
-	def pop_min(self) -> tuple[SchemaNode, NodeTracker]: 
+	def pop_min(self) -> tuple[SchemaNode, CompilationNode]: 
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		if len(self._stacks[min_stack_index]) == 0:
 			raise ValueError("Empty stack")
 		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
-	def __getitem__(self, key: SchemaNode) -> NodeTrackerStack:
+	def __getitem__(self, key: SchemaNode) -> CompilationNodeStack:
 		if key in self._stacks_lookup:
 			self._stacks[self._stacks_lookup[key]] = copy(self._stacks[self._stacks_lookup[key]])
 			return self._stacks[self._stacks_lookup[key]]
-		self._stacks.append(NodeTrackerStack(key, []))
+		self._stacks.append(CompilationNodeStack(key, []))
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
 	def __len__(self) -> int:
@@ -236,20 +231,11 @@ class CompilationTracker:
 	def __copy__(self) -> CompilationTracker:
 		return CompilationTracker(copy(self._stacks), copy(self._stacks_lookup), self._id, self._max_id)
 
-@dataclass(frozen=True)
-class NodeTracker:
-	parent_nodes: set[SchemaNode]
-	parent_ids: list[ID]
-	input_shape: LockedShape 
-	priority: int
-	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> NodeTracker:
-		return NodeTracker(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
-
-class NodeTrackerStack:
+class CompilationNodeStack:
 	__slots__ = ["_stack", "_schema_node"]
-	def __init__(self, schema_node: SchemaNode, stack: list[NodeTracker]) -> None:
+	def __init__(self, schema_node: SchemaNode, stack: list[CompilationNode]) -> None:
 		self._schema_node: SchemaNode = schema_node
-		self._stack: list[NodeTracker] = stack
+		self._stack: list[CompilationNode] = stack
 	def get_conformance(self, parent: SchemaNode) -> Conformance | None:
 		if (node := self.get_available(parent)) is not None:
 			return self._schema_node.get_conformance([node.input_shape])
@@ -260,11 +246,11 @@ class NodeTrackerStack:
 			return self._schema_node.get_conformance([node.input_shape])
 		return None
 	def join_new(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> Conformance:
-		self._stack.append(NodeTracker({parent}, [parent_id], parent_output_shape, priority))
+		self._stack.append(CompilationNode({parent}, [parent_id], parent_output_shape, priority))
 		if (conformance := self._schema_node.get_conformance([])) is not None:
 			return conformance
 		raise ValueError("No conformance on new node")
-	def get_available(self, parent: SchemaNode) -> NodeTracker | None:
+	def get_available(self, parent: SchemaNode) -> CompilationNode | None:
 		if (node_index := self._get_available_index(parent)) is not None:
 			return self._stack[node_index]
 		return None
@@ -275,14 +261,49 @@ class NodeTrackerStack:
 		return None
 	def get_schema(self) -> SchemaNode:
 		return self._schema_node
-	def pop(self) -> NodeTracker:
+	def pop(self) -> CompilationNode:
 		return self._stack.pop()
-	def peek(self) -> NodeTracker:
+	def peek(self) -> CompilationNode:
 		return self._stack[-1]
 	def get_priority(self) -> int:
 		return self.peek().priority if len(self._stack) > 0 else MAX_PRIORITY + 1
 	def __len__(self) -> int:
 		return len(self._stack)
-	def __copy__(self) -> NodeTrackerStack:
-		return NodeTrackerStack(self._schema_node, copy(self._stack))
+	def __copy__(self) -> CompilationNodeStack:
+		return CompilationNodeStack(self._schema_node, copy(self._stack))
 
+@dataclass(frozen=True)
+class CompilationNode:
+	parent_nodes: set[SchemaNode]
+	parent_ids: list[ID]
+	input_shape: LockedShape 
+	priority: int
+	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> CompilationNode:
+		return CompilationNode(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
+
+class CompilationIndices(Abstract):
+	@abstractmethod
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:	
+		pass
+
+class CompilationIndex:
+	__slots__ = ["_index"]
+	def __init__(self, index: int = 0) -> None:
+		self._index: int = index
+	@staticmethod
+	def random() -> CompilationIndex:
+		return CompilationIndex(random.randint(0, 2**31 - 1))
+	def get_shuffled(self, bounds: tuple[float, float] | float, salt: int = 0) -> float:
+		if isinstance(bounds, float) or isinstance(bounds, int):
+			bounds = (0, bounds)
+		elif bounds[0] > bounds[1]:
+			bounds = (bounds[1], bounds[0])
+		return random.Random(self._index + salt).uniform(*bounds)
+	def get(self) -> int:
+		return self._index
+	def __eq__(self, other: Any) -> bool:
+		return isinstance(other, CompilationIndex) and self._index == other._index
+	def __str__(self) -> str:
+		return str(self._index)
+	def __repr__(self) -> str:
+		return f"CompilationIndex({self._index})"

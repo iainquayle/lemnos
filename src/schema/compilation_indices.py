@@ -1,25 +1,16 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, ID
-from .schema_graph import SchemaNode
-from .compile_index import CompileIndex 
-from .ir_node import IRNode
-
-from abc import ABC as Abstract, abstractmethod
+from ..shared import LockedShape, ID 
+from .schema_graph import SchemaNode, CompilationIndices, CompilationIndex, IRNode
 
 import random
 from copy import copy
 
-class CompilationIndices(Abstract):
-	@abstractmethod
-	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:	
-		pass
-
 class SequenceIndices(CompilationIndices):
 	__slots__ = ["_indices"]
 	def __init__(self, ir: list[IRNode]) -> None:
-		self._indices: dict[ID, CompileIndex] = {node.id: node.index for node in ir} 
-	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:
+		self._indices: dict[ID, CompilationIndex] = {node.id: node.index for node in ir} 
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:
 		return self._indices[id] 
 
 class BreedIndices(CompilationIndices):
@@ -35,8 +26,8 @@ class BreedIndices(CompilationIndices):
 		self._mutate_prob: float = mutate_prob
 		self._sequence_index: int = 0
 		self._previous_id: ID = ID(0)
-	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompileIndex:
-		def search_sequence(sequence_index: int, previous_id: ID) -> tuple[CompileIndex, ID] | None:
+	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:
+		def search_sequence(sequence_index: int, previous_id: ID) -> tuple[CompilationIndex, ID] | None:
 			sequence_index %= len(self._sequences)
 			min_diff: int = 2**32
 			result: IRNode | None = None
@@ -65,4 +56,4 @@ class BreedIndices(CompilationIndices):
 					if (result := search_sequence(sequence, ID(0))) is not None:
 						index, self._previous_id = result
 						return index 
-		return CompileIndex.random() 
+		return CompilationIndex.random() 
