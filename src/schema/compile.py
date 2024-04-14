@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..shared import LockedShape, OpenShape, Shape, ID
+from ..shared import LockedShape, OpenShape, ID
 from .schema_graph import SchemaNode, TransitionGroup, JoinType, Conformance, MAX_PRIORITY
 from .compile_indices import CompilationIndices 
 from .ir_node import IRNode
@@ -80,8 +80,8 @@ class NodeTrackerStack:
 		self._schema_node: SchemaNode = schema_node
 		self._stack: list[NodeTracker] = stack
 	def get_conformance(self, parent: SchemaNode, join_type: JoinType) -> Conformance | None:
-		if join_type != JoinType.NEW and (node_index := self._get_available_index(parent)) is not None:
-			return self._schema_node.get_conformance([self._stack[node_index].input_shape])
+		if join_type != JoinType.NEW and (node := self.get_available(parent)) is not None:
+			return self._schema_node.get_conformance([node.input_shape])
 		if join_type != JoinType.EXISTING:
 			return self._schema_node.get_conformance([])
 		return None
@@ -89,13 +89,17 @@ class NodeTrackerStack:
 		next_stack = NodeTrackerStack(self._schema_node, copy(self._stack))
 		if join_type != JoinType.NEW and (node_index := self._get_available_index(parent)) is not None:
 			next_stack._stack[node_index] = next_stack._stack[node_index].copy_and_record(parent,
-				next_stack._schema_node.get_input_shape([next_stack._stack[node_index].input_shape, parent_output_shape]), parent_id, 
-				min(priority, next_stack._stack[node_index].priority)) #min may not be correct
+				next_stack._schema_node.get_input_shape([next_stack._stack[node_index].input_shape, parent_output_shape]),
+				parent_id, min(priority, next_stack._stack[node_index].priority)) 
 			return next_stack
 		if join_type != JoinType.EXISTING:
 			next_stack._stack.append(NodeTracker({parent}, [parent_id], parent_output_shape, priority))
 			return next_stack
 		raise ValueError("Join type not valid")
+	def get_available(self, parent: SchemaNode) -> NodeTracker | None:
+		if (node_index := self._get_available_index(parent)) is not None:
+			return self._stack[node_index]
+		return None
 	def _get_available_index(self, parent: SchemaNode) -> int | None:
 		for i in reversed(range(len(self._stack))):
 			if parent not in self._stack[i].parent_nodes:
