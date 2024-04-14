@@ -12,7 +12,9 @@ import torch
 from pandas import DataFrame
 
 from typing import Any, Callable
+
 from enum import Enum
+from abc import ABC as Abstract, abstractmethod
 
 from random import random
 
@@ -25,6 +27,21 @@ class CompileBackend(Enum):
 CUDA = "cuda"
 CPU = "cpu"
 AccuracyFunction = Callable[[Tensor, Tensor], float]
+
+
+class RunnerBuilder(Abstract):
+	@abstractmethod
+	def build(self, ir: list[IRNode]) -> Runner:
+		pass
+
+class Runner(Abstract):
+	@abstractmethod
+	def train_epoch(self) -> EpochMetrics:
+		pass
+	@abstractmethod
+	def validate_epoch(self) -> EpochMetrics:
+		pass
+
 
 class Control:
 	def __init__(self, 
