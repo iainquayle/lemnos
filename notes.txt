@@ -17,6 +17,9 @@ changes:
 			components and compile in their own modules
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
+		split transitions into different types
+			rename transitions to edges? and transition groups to edge groups?
+			would need to move node tracker into schema graph, if wanting to break stuff into function calls
 
 problems:
 	memory leak somewhere, likely something to do with metrics, need to find it	

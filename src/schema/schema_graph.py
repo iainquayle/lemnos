@@ -121,6 +121,19 @@ class Transition:
 	def get_join_type(self) -> JoinType:
 		return self._join_type
 
+class New(Transition):
+
+	def get_join_type(self) -> JoinType:
+		return JoinType.NEW
+
+class Existing(Transition):
+	def get_join_type(self) -> JoinType:
+		return JoinType.EXISTING
+
+class Auto(Transition):
+	def get_join_type(self) -> JoinType:
+		return JoinType.AUTO
+
 class TransitionGroup:
 	__slots__ = ["_transitions"]
 	def __init__(self, transitions: Iterable[Transition]) -> None:
