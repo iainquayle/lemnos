@@ -50,7 +50,7 @@ class SchemaNode:
 		self._regularization: Regularization | None = regularization 
 		self._divisor_hint: int = divisor_hint 
 		self.debug_name: str = debug_name 
-	def compile(self, node: CompilationNode, tracker: CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
+	def _compile(self, node: _CompilationNode, tracker: _CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
 		if id >= max_id:
 			return None
 		input_shape = self.get_input_shape([node.input_shape])
@@ -61,7 +61,7 @@ class SchemaNode:
 					and (output_shape := self.get_output_shape(input_shape, conformance, index)) is not None):
 				next_tracker = group.join_nodes(tracker, self, output_shape, id)
 				next_schema, next_node = next_tracker.pop_min()
-				if (ir := next_schema.compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
+				if (ir := next_schema._compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
 					return ir + [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
 		if (len(self) == 0
 				and (output_shape := self.get_output_shape(input_shape, Conformance(OpenShape(), 1), index)) is not None):
@@ -123,7 +123,7 @@ class TransitionGroup:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.get_next())
 		self._transitions: tuple[Transition, ...] = tuple(transitions) 
-	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		conformance: Conformance = Conformance(OpenShape(), 1)
 		for transition in self._transitions:
 			if ((next_conformance := transition.get_conformance(tracker, parent)) is not None
@@ -132,7 +132,7 @@ class TransitionGroup:
 			else:
 				return None
 		return conformance
-	def join_nodes(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, id: ID) -> CompilationTracker:
+	def join_nodes(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, id: ID) -> _CompilationTracker:
 		next_tracker = copy(tracker)
 		for transition in self._transitions:
 			transition.join_node(next_tracker, parent, parent_shape, id)
@@ -156,32 +156,32 @@ class Transition(Abstract):
 	def get_priority(self) -> int:
 		return self._priority
 	@abstractmethod
-	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		pass
 	@abstractmethod
-	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		pass
 
 class New(Transition):
-	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return self._next.get_conformance([])
-	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
 		return tracker 
 
 class Existing(Transition):
-	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return tracker[self._next].get_conformance(parent)
-	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
 		return tracker
 
 class Auto(Transition):
-	def get_conformance(self, tracker: CompilationTracker, parent: SchemaNode) -> Conformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		if (conformance := tracker[self._next].get_conformance(parent)) is not None:
 			return conformance
 		return self._next.get_conformance([])
-	def join_node(self, tracker: CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> CompilationTracker:
+	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		if tracker[self._next].join_existing(parent, parent_shape, parent_id, self._priority):
 			return tracker
 		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
@@ -201,39 +201,39 @@ class Conformance:
 	def common_shape(self, shape: Shape) -> Conformance | None:
 		return self.common(Conformance(shape, 1))
 
-class CompilationTracker:
+class _CompilationTracker:
 	__slots__ = ["_stacks", "_stacks_lookup", "_id", "_max_id"]
-	def __init__(self, stacks: list[CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None) -> None:
-		self._stacks: list[CompilationNodeStack] = stacks 
+	def __init__(self, stacks: list[_CompilationNodeStack], stacks_lookup: dict[SchemaNode, int] | None) -> None:
+		self._stacks: list[_CompilationNodeStack] = stacks 
 		self._stacks_lookup: dict[SchemaNode, int] = {}
 		if stacks_lookup is not None:
 			self._stacks_lookup = stacks_lookup
 		else:
 			self._stacks_lookup = {stack.get_schema(): i for i, stack in enumerate(stacks)}
-	def pop_min(self) -> tuple[SchemaNode, CompilationNode]: 
+	def pop_min(self) -> tuple[SchemaNode, _CompilationNode]: 
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		if len(self._stacks[min_stack_index]) == 0:
 			raise ValueError("Empty stack")
 		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
-	def __getitem__(self, key: SchemaNode) -> CompilationNodeStack:
+	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
 		if key in self._stacks_lookup:
 			self._stacks[self._stacks_lookup[key]] = copy(self._stacks[self._stacks_lookup[key]])
 			return self._stacks[self._stacks_lookup[key]]
-		self._stacks.append(CompilationNodeStack(key, []))
+		self._stacks.append(_CompilationNodeStack(key, []))
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
 	def __len__(self) -> int:
 		return len(self._stacks)
-	def __copy__(self) -> CompilationTracker:
-		return CompilationTracker(copy(self._stacks), copy(self._stacks_lookup))
+	def __copy__(self) -> _CompilationTracker:
+		return _CompilationTracker(copy(self._stacks), copy(self._stacks_lookup))
 
-class CompilationNodeStack:
+class _CompilationNodeStack:
 	__slots__ = ["_stack", "_schema_node"]
-	def __init__(self, schema_node: SchemaNode, stack: list[CompilationNode]) -> None:
+	def __init__(self, schema_node: SchemaNode, stack: list[_CompilationNode]) -> None:
 		self._schema_node: SchemaNode = schema_node
-		self._stack: list[CompilationNode] = stack
+		self._stack: list[_CompilationNode] = stack
 	def get_conformance(self, parent: SchemaNode) -> Conformance | None:
 		if (node := self.get_available(parent)) is not None:
 			return self._schema_node.get_conformance([node.input_shape])
@@ -244,11 +244,11 @@ class CompilationNodeStack:
 			return self._schema_node.get_conformance([node.input_shape])
 		return None
 	def join_new(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> Conformance:
-		self._stack.append(CompilationNode({parent}, [parent_id], parent_output_shape, priority))
+		self._stack.append(_CompilationNode({parent}, [parent_id], parent_output_shape, priority))
 		if (conformance := self._schema_node.get_conformance([])) is not None:
 			return conformance
 		raise ValueError("No conformance on new node")
-	def get_available(self, parent: SchemaNode) -> CompilationNode | None:
+	def get_available(self, parent: SchemaNode) -> _CompilationNode | None:
 		if (node_index := self._get_available_index(parent)) is not None:
 			return self._stack[node_index]
 		return None
@@ -259,25 +259,25 @@ class CompilationNodeStack:
 		return None
 	def get_schema(self) -> SchemaNode:
 		return self._schema_node
-	def pop(self) -> CompilationNode:
+	def pop(self) -> _CompilationNode:
 		return self._stack.pop()
-	def peek(self) -> CompilationNode:
+	def peek(self) -> _CompilationNode:
 		return self._stack[-1]
 	def get_priority(self) -> int:
 		return self.peek().priority if len(self._stack) > 0 else MAX_PRIORITY + 1
 	def __len__(self) -> int:
 		return len(self._stack)
-	def __copy__(self) -> CompilationNodeStack:
-		return CompilationNodeStack(self._schema_node, copy(self._stack))
+	def __copy__(self) -> _CompilationNodeStack:
+		return _CompilationNodeStack(self._schema_node, copy(self._stack))
 
 @dataclass(frozen=True)
-class CompilationNode:
+class _CompilationNode:
 	parent_nodes: set[SchemaNode]
 	parent_ids: list[ID]
 	input_shape: LockedShape 
 	priority: int
-	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> CompilationNode:
-		return CompilationNode(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
+	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> _CompilationNode:
+		return _CompilationNode(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
 
 class CompilationIndices(Abstract):
 	@abstractmethod
