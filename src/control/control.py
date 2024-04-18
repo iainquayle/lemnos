@@ -2,11 +2,7 @@ from __future__ import annotations
 
 from ..schema import Schema, BreedIndices, IRNode
 from ..shared import LockedShape, ID
-from ..adapter import get_module, DefaultComponentFormatter, generate_torch_module
 
-from torch.utils.data import Dataset, DataLoader
-from torch.nn import Module
-from torch import Tensor
 import torch
 
 from pandas import DataFrame
@@ -21,12 +17,6 @@ from random import random
 class OptimizerType(Enum):
 	ADAM = "adam"
 	SGD = "sgd"
-class CompileBackend(Enum):
-	INDUCTOR = "inductor"
-	CUDA_GRAPHS = "cudagraphs"
-CUDA = "cuda"
-CPU = "cpu"
-AccuracyFunction = Callable[[Tensor, Tensor], float]
 
 
 class RunnerBuilder(Abstract):
@@ -47,31 +37,14 @@ class Control:
 	def __init__(self, 
 			schema: Schema, 
 			input_shapes: list[LockedShape],
-			train_dataset: Dataset, 
-			validation_dataset: Dataset, 
-			train_epoch: TrainEpoch,
-			validate_epoch: ValidateEpoch,
+			runner_builder: RunnerBuilder,
 			max_id: ID = ID(1024),
-			compile_models: bool = True, 
-			compiler_backend: CompileBackend = CompileBackend.INDUCTOR, 
-			require_cuda: bool = True,
-			accuracy_function: AccuracyFunction = lambda x, y: 0,
 			) -> None:
 		self._schema: Schema = schema
 		self._input_shapes: list[LockedShape] = input_shapes
-		self._train_epoch: TrainEpoch = train_epoch 
-		self._validate_epoch: ValidateEpoch = validate_epoch 
-		self._train_dataset: Dataset = train_dataset
-		self._validation_dataset: Dataset = validation_dataset
-		self._max_id: ID = max_id
-		self._compile_models: bool = compile_models
-		self._compiler_backend: CompileBackend = compiler_backend
-		self._require_cuda: bool = require_cuda
-		self._accuracy_function: AccuracyFunction = accuracy_function
+		self._runner_builder: RunnerBuilder = runner_builder
 	def search(self, 
 			save_dir: str, 
-			criterion: Module, 
-			optimizer_type: OptimizerType = OptimizerType.ADAM, 
 			batch_size: int = 5, 
 			workers: int = 0, 
 			model_pool_size: int = 1,
@@ -79,12 +52,6 @@ class Control:
 			breed_iterations: int = 1,
 			validation_multiple: int = 5
 		) -> None:
-		device_type = CUDA if torch.cuda.is_available() else CPU 
-		if self._require_cuda and not device_type == CUDA:
-			raise ValueError("CUDA set to required but not available")
-		device = torch.device(device_type)
-		train_loader = DataLoader(self._train_dataset, batch_size=batch_size, shuffle=True, num_workers=workers, persistent_workers=workers > 0, pin_memory=True)
-		validation_loader = DataLoader(self._validation_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 		test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 		model_pool: list[ModelTracker] = [] 
 		failed_compilations = 0
@@ -124,36 +91,6 @@ def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, sav
 
 
 
-def train_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, optimizer: torch.optim.Optimizer, train_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
-	metrics: EpochMetrics = EpochMetrics()
-	model.train()
-	scaler = torch.cuda.amp.GradScaler()
-	for i, (data, truth) in enumerate(train_loader):
-		data, truth = data.to(device), truth.to(device)
-		optimizer.zero_grad(set_to_none=True)
-		with torch.autocast(device_type=device_type, dtype=torch.float16):
-			output = model(data)
-			loss = criterion(output, truth)
-			accuracy = accuracy_function(output, truth)
-			metrics.record(loss.item(), accuracy)
-		scaler.scale(loss).backward()
-		scaler.step(optimizer)
-		scaler.update()
-	print(metrics)
-	return metrics 
-def validate_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, validation_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
-	metrics: EpochMetrics = EpochMetrics()
-	model.eval()
-	with torch.no_grad():
-		for data, truth in validation_loader:
-			data, truth = data.to(device), truth.to(device)
-			with torch.autocast(device_type=device_type, dtype=torch.float16):
-				output = model(data)
-				loss = criterion(output, truth)
-				accuracy = accuracy_function(output, truth)
-				metrics.record(loss.item(), accuracy)
-	print(metrics)
-	return metrics 
 
 
 class ModelTracker:
