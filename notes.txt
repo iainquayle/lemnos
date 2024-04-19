@@ -5,6 +5,10 @@ changes:
 		move padding to before dilation, maybe even stride too
 		make mix conv transform
 			to achieve with torch, use torch map, on each batch channel, with a tensor of longs that are the indices
+		rework the torch formatters
+			make get source and module to the formatter obj
+			change how the optimizer is inited, maybe make some base class
+				little overkill but cleanest by far
 	possible:
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
