@@ -1,9 +1,8 @@
 changes:
 	guarenteed:
-		make control framework agnostic
-			design below
 		move padding to before dilation, maybe even stride too
 		make mix conv transform
+			set it up so that it is just an enum flag in the conv module, nothing else changes
 			to achieve with torch, use torch map, on each batch channel, with a tensor of longs that are the indices
 		rework the torch formatters
 			make get source and module to the formatter obj
@@ -20,7 +19,3 @@ changes:
 
 problems:
 
-control split
-	make a model train and eval interface to inherit from
-	move everything to do with training and validating to its own modules
-	perhaps make a builder, which can have ir passed in, gives back a module
