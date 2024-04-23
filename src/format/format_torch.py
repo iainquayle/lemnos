@@ -26,7 +26,7 @@ def functional_(expr: str) -> str:
 def module_(name: str, class_definitions: set[str], init_args: list[str], init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> list[str]:
 	return ([import_()] + class_(name, [nn_("Module")], 
 		list(class_definitions) +
-		function_("__init__", ["self"] + init_args,["super().__init__()"] + init_statements) +
+		function_("__init__", ["self"] + init_args,["super().__init__()"] + list(map(self_, init_statements))) +
 		function_("forward", ["self"] + forward_args, forward_statments)))
 def conv1d_mix_definition_() -> list[str]:
 	return module_("ConvMix1d", set(import_()), 
