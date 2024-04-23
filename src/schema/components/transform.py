@@ -38,21 +38,23 @@ class Full(Transform):
 class GroupType(Enum):
 	DEPTHWISE = "depthwise"
 class Conv(Transform):
-	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups"]
+	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups", "_mix_groups"]
 	def __init__(self,
 			kernel: tuple | int = 1, 
+			padding: tuple | int = 0,
 			stride: tuple | int = 1, 
 			dilation: tuple | int = 1,
-			padding: tuple | int = 0,
 			groups: int | GroupType = 1, #none would be depthwise, so needs to be switched to some other signifier than None
+			mix_groups: bool = False
 			) -> None:
 		self._kernel: _Clamptuple = _Clamptuple(kernel)
+		self._padding: _Clamptuple = _Clamptuple(padding)
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
-		self._padding: _Clamptuple = _Clamptuple(padding)
 		if isinstance(groups, int) and groups < 1:
 			raise ValueError("groups must be greater than 0")
 		self._groups: int | GroupType = groups
+		self._mix_groups: bool = mix_groups
 	def output_dim_to_input_dim(self, output_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return (output_shape[i + 1] - 1) * self._stride[i] + (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1)) - self._padding[i] * 2
@@ -107,9 +109,8 @@ class Conv(Transform):
 		return self._padding.expand(input_shape.dimensionality() - 1)
 	def get_groups(self, input_shape: LockedShape) -> int:
 		return self._groups if isinstance(self._groups, int) else input_shape[0]
-
-class ConvMixGroups(Conv):
-	pass
+	def get_mix_groups(self) -> bool:
+		return self._mix_groups
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)

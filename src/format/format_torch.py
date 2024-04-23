@@ -23,14 +23,20 @@ def nn_(expr: str) -> str:
 	return f"torch.nn.{expr}"
 def functional_(expr: str) -> str:
 	return f"torch.nn.functional.{expr}"
-def module_(name: str, init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> str:
-	return concat_lines_(*([import_()] + class_(name, [nn_("Module")], 
-		[import_()] +
-		function_("__init__", ["self"],["super().__init__()"] + [import_()] + init_statements) +
-		function_("forward", ["self"] + forward_args, forward_statments))))
+def module_(name: str, class_definitions: set[str], init_args: list[str], init_statements: list[str], forward_args: list[str], forward_statments: list[str]) -> list[str]:
+	return ([import_()] + class_(name, [nn_("Module")], 
+		list(class_definitions) +
+		function_("__init__", ["self"] + init_args,["super().__init__()"] + init_statements) +
+		function_("forward", ["self"] + forward_args, forward_statments)))
+def conv1d_mix_definition_() -> list[str]:
+	return module_("ConvMix1d", set(import_()), 
+		["input_shape", "output_shape", "kernel", "stride", "padding", "dilation", "groups"], 
+		["c = Conv1d(input_shape[0], output_shape[0], kernel, stride, padding, dilation, groups, bias=True, padding_mode='zeros')"], 
+		["x"], ["return self.c(x)"])
 
-def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
-	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups}, bias=True, padding_mode='zeros')")
+def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int, mixed: bool) -> str:
+	base = (f"{'Conv' if mixed else 'ConvMix'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups}, bias=True, padding_mode='zeros')")
+	return nn_(base) if not mixed else base
 def full_init_(input_shape: LockedShape, output_shape: LockedShape) -> str:
 	return nn_(f"Linear({input_shape.get_product()}, {output_shape.get_product()}, bias=True)") 
 def relu_init_() -> str:

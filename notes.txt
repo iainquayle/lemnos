@@ -5,6 +5,7 @@ changes:
 			set it up so that it is just an enum flag in the conv module, nothing else changes
 			to achieve with torch, use torch map, on each batch channel, with a tensor of longs that are the indices
 		rework the torch formatters
+			make class level imports and definitions, everything must pull from them
 			make get source and module to the formatter obj
 			change how the optimizer is inited, maybe make some base class
 				little overkill but cleanest by far
