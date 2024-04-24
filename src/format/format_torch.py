@@ -29,10 +29,15 @@ def module_(name: str, class_definitions: set[str], init_args: list[str], init_s
 		function_("__init__", ["self"] + init_args,["super().__init__()"] + list(map(self_, init_statements))) +
 		function_("forward", ["self"] + forward_args, forward_statments)))
 def conv1d_mix_definition_() -> list[str]:
-	return module_("ConvMix1d", set(import_()), 
+	return module_("ConvMix1d", 
+		{import_(), }, 
 		["input_shape", "output_shape", "kernel", "stride", "padding", "dilation", "groups"], 
-		["c = Conv1d(input_shape[0], output_shape[0], kernel, stride, padding, dilation, groups, bias=True, padding_mode='zeros')"], 
-		["x"], ["return self.c(x)"])
+		["self.c = Conv1d(input_shape[0], output_shape[0], kernel, stride, padding, dilation, groups, bias=True, padding_mode='zeros')",
+		assign_("s", "input_shape[0] // groups"),
+		assign_(self_("indices"), "[i + j * s for j in range(groups) for i in range(s)")],
+		["x"], 
+		[assign_("x", "self.c(x)"),
+		return_("x[:, self.indices]")])
 
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int, mixed: bool) -> str:
 	base = (f"{'Conv' if mixed else 'ConvMix'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups}, bias=True, padding_mode='zeros')")
