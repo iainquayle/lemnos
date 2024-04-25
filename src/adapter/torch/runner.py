@@ -12,17 +12,32 @@ from torch.utils.data import DataLoader, Dataset
 from typing import Callable, Any
 
 from enum import Enum
+from abc import ABC as Abstract, abstractmethod
+
+import gc
 
 class CompileBackend(Enum):
 	INDUCTOR = "inductor"
 	CUDA_GRAPHS = "cudagraphs"
 
-class OptimizerType(Enum):
-	ADAM = "adam"
-	SGD = "sgd"
-
 CUDA = "cuda"
 CPU = "cpu"
+
+class Optimizer(Abstract):
+	@abstractmethod
+	def get(self, model: Any) -> torch.optim.Optimizer:
+		pass
+class Adam(Optimizer):
+	def __init__(self, lr: float) -> None:
+		self._lr = lr
+	def get(self, model: Any) -> torch.optim.Optimizer:
+		return torch.optim.Adam(model.parameters(), lr=self._lr)
+class SGD(Optimizer):
+	def __init__(self, lr: float, momentum: float) -> None:
+		self._lr = lr
+		self._momentum = momentum
+	def get(self, model: Any) -> torch.optim.Optimizer:
+		return torch.optim.SGD(model.parameters(), lr=self._lr, momentum=self._momentum)
 
 AccuracyFunction = Callable[[Tensor, Tensor], float]
 class TorchRunnerBuilder(RunnerBuilder):
@@ -33,7 +48,7 @@ class TorchRunnerBuilder(RunnerBuilder):
 			accuracy_function: AccuracyFunction,
 			lr: float = 0.0002,
 			formatter: TorchComponentFormatter = DefaultComponentFormatter(),
-			optimizer_type: OptimizerType = OptimizerType.ADAM,
+			optimizer: Optimizer = Adam(lr=0.0002),
 			batch_size: int = 32,
 			workers: int = 0,
 			require_cuda: bool = False,
@@ -50,13 +65,13 @@ class TorchRunnerBuilder(RunnerBuilder):
 		self._lr = lr
 		self._formatter = formatter
 		self._compiler_backend = compiler_backend
-		self._optimizer_type = optimizer_type
+		self._optimizer = optimizer 
 	def build(self, ir: list[IRNode]) -> Runner:
 		runnable_model: Any = get_module(f"Model", ir, DefaultComponentFormatter())
 		if self._compiler_backend is not None:
 			runnable_model = torch.compile(runnable_model, backend=str(self._compiler_backend)) 
 		runnable_model.to(self._device)
-		optimizer = get_optimizer(self._optimizer_type, runnable_model, self._lr)
+		optimizer = self._optimizer.get(runnable_model)
 		return TorchRunner(runnable_model, self._train_loader, self._validation_loader, optimizer, self._criterion, self._accuracy_function, self._device, self._device_type)
 
 class TorchRunner(Runner):
@@ -100,7 +115,9 @@ def train_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFun
 		scaler.step(optimizer)
 		scaler.update()
 	print(metrics)
+	gc.collect()
 	return metrics 
+
 def validate_epoch(model: Module, criterion: Module, accuracy_function: AccuracyFunction, validation_loader: DataLoader, device: torch.device, device_type: str) -> EpochMetrics:
 	metrics: EpochMetrics = EpochMetrics()
 	model.eval()
@@ -113,16 +130,11 @@ def validate_epoch(model: Module, criterion: Module, accuracy_function: Accuracy
 				accuracy = accuracy_function(output, truth)
 				metrics.record(loss.item(), accuracy)
 	print(metrics)
+	gc.collect()
 	return metrics 
+
 
 
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
 		param_group["lr"] = learning_rate
-def get_optimizer(optimizer_type: OptimizerType, model: Any, lr: float) -> torch.optim.Optimizer:
-	if optimizer_type == OptimizerType.ADAM:
-		return torch.optim.Adam(model.parameters(), lr=lr)
-	elif optimizer_type == OptimizerType.SGD:
-		return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
-	else:
-		raise ValueError("Invalid optimizer type")
