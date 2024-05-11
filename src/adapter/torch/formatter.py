@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from ...shared import LockedShape, ID
 from ...schema import IRNode 
 from ...schema.components import *
