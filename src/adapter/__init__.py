@@ -1,1 +1,1 @@
-from .torch_adapter import get_module, generate_torch_module, TorchComponentFormatter, DefaultComponentFormatter, ShapeView 
+from .torch.runner import get_module, TorchComponentFormatter, DefaultComponentFormatter 
