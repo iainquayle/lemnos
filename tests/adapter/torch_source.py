@@ -3,7 +3,7 @@ import unittest
 from src.schema import SchemaNode, Schema, BreedIndices, New, Existing 
 from src.schema.components import Sum, Conv, ReLU, BatchNorm, Full
 from src.shared import LockedShape, ShapeBound, ID
-import torch
+from src.adapter.torch import generate_torch_module 
 
 class TestTorchCompilation(unittest.TestCase):
 	def test_split_loop(self):
@@ -29,7 +29,7 @@ class TestTorchCompilation(unittest.TestCase):
 		ir = schema.compile_ir([LockedShape(1, 8)], BreedIndices(), ID(15))
 		if ir is None:
 			self.fail()
-		print(ir)
+		print(generate_torch_module("test", ir))
 		self.assertEqual(len(ir), 11)
 class TestTorchModule(unittest.TestCase):
 	def test_full(self):
