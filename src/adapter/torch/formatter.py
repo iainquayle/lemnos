@@ -130,7 +130,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
-	return concat_lines_(*module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+	return concat_lines_(import_torch_(), *module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
 def get_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
 	source = generate_torch_module(name, ir, component_formatter)
 	exec(source)

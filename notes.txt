@@ -1,6 +1,7 @@
 changes:
 	guarenteed:
 		refactor adapters
+			rename generate_module and get_module
 			break any mixed responsiblities 
 			divide more naturally
 		rename formats to templates
