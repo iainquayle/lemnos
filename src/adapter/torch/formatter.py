@@ -22,6 +22,9 @@ class TorchComponentFormatter(Abstract):
 	@abstractmethod
 	def get_shape_requirment(self, component: Component) -> ShapeView:
 		pass
+	@abstractmethod
+	def get_class_definitions(self) -> list[str]:
+		pass
 
 class DefaultComponentFormatter(TorchComponentFormatter):
 	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
@@ -70,6 +73,8 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		elif isinstance(component, Concat) or isinstance(component, Sum):
 			return ShapeView.FLAT
 		return ShapeView.EITHER
+	def get_class_definitions(self) -> list[str]:
+		return conv_mix_definition_(1) + conv_mix_definition_(2) + conv_mix_definition_(3)
 
 def _register_name(register: ID) -> str:
 	return f"r{register:04x}"
@@ -115,7 +120,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 		current_shape = ShapeView.FLAT
 		for i, component in enumerate(node.schema_node.get_components()):
 			if (init := component_formatter.get_init(component, node.input_shape, node.output_shape)) != "":
-				init_statements.append(assign_(self_(_component_name(node.id, i)), init))
+				init_statements.append(assign_(self_(_component_name(node.id, i)), self_(init)))
 			if component_formatter.get_shape_requirment(component) == ShapeView.REAL and current_shape == ShapeView.FLAT:
 				forward_statement = [view_(expr, node.input_shape) for expr in forward_statement]
 			elif component_formatter.get_shape_requirment(component) == ShapeView.FLAT and current_shape == ShapeView.REAL:
@@ -125,7 +130,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
-	return concat_lines_(*module_(name, {''}, [''], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+	return concat_lines_(*module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
 def get_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
 	source = generate_torch_module(name, ir, component_formatter)
 	exec(source)

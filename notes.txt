@@ -1,7 +1,9 @@
 changes:
 	guarenteed:
-		rework the torch formatters
-			make get source and module to the formatter obj
+		refactor adapters
+			break any mixed responsiblities 
+			divide more naturally
+		rename formats to templates
 	possible:
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
@@ -9,7 +11,6 @@ changes:
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
-		make more rigorous gc collection, memory fills up fast
-
+		add explicit gc calls, memory issues when machine already in use 
+		probably rename ID just to uint
 problems:
-
