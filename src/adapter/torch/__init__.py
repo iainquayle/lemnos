@@ -1,1 +1,1 @@
-from .formatter import generate_torch_module, TorchComponentFormatter, DefaultComponentFormatter
+from .formatter import get_module, generate_torch_module, TorchComponentFormatter, DefaultComponentFormatter
