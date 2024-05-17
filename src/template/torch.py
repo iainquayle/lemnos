@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..shared import LockedShape
-from .format_python import *
+from .python import *
 
 def view_(expr: str, shape: LockedShape) -> str:
 	return f"{expr}.view(-1, {arg_list_(*to_str_list(iter(shape)))})"
