@@ -1,8 +1,8 @@
 from ...shared import LockedShape, ID
 from ...schema import IRNode 
 from ...schema.components import *
-from ...template.torch import * 
-from ...template.python import *
+from ...templates.torch import * 
+from ...templates.python import *
 from torch.nn import Module
 
 from abc import ABC as Abstract, abstractmethod
