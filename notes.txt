@@ -4,7 +4,6 @@ changes:
 			rename generate_module and get_module
 			break any mixed responsiblities 
 			divide more naturally
-		rename formats to templates
 	possible:
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
@@ -13,5 +12,4 @@ changes:
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
 		add explicit gc calls, memory issues when machine already in use 
-		probably rename ID just to uint
 problems:
