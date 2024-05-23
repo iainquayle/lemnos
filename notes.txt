@@ -13,4 +13,3 @@ changes:
 		rename transitions to edges or something?
 		add explicit gc calls, memory issues when machine already in use 
 problems:
-	torch compiler adapter currently passing back tuple of registers

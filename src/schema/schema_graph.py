@@ -173,7 +173,7 @@ class Existing(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return tracker[self._next].get_conformance(parent)
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
+		tracker[self._next].join_existing(parent, parent_shape, parent_id, self._priority)
 		return tracker
 
 class Auto(Transition):
