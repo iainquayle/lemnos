@@ -67,7 +67,6 @@ class TestTorchModule(unittest.TestCase):
 		ir = schema.compile_ir([LockedShape(1, 8)], BreedIndices(), ID(15))
 		if ir is None:
 			self.fail()
-		print(generate_torch_module("test", ir))
 		module = get_module("test", ir)
 		input = torch.ones(2, 1, 8)
-		output = module(input)
+		self.assertEqual(module(input).shape, torch.Size([2, 1]))
