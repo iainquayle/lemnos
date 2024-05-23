@@ -4,6 +4,8 @@ from src.schema import SchemaNode, Schema, BreedIndices, New, Existing
 from src.schema.components import Sum, Conv, ReLU, BatchNorm, Full
 from src.shared import LockedShape, ShapeBound, ID
 from src.adapter.torch import generate_torch_module, get_module
+import torch
+
 
 class TestTorchCompilation(unittest.TestCase):
 	def test_split_loop(self):
@@ -67,4 +69,5 @@ class TestTorchModule(unittest.TestCase):
 			self.fail()
 		print(generate_torch_module("test", ir))
 		module = get_module("test", ir)
-		self.assertEqual(len(ir), 11)
+		input = torch.ones(2, 1, 8)
+		output = module(input)
