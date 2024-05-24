@@ -1,5 +1,6 @@
 changes:
 	guarenteed:
+		look at moving more functionality from the trackers to the joins
 		add ease of life
 			make mroe graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
