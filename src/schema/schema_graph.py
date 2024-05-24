@@ -165,14 +165,14 @@ class New(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return self._next.get_conformance([])
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
+		tracker.join_new(self._next, parent, parent_shape, parent_id, self._priority)
 		return tracker 
 
 class Existing(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return tracker[self._next].get_conformance(parent)
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		tracker[self._next].join_existing(parent, parent_shape, parent_id, self._priority)
+		tracker.join_existing(self._next, parent, parent_shape, parent_id, self._priority)
 		return tracker
 
 class Auto(Transition):
@@ -181,9 +181,9 @@ class Auto(Transition):
 			return conformance
 		return self._next.get_conformance([])
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		if tracker[self._next].join_existing(parent, parent_shape, parent_id, self._priority):
+		if tracker.join_existing(self._next, parent, parent_shape, parent_id, self._priority):
 			return tracker
-		tracker[self._next].join_new(parent, parent_shape, parent_id, self._priority)
+		tracker.join_new(self._next, parent, parent_shape, parent_id, self._priority)
 		return tracker
 
 @dataclass(frozen=False)
@@ -216,13 +216,19 @@ class _CompilationTracker:
 		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
-	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
+	def join_new(self, schema_node: SchemaNode, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> None:
+		self._manipulation_get(schema_node).push(_CompilationNode({parent}, [parent_id], parent_output_shape, priority))
+	def join_existing(self, schema_node: SchemaNode, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> bool:
+		return self._manipulation_get(schema_node).join_existing(parent, parent_output_shape, parent_id, priority)
+	def _manipulation_get(self, key: SchemaNode) -> _CompilationNodeStack:
 		if key in self._stacks_lookup:
 			self._stacks[self._stacks_lookup[key]] = copy(self._stacks[self._stacks_lookup[key]])
 			return self._stacks[self._stacks_lookup[key]]
 		self._stacks.append(_CompilationNodeStack(key, []))
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
+	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
+		return self._stacks[self._stacks_lookup[key]]
 	def __len__(self) -> int:
 		return len(self._stacks)
 	def __copy__(self) -> _CompilationTracker:
@@ -237,16 +243,11 @@ class _CompilationNodeStack:
 		if (node := self.get_available(parent)) is not None:
 			return self._schema_node.get_conformance([node.input_shape])
 		return None
-	def join_existing(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> Conformance | None:
+	def join_existing(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> bool:
 		if (node := self.get_available(parent)) is not None:
 			self._stack[self._stack.index(node)] = node.copy_and_record(parent, self._schema_node.get_input_shape([node.input_shape, parent_output_shape]), parent_id, priority)
-			return self._schema_node.get_conformance([node.input_shape])
-		return None
-	def join_new(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> Conformance:
-		self._stack.append(_CompilationNode({parent}, [parent_id], parent_output_shape, priority))
-		if (conformance := self._schema_node.get_conformance([])) is not None:
-			return conformance
-		raise ValueError("No conformance on new node")
+			return True
+		return False 
 	def get_available(self, parent: SchemaNode) -> _CompilationNode | None:
 		if (node_index := self._get_available_index(parent)) is not None:
 			return self._stack[node_index]
@@ -262,6 +263,8 @@ class _CompilationNodeStack:
 		return self._stack.pop()
 	def peek(self) -> _CompilationNode:
 		return self._stack[-1]
+	def push(self, node: _CompilationNode) -> None:
+		self._stack.append(node)
 	def get_priority(self) -> int:
 		return self.peek().priority if len(self._stack) > 0 else MAX_PRIORITY + 1
 	def __len__(self) -> int:
