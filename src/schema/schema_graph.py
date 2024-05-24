@@ -89,13 +89,12 @@ class SchemaNode:
 		else:
 			return None
 	def get_conformance(self, sibling_shapes: list[LockedShape]) -> Conformance | None:
-		if self._merge_method is None:
-			if len(sibling_shapes) > 1:
-				raise ValueError("No merge method defined for multiple inputs")
-			return Conformance(OpenShape(), self._divisor_hint)
-		elif (conformance_shape := self._merge_method.get_conformance_shape(sibling_shapes)) is not None:
-			divisor = math.lcm(self._divisor_hint, self._transform.get_divisor()) if self._transform is not None else self._divisor_hint 
-			return Conformance(conformance_shape, self._activation.get_divisor(divisor) if self._activation is not None else divisor)
+		conformance_shape = OpenShape()
+		if (self._merge_method is not None
+	  			and (conformance_shape := self._merge_method.get_conformance_shape(sibling_shapes)) is None):
+			return None
+		divisor = math.lcm(self._divisor_hint, self._transform.get_divisor()) if self._transform is not None else self._divisor_hint 
+		return Conformance(conformance_shape, self._activation.get_divisor(divisor) if self._activation is not None else divisor)
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
 		return self

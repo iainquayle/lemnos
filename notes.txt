@@ -1,5 +1,8 @@
 changes:
 	guarenteed:
+		add ease of life
+			make mroe graph build checks, ie no merge method with multiple inputs
+			make failed compilation logging
 		refactor adapters
 			rename generate_module and get_module
 			break any mixed responsiblities 
