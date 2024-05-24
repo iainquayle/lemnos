@@ -2,9 +2,10 @@
 
 ## Overview
 
-Model Make is a library for optimizing machine learning models on a structural level. 
+Model Make is a library for discovering efficient and performant neural network architectures.
 
-Model make 
+Rather than requiring the user to manually create and test models, or create bespoke search engines,
+Model Make provides a generalized framework for defining search spaces and optimizing over them.
 
 ## Setup 
 
@@ -12,12 +13,21 @@ Model make
 
 ## Structure
 
-The library has three major components, the schema, adapter, and control.
-The search area is defined via user-defined graphs called schemas, from which models are generated.
-The schemas produce an intermediate representation, which is then compiled by an adapter to a specific backend.
-While model make comes with a default adapter for PyTorch, it is designed to be easily extended to other backends.
-Finally, the control component optimizes via or-search(genetic algorithm). 
+The library has three major components, the schema, adapters, and control.
 
 ### Schema
 
-The 
+Schemas express the search area using weighted directed graphs, which is walked in such a manner to create a working model. 
+The nodes bundle three operations often seen together in modern neural networks, the operation, the activation, and the normalization.
+The edges represent the flow of data between nodes, with the weights describing how the graph is to be walked.
+When built correctly, the schema can describe complex architectures, such as ResNet, to U-Net, to anything in between.
+
+### Adapters
+
+Adapters are responsible for compiling the intermediate representation into a specific runnable backend, such as PyTorch,
+and providing the necessary wrappers to run the models under the supervision of the control.
+
+### Control
+
+The control manages the search process, monitoring and recording the performance of the models,
+and deciding which models will be bred to create the next generation of models.
