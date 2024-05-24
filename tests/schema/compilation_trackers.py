@@ -1,7 +1,6 @@
 import unittest
 
-from src.schema.schema_graph import SchemaNode, JoinType
-from src.schema.compile import NodeTracker, NodeTrackerStack, CompilationTracker
+from src.schema.schema_graph import SchemaNode, New, Existing 
 from src.schema.components import Concat 
 from src.shared import *
 
