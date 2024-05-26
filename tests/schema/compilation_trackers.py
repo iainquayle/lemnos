@@ -13,7 +13,8 @@ class TestStack(unittest.TestCase):
 	def test_record(self):
 		stack1 = _CompilationNodeStack(self.s1, [])
 		self.assertIsNone(stack1.join_existing(self.s2, LockedShape(1), ID(0), 0))
-		stack1.join_new(self.s2, LockedShape(1), ID(0), 0)
+		#stack1.join_new(self.s2, LockedShape(1), ID(0), 0)
+		stack1.push(_CompilationNode({self.s2}, [ID(0)], LockedShape(1), 0))
 		self.assertEqual(len(stack1), 1)
 		self.assertEqual(len(stack1._stack[0].parent_ids), 1)
 		self.assertIsNone(stack1.join_existing(self.s2, LockedShape(1), ID(0), 0))
