@@ -1,8 +1,6 @@
 changes:
 	guarenteed:
-		refactor the new and existing functionality in the trackers
-			doesnt seem like it should pass back conformance
-			as well, it may make sense to put more into the joins
+		clean requirements and reinstall
 		add ease of life
 			make mroe graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging

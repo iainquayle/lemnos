@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..schema import Schema, BreedIndices, IRNode
 from ..shared import LockedShape, ID
 
-from pandas import DataFrame
+#from pandas import DataFrame
 
 from abc import ABC as Abstract, abstractmethod
 
@@ -56,8 +56,9 @@ def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, sav
 	for i, model in enumerate(model_pool):
 		#with open(f"{save_dir}/model_{i}.py", "w") as file:
 		#	file.write(generate_torch_module(f"M{i}", model.get_ir()))
-		DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._train], "loss": [metrics.get_loss() for metrics in model._train]}).to_csv(f"{save_dir}/model_{i}_train.csv")
-		DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._validation], "loss": [metrics.get_loss() for metrics in model._validation]}).to_csv(f"{save_dir}/model_{i}_validation.csv")
+		#DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._train], "loss": [metrics.get_loss() for metrics in model._train]}).to_csv(f"{save_dir}/model_{i}_train.csv")
+		#DataFrame({"accuracy": [metrics.get_accuracy() for metrics in model._validation], "loss": [metrics.get_loss() for metrics in model._validation]}).to_csv(f"{save_dir}/model_{i}_validation.csv")
+		pass
 	return model_pool
 
 class RunnerBuilder(Abstract):
