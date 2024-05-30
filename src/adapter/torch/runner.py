@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ...schema import IRNode
 from ...control import Runner, RunnerBuilder, EpochMetrics
-from .formatter import DefaultComponentFormatter, TorchComponentFormatter, get_module
+from .formatter import DefaultComponentFormatter, TorchComponentFormatter, create_module 
 
 import torch
 from torch import Tensor

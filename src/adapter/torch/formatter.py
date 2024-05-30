@@ -81,7 +81,7 @@ def _register_name(register: ID) -> str:
 	return f"r{register:04x}"
 def _component_name(node_id: ID, component_index: int) -> str:
 	return f"c{node_id:04x}_{component_index}"
-def generate_torch_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> str:
+def generate_source(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> str:
 	children_counts: dict[ID, int] = {}
 	for node in ir:
 		for parent_id in node.parent_ids:
@@ -132,7 +132,7 @@ def generate_torch_module(name: str, ir: list[IRNode], component_formatter: Torc
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 	return concat_lines_(import_torch_(), *module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
-def get_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
-	source = generate_torch_module(name, ir, component_formatter)
+def create_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
+	source = generate_source(name, ir, component_formatter)
 	exec(source)
 	return locals()[name]()
