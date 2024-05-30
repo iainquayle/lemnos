@@ -1,14 +1,22 @@
 changes:
 	guarenteed:
-		clean requirements and reinstall
+		make scoring more flexible, ie somehow user defined
+			in the case of language modeling, since the dataset is so big, just use the training scores
+			make it such that there is one single runner adapter, the model is trained by it, and it passes back a score unknown to the control
+		refactor adapters
+			break any mixed responsiblities 
+			divide more naturally
+		make useful as library
+			clean requirements and reinstall
+			deal with model saving
 		add ease of life
 			make mroe graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
-		refactor adapters
-			rename generate_module and get_module
-			break any mixed responsiblities 
-			divide more naturally
 	possible:
+		perhaps make breed indices hold IDs instead of nodes
+			then move these over to control? 
+			it is somewhat a control owned process, but not at the same time? idk
+		consider renaming the project 
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
 			perhpas rename shared to shape, as that seems to be the only thing it holds
@@ -16,4 +24,6 @@ changes:
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
 		add explicit gc calls, memory issues when machine already in use 
+		move templates to jinja or the sort
+			may atleast have some syntax highlighting then
 problems:

@@ -4,6 +4,7 @@ from ..schema import Schema, BreedIndices, IRNode
 from ..shared import LockedShape, ID
 
 #from pandas import DataFrame
+import csv
 
 from abc import ABC as Abstract, abstractmethod
 
@@ -72,6 +73,11 @@ class Runner(Abstract):
 		pass
 	@abstractmethod
 	def validate_epoch(self) -> EpochMetrics:
+		pass
+
+class Evaluator(Abstract):
+	@abstractmethod
+	def evaluate_model(self, ir: list[IRNode]) -> ModelTracker:
 		pass
 
 class ModelTracker:
