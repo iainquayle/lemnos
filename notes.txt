@@ -1,6 +1,6 @@
 changes:
 	guarenteed:
-		make scoring more flexible, ie somehow user defined
+		make scoring more flexible 
 			in the case of language modeling, since the dataset is so big, just use the training scores
 			make it such that there is one single runner adapter, the model is trained by it, and it passes back a score unknown to the control
 		refactor adapters
@@ -13,6 +13,9 @@ changes:
 		add ease of life
 			make mroe graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
+		refactor mix conv
+			maybe split it
+			definitely change the indexing to using tensors instead of python lists
 	possible:
 		should the control just be moved to schema???
 			it does somewhat make sense, as the entire process is centered around the schema
@@ -32,3 +35,14 @@ changes:
 		move templates to jinja or the sort
 			may atleast have some syntax highlighting then
 problems:
+
+
+changes:
+	control
+		may be that control needs accept user definition on how the models are selected/culled
+			ie, what if wanting to breed a very fast model, and a very accurate model
+		this would include being able to define recording metric?  
+			ie not just the score ing, but what metrics are recorded
+		in the example of train only vs train and validation, hard to say how that would be implemented in one system?
+			it could have members for all the types, but it is kind of messy in a way  
+		as well, accuracy isnt always a thing... duh, but nice to have when it does exist 
