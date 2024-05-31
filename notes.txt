@@ -9,10 +9,15 @@ changes:
 		make useful as library
 			clean requirements and reinstall
 			deal with model saving
+			rename src 
 		add ease of life
 			make mroe graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
 	possible:
+		should the control just be moved to schema???
+			it does somewhat make sense, as the entire process is centered around the schema
+		implement some kind of node ratio rules
+			the search space for larger models needs to be brought down
 		perhaps make breed indices hold IDs instead of nodes
 			then move these over to control? 
 			it is somewhat a control owned process, but not at the same time? idk

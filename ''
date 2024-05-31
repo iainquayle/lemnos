@@ -12,14 +12,15 @@ from random import random
 class Control:
 	def __init__(self, 
 			schema: Schema, 
-			runner: Runner,
+
 		) -> None:
 		self._schema: Schema = schema
-		self._runner: Runner = runner
 	def search(self, 
 			save_dir: str, 
 			model_pool_size: int = 1,
+			training_epochs: int = 1,
 			breed_iterations: int = 1,
+			validation_multiple: int = 5 #how often in relation to training epochs to validate
 		) -> None:
 		test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 		model_pool: list[ModelTracker] = [] 
@@ -28,7 +29,6 @@ class Control:
 		while i < breed_iterations: #will switch this to use a call back? allowing for an interactive cli?
 			for j, indices in enumerate(test_indices):
 				if (ir := self._schema.compile_ir(self._input_shapes, indices, self._max_id)) is not None:
-					stats = self._runner.evaluate_model(ir)
 					model = ModelTracker(ir)
 					runnable_model = self._runner_builder.build(ir)
 					for j in range(training_epochs):
@@ -45,8 +45,6 @@ class Control:
 			test_indices = [BreedIndices([tracker.get_ir() for tracker in model_pool if random() < .2], .2, .2, .2) for _ in range(model_pool_size)]
 			i += 1
 
-
-
 def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, save_dir: str) -> list[ModelTracker]:
 	model_pool.sort(key=lambda model: model.get_min_validation_loss())
 	model_pool = model_pool[:max_pool_size]
@@ -61,9 +59,6 @@ def cull_and_save_models(model_pool: list[ModelTracker], max_pool_size: int, sav
 class Runner(Abstract):
 	@abstractmethod
 	def evaluate_model(self, ir: list[IRNode]) -> ModelTracker:
-		pass
-	@abstractmethod
-	def get_input_shapes(self) -> list[LockedShape]:
 		pass
 
 class ModelTracker:
