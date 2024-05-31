@@ -12,10 +12,6 @@ class Schema:
 				raise ValueError("End patterns cannot not have transitions out")
 		self._starts: list[SchemaNode] = starts 
 		self._ends: list[SchemaNode] = ends 
-	def add_start(self, pattern: SchemaNode) -> None:
-		self._starts.append(pattern)
-	def add_end(self, pattern: SchemaNode) -> None:
-		self._ends.append(pattern)
 	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_id: ID) -> list[IRNode] | None:
 		tracker = _CompilationTracker(
 			[_CompilationNodeStack(schema_node, [_CompilationNode(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
@@ -26,3 +22,5 @@ class Schema:
 			ir.reverse()
 			return ir 
 		return None
+	def search(self, ) -> None:
+		pass
