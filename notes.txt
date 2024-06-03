@@ -1,8 +1,5 @@
 changes:
 	guarenteed:
-		make scoring more flexible 
-			in the case of language modeling, since the dataset is so big, just use the training scores
-			make it such that there is one single runner adapter, the model is trained by it, and it passes back a score unknown to the control
 		refactor adapters
 			break any mixed responsiblities 
 			divide more naturally
@@ -15,7 +12,7 @@ changes:
 			make failed compilation logging
 		refactor mix conv
 			maybe split it
-			definitely change the indexing to using tensors instead of python lists
+		rename samples, something else who knows what
 	possible:
 		should the control just be moved to schema???
 			it does somewhat make sense, as the entire process is centered around the schema

@@ -33,7 +33,7 @@ def conv_mix_definition_(dimensions: int) -> list[str]:
 		["channels_in", "channels_out", "kernel", "stride", "padding", "dilation", "groups"], 
 		[f"self.c = self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups,)",
 		assign_("s", "channels_in // groups"),
-		assign_(self_("indices"), "[i + j * s for j in range(groups) for i in range(s)]")],
+		assign_(self_("indices"), "self.torch.Tensor([i + j * s for j in range(groups) for i in range(s)], dtype=self.torch.long)")],
 		["x"], 
 		[return_("self.c(x)[:, self.indices]")])
 

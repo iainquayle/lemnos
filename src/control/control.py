@@ -3,13 +3,11 @@ from __future__ import annotations
 from ..schema import Schema, BreedIndices, IRNode
 from ..shared import LockedShape, ID
 
-import csv
-
 from abc import ABC as Abstract, abstractmethod
 
 from random import random
 
-def search(schema: Schema, runner: Runner, max_id: ID, save_dir: str, model_pool_size: int = 1, breed_iterations: int = 1) -> None:
+def basic_or_search(schema: Schema, runner: Evaluator, max_id: ID, save_dir: str, model_pool_size: int = 1, breed_iterations: int = 1) -> None:
 	test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 	model_pool: list[tuple[list[IRNode], float]] = [] 
 	failed_compilations = 0
@@ -27,7 +25,7 @@ def search(schema: Schema, runner: Runner, max_id: ID, save_dir: str, model_pool
 		test_indices = [BreedIndices([ir for ir, penalty in model_pool if random() < .2], .2, .2, .2) for _ in range(model_pool_size)]
 		i += 1
 
-class Runner(Abstract):
+class Evaluator(Abstract):
 	@abstractmethod
 	def evaluate_penalty(self, ir: list[IRNode]) -> float:
 		pass
