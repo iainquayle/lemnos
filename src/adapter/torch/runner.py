@@ -14,6 +14,8 @@ from typing import Callable, Any
 from enum import Enum
 from abc import ABC as Abstract, abstractmethod
 
+from copy import copy
+
 import gc
 
 class CompileBackend(Enum):
@@ -46,6 +48,7 @@ class BasicLossBased(Evaluator):
 			formatter: TorchComponentFormatter,
 			train_loader: DataLoader,
 			validation_loader: DataLoader | None,
+			epochs: int,
 			criterion: Module,
 			accuracy_function: AccuracyFunction | None,
 			lr: float,
@@ -60,6 +63,7 @@ class BasicLossBased(Evaluator):
 		self._formatter = formatter
 		self._train_loader = train_loader 
 		self._validation_loader = validation_loader
+		self._epochs = epochs
 		self._criterion = criterion
 		self._accuracy_function = accuracy_function
 		self._lr = lr
@@ -69,6 +73,7 @@ class BasicLossBased(Evaluator):
 	def evaluate_model(self, ir: list[IRNode]) -> float:
 		#impl record, and use it for this
 		#perhaps make this basic something... then allow the user to define the selector based on the metrics passed back 
+		record = Record(2048)
 		model: Any = create_module("Model", ir, self._formatter)
 		if self._torch_compiler is not None:
 			model = torch.compile(model, backend=str(self._torch_compiler))
@@ -92,30 +97,49 @@ class BasicLossBased(Evaluator):
 		
 class Sample(Abstract):
 	@abstractmethod
-	def combine(self, other: Sample) -> Sample:
+	def merge(self, other: Sample) -> Sample:
 		pass
-
-class BasicSample(Sample):
-	def __init__(self) -> None:
-		self.avg_loss: float = 0
-		self.max_loss: float = 0
-		self.min_loss: float = 0
+	@abstractmethod
+	def __copy__(self) -> Sample:
 		pass
-	def combine(self, other: Sample) -> Sample:
-		return BasicSample()
+	
 
-#could techincally make a memory backed record, however it still has the potential to absolutely dummy memory if not careful
+class SampleCollection:
+	__slots__ = ["sample_size", "avg_loss", "max_loss", "min_loss"]
+	def __init__(self, avg_loss: float, max_loss: float, min_loss: float, sample_size: int = 1) -> None:
+		self.sample_size: int = sample_size 
+		self.avg_loss: float = avg_loss
+		self.max_loss: float = max_loss
+		self.min_loss: float = min_loss 
+	def merge(self, other: SampleCollection) -> SampleCollection:
+		self.sample_size += other.sample_size
+		self.avg_loss = (other.avg_loss + self.avg_loss) / 2
+		self.max_loss = max(self.max_loss, other.max_loss)
+		self.min_loss = min(self.min_loss, other.min_loss)
+		return self
+	def __copy__(self) -> SampleCollection:
+		return SampleCollection(self.avg_loss, self.max_loss, self.min_loss, self.sample_size)
+
+#could make the samples include size trackers, just dunno if its really necessary
 class Record:
 	def __init__(self, max_samples: int = 2**14) -> None:
 		self._total_samples: int = 0
 		self._max_samples: int = max_samples
+		self._sample_size: int = 1
+		self._last_sample_size: int = 1
 		self._samples: list[Sample] = []
 		self._total_time: float = 0
 	def record(self, sample: Sample) -> None:
-		self._total_samples += 1
-		self._samples.append(sample)
+		if self._last_sample_size < self._sample_size:
+			self._samples[-1].merge(sample)
+			self._last_sample_size += 1
+		else:
+			self._samples.append(sample)
+			self._last_sample_size = 1
 		if len(self._samples) > self._max_samples:
-			self._samples = [self._samples[i].combine(self._samples[i + 1]) for i in range(0, len(self._samples), 2)]
+			self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
+			self._sample_size *= 2
+		self._total_samples += 1
 	def __getitem__(self, position: int | float) -> Sample:
 		index = 0
 		if isinstance(position, int):
@@ -123,24 +147,20 @@ class Record:
 		else:
 			index = int(self._total_samples * position)
 		return self._samples[index]
-		
-
-class CappedQueue: 
-	def __init__(self, size: int) -> None:
-		self._size: int = size
-		self._pointer: int = 0
-		self._full: bool = False
-		self._queue: list[Any] = [0 for _ in range(size)]
-	def push(self, item: Any) -> None:
-		self._queue[self._pointer] = item
-		self._pointer += 1
-		if self._pointer == self._size:
-			self._full = True
-			self._pointer = 0
-	def __getitem__(self, index: int) -> Any:
-		return self._queue[index]
-	def __len__(self) -> int:
-		return self._size if self._full else self._pointer
+	def merge_range(self, start: int, end: int) -> Sample:
+		start_index = self._get_index(start)
+		end_index = self._get_index(end)
+		if start_index > end_index:
+			raise ValueError("Invalid range")
+		output = copy(self._samples[start_index]) 
+		for i in range(start_index + 1, end_index):
+			output.merge(self._samples[i])
+		return output
+	def _get_index(self, position: int | float) -> int:
+		if isinstance(position, int):
+			return int(position / self._total_samples * len(self._samples))
+		else:
+			return int(self._total_samples * position)
 
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
