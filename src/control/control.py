@@ -5,9 +5,10 @@ from ..shared import LockedShape, ID
 
 from abc import ABC as Abstract, abstractmethod
 
+from copy import copy
 from random import random
 
-def basic_or_search(schema: Schema, runner: Evaluator, max_id: ID, save_dir: str, model_pool_size: int = 1, breed_iterations: int = 1) -> None:
+def or_search(schema: Schema, runner: Evaluator, max_id: ID, save_dir: str, model_pool_size: int = 1, breed_iterations: int = 1) -> None:
 	test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 	model_pool: list[tuple[list[IRNode], float]] = [] 
 	failed_compilations = 0
@@ -15,7 +16,7 @@ def basic_or_search(schema: Schema, runner: Evaluator, max_id: ID, save_dir: str
 	while i < breed_iterations: #will switch this to use a call back? allowing for an interactive cli?
 		for j, indices in enumerate(test_indices):
 			if (ir := schema.compile_ir(runner.get_input_shapes(), indices, max_id)) is not None:
-				model_pool.append((ir, runner.evaluate_penalty(ir)))
+				training_metrics, validation_metrics = runner.evaluate(ir)
 			else:
 				failed_compilations += 1
 				if failed_compilations > 10:
@@ -27,14 +28,63 @@ def basic_or_search(schema: Schema, runner: Evaluator, max_id: ID, save_dir: str
 
 class Evaluator(Abstract):
 	@abstractmethod
-	def evaluate_penalty(self, ir: list[IRNode]) -> float:
+	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		pass
 	@abstractmethod
 	def get_input_shapes(self) -> list[LockedShape]:
 		pass
 
-class Tracker:
-	def __init__(self, ir: list[IRNode], record_length: int) -> None:
-		self._ir = ir
-		self._record_length = record_length
-		self._loss: list = [float]
+class SampleCollection:
+	__slots__ = ["sample_size", "avg_loss", "max_loss", "min_loss", "accuracy"]
+	def __init__(self, avg_loss: float, max_loss: float, min_loss: float, accuracy: float | None, sample_size: int = 1) -> None:
+		self.sample_size: int = sample_size 
+		self.avg_loss: float = avg_loss
+		self.max_loss: float = max_loss
+		self.min_loss: float = min_loss 
+		self.accuracy: float | None = accuracy 
+	def merge(self, other: SampleCollection) -> SampleCollection:
+		new_sample_size = self.sample_size + other.sample_size
+		self.avg_loss = (other.avg_loss * other.sample_size + self.avg_loss * other.sample_size) / new_sample_size
+		self.max_loss = max(self.max_loss, other.max_loss)
+		self.min_loss = min(self.min_loss, other.min_loss)
+		self.accuracy = (other.accuracy * other.sample_size + self.accuracy * self.sample_size) / new_sample_size if self.accuracy is not None and other.accuracy is not None else None
+		self.sample_size = new_sample_size
+		return self
+	def __copy__(self) -> SampleCollection:
+		return SampleCollection(self.avg_loss, self.max_loss, self.min_loss, self.accuracy, self.sample_size)
+
+class Metrics:
+	def __init__(self, max_samples: int = 2**14) -> None:
+		self._total_samples: int = 0
+		self._max_samples: int = max_samples
+		self._sample_size: int = 1
+		self._last_sample_size: int = 1
+		self._samples: list[SampleCollection] = []
+		self._total_time: float = 0
+	def record(self, sample: SampleCollection) -> None:
+		if self._last_sample_size < self._sample_size:
+			self._samples[-1].merge(sample)
+			self._last_sample_size += 1
+		else:
+			self._samples.append(sample)
+			self._last_sample_size = 1
+		if len(self._samples) > self._max_samples:
+			self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
+			self._sample_size *= 2
+		self._total_samples += 1
+	def __getitem__(self, position: int | float) -> SampleCollection:
+		return self._samples[self._get_index(position)]
+	def merge_range(self, start: int | float, end: int | float) -> SampleCollection:
+		start_index = self._get_index(start)
+		end_index = self._get_index(end)
+		if start_index > end_index:
+			raise ValueError("Invalid range")
+		output = copy(self._samples[start_index]) 
+		for i in range(start_index + 1, end_index):
+			output.merge(self._samples[i])
+		return output
+	def _get_index(self, position: int | float) -> int:
+		if isinstance(position, int):
+			return int(position / self._total_samples * len(self._samples))
+		else:
+			return int(self._total_samples * position)
