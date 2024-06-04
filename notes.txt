@@ -13,6 +13,7 @@ changes:
 		refactor mix conv
 			maybe split it
 		rename samples, something else who knows what
+		perhaps sample shouldnt be an interface, just make everything a little more concrete, then if people want other information they can just make their own 
 	possible:
 		should the control just be moved to schema???
 			it does somewhat make sense, as the entire process is centered around the schema
