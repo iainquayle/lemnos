@@ -32,3 +32,5 @@ This backend agnostic approach allows the schema to be compiled to whatever back
 
 The control manages the search process, monitoring and recording the performance of the models,
 and deciding which models will be bred to create the next generation of models.
+While this could for the moment be implemented within the schema, it is being kept seperate for for both clarity,
+and possible future expansion into a distributed client-server model.
