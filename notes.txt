@@ -1,5 +1,6 @@
 changes:
 	guarenteed:
+		deal with time and epochs in metrics
 		refactor adapters
 			break any mixed responsiblities 
 			divide more naturally
@@ -7,13 +8,10 @@ changes:
 			clean requirements and reinstall
 			deal with model saving
 			rename src 
-		add ease of life
 			make mroe graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
 		refactor mix conv
 			maybe split it
-		rename samples, something else who knows what
-		perhaps sample shouldnt be an interface, just make everything a little more concrete, then if people want other information they can just make their own 
 	possible:
 		should the control just be moved to schema???
 			it does somewhat make sense, as the entire process is centered around the schema
@@ -34,13 +32,3 @@ changes:
 			may atleast have some syntax highlighting then
 problems:
 
-
-changes:
-	control
-		may be that control needs accept user definition on how the models are selected/culled
-			ie, what if wanting to breed a very fast model, and a very accurate model
-		this would include being able to define recording metric?  
-			ie not just the score ing, but what metrics are recorded
-		in the example of train only vs train and validation, hard to say how that would be implemented in one system?
-			it could have members for all the types, but it is kind of messy in a way  
-		as well, accuracy isnt always a thing... duh, but nice to have when it does exist 

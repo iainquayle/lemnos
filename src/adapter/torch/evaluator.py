@@ -7,14 +7,12 @@ from .formatter import DefaultComponentFormatter, TorchComponentFormatter, creat
 import torch
 from torch import Tensor
 from torch.nn import Module
-from torch.utils.data import DataLoader, IterableDataset, Dataset
+from torch.utils.data import DataLoader 
 
 from typing import Callable, Any
 
 from enum import Enum
 from abc import ABC as Abstract, abstractmethod
-
-from copy import copy
 
 import gc
 
@@ -45,7 +43,6 @@ AccuracyFunction = Callable[[Tensor, Tensor], float]
 
 class BasicLossBased(Evaluator):
 	def __init__(self, 
-			formatter: TorchComponentFormatter,
 			train_loader: DataLoader,
 			validation_loader: DataLoader | None,
 			epochs: int,
@@ -55,12 +52,12 @@ class BasicLossBased(Evaluator):
 			optimizer: Optimizer,
 			device: torch.device,
 			require_cuda: bool,
+			formatter: TorchComponentFormatter = DefaultComponentFormatter(),
 			torch_compiler: CompileBackend | None = None,
 		) -> None:
 		self._device_type = CUDA if torch.cuda.is_available() else CPU 
 		if require_cuda and not self._device_type == CUDA:
 			raise ValueError("CUDA not available")
-		self._formatter = formatter
 		self._train_loader = train_loader 
 		self._validation_loader = validation_loader
 		self._epochs = epochs
@@ -69,6 +66,7 @@ class BasicLossBased(Evaluator):
 		self._lr = lr
 		self._optimizer = optimizer
 		self._device = device
+		self._formatter = formatter
 		self._torch_compiler = torch_compiler
 	def evaluate_model(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		training_metrics = Metrics(2048)
@@ -80,7 +78,7 @@ class BasicLossBased(Evaluator):
 		optimizer = self._optimizer.get(model)
 		model.train()
 		scaler = torch.cuda.amp.GradScaler()
-		for epochs in range(self._epochs):
+		for epoch in range(self._epochs):
 			for (input, truth) in self._train_loader:
 				input, truth = input.to(self._device), truth.to(self._device)
 				optimizer.zero_grad(set_to_none=True)
@@ -88,7 +86,7 @@ class BasicLossBased(Evaluator):
 					output = model(input)
 					loss = self._criterion(output, truth)
 					accuracy = self._accuracy_function(output, truth) if self._accuracy_function is not None else None
-					training_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy))
+					training_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch))
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
@@ -102,7 +100,7 @@ class BasicLossBased(Evaluator):
 							output = model(input)
 							loss = self._criterion(output, truth)
 							accuracy = self._accuracy_function(output, truth) if self._accuracy_function is not None else None
-						validation_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy))
+						validation_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch))
 						gc.collect()
 		return training_metrics, validation_metrics if self._validation_loader is not None else None
 		
