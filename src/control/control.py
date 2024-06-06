@@ -7,11 +7,7 @@ from abc import ABC as Abstract, abstractmethod
 
 from copy import copy
 
-#type ModelPool = list[tuple[list[IRNode], Metrics, Metrics | None]]
-
-
-
-
+#ModelPool = list[tuple[list[IRNode], Metrics, Metrics | None]]
 def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID, save_dir: str, model_pool_size: int = 1, breed_iterations: int = 1) -> None:
 	test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
 	model_pool: list[tuple[list[IRNode], Metrics, Metrics | None]] = [] 
