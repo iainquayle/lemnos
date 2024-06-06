@@ -196,6 +196,8 @@ class ShapeBound:
 			return False
 		if upper is not None and value > upper:
 			return False
+		if value < 0:
+			return False
 		return True
 	def get_bounds(self) -> list[tuple[int | None, int | None]]:
 		return copy(self._bounds)
