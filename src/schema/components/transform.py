@@ -23,6 +23,8 @@ class Full(Transform):
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality()
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, divisor: int, growth_factor: float) -> LockedShape | None:
+		#if input_shape[1] == 1:
+		print(input_shape)
 		upper_shape = input_shape.to_open()
 		if output_conformance.is_locked():
 			channel_raw = output_conformance.get_product() // upper_shape.get_product()

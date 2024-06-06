@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ...shared import LockedShape
 from ...schema import IRNode
 from ...control import Evaluator, Metrics, SampleCollection
 from .formatter import DefaultComponentFormatter, TorchComponentFormatter, create_module 
@@ -48,9 +49,7 @@ class TorchEvaluator(Evaluator):
 			epochs: int,
 			criterion: Module,
 			accuracy_function: AccuracyFunction | None,
-			lr: float,
 			optimizer: Optimizer,
-			device: torch.device,
 			require_cuda: bool,
 			formatter: TorchComponentFormatter = DefaultComponentFormatter(),
 			torch_compiler: CompileBackend | None = None,
@@ -63,24 +62,23 @@ class TorchEvaluator(Evaluator):
 		self._epochs = epochs
 		self._criterion = criterion
 		self._accuracy_function = accuracy_function
-		self._lr = lr
 		self._optimizer = optimizer
-		self._device = device
 		self._formatter = formatter
 		self._torch_compiler = torch_compiler
-	def evaluate_model(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
+	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
+		device = torch.cuda.current_device() if self._device_type == CUDA else torch.device(CPU)
 		training_metrics = Metrics(2048)
 		validation_metrics = Metrics(2048)
 		model: Any = create_module("Model", ir, self._formatter)
 		if self._torch_compiler is not None:
 			model = torch.compile(model, backend=str(self._torch_compiler))
-		model.to(self._device)
+		model.to(device)
 		optimizer = self._optimizer.get(model)
 		model.train()
 		scaler = torch.cuda.amp.GradScaler()
 		for epoch in range(self._epochs):
 			for (input, truth) in self._train_loader:
-				input, truth = input.to(self._device), truth.to(self._device)
+				input, truth = input.to(device), truth.to(device)
 				optimizer.zero_grad(set_to_none=True)
 				with torch.autocast(device_type=self._device_type, dtype=torch.float16):
 					output = model(input)
@@ -95,7 +93,7 @@ class TorchEvaluator(Evaluator):
 				model.eval()
 				with torch.no_grad():
 					for (input, truth) in self._validation_loader:
-						input, truth = input.to(self._device), truth.to(self._device)
+						input, truth = input.to(device), truth.to(device)
 						with torch.autocast(device_type=self._device_type, dtype=torch.float16):
 							output = model(input)
 							loss = self._criterion(output, truth)
@@ -103,6 +101,8 @@ class TorchEvaluator(Evaluator):
 						validation_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch))
 						gc.collect()
 		return training_metrics, validation_metrics if self._validation_loader is not None else None
+	def get_input_shapes(self) -> list[LockedShape]:
+		return [LockedShape(1)]
 		
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
