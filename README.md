@@ -17,8 +17,8 @@ The library has three major components, the schema, adapters, and control.
 
 ### Schema
 
-Schemas express the search area using weighted directed graphs, which is walked in such a manner to create a working model. 
-When built correctly, a schema can describe complex architectures, such as ResNet, to U-Net, to anything in between in a very concise manner.
+Schemas express the search area using weighted directed graphs, which are walked in such a manner to create a working model. 
+When built correctly, a schema can describe complex architectures, such as ResNet, or U-Net, or anything in between. 
 The nodes bundle three operations often seen together in modern neural networks, the operation, the activation, and the normalization.
 The edges represent the flow of data between nodes, with the weights describing how the graph is to be walked.
 
