@@ -3,7 +3,7 @@ import unittest
 from src.schema import SchemaNode, Schema, BreedIndices, New, Existing 
 from src.schema.components import Sum, Conv, ReLU, BatchNorm, Full
 from src.shared import LockedShape, ShapeBound, ID
-from src.adapter.torch import generate_torch_module, get_module
+from src.adapter.torch import create_module, generate_source 
 import torch
 
 
@@ -31,7 +31,7 @@ class TestTorchCompilation(unittest.TestCase):
 		ir = schema.compile_ir([LockedShape(1, 8)], BreedIndices(), ID(15))
 		if ir is None:
 			self.fail()
-		_ = generate_torch_module("test", ir)
+		_ = generate_source("test", ir)
 		self.assertEqual(len(ir), 11)
 class TestTorchModule(unittest.TestCase):
 	def test_full(self):
@@ -67,6 +67,6 @@ class TestTorchModule(unittest.TestCase):
 		ir = schema.compile_ir([LockedShape(1, 8)], BreedIndices(), ID(15))
 		if ir is None:
 			self.fail()
-		module = get_module("test", ir)
+		module = create_module("test", ir)
 		input = torch.ones(2, 1, 8)
 		self.assertEqual(module(input).shape, torch.Size([2, 1]))
