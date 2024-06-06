@@ -41,7 +41,7 @@ class SGD(Optimizer):
 
 AccuracyFunction = Callable[[Tensor, Tensor], float]
 
-class BasicLossBased(Evaluator):
+class TorchEvaluator(Evaluator):
 	def __init__(self, 
 			train_loader: DataLoader,
 			validation_loader: DataLoader | None,

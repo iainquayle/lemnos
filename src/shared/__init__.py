@@ -1,2 +1,3 @@
 from .shape import *
-from .id import ID
+from .conformance import *
+from .id import * 
