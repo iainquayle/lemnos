@@ -23,10 +23,13 @@ def main():
 
 	train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
 	validation_loader = DataLoader(validation_data, batch_size=64, shuffle=True)
+	#oops make sure the output is in tensor
 
-	evaluator = TorchEvaluator(train_loader, validation_loader, 5, nn.CrossEntropyLoss(), None, Adam(0.002),True)
-	x = evaluator
-	
+	evaluator = TorchEvaluator(train_loader, validation_loader, 1, nn.CrossEntropyLoss(), None, Adam(0.002), True)
+	if (ir := create_schema().compile_ir([LockedShape(1, 28, 28)], BreedIndices(), ID(15))) is not None:
+		training_metrics, validation_metrics = evaluator.evaluate(ir)
+		print(training_metrics)
+			
 
 def create_schema() -> Schema:
 	#
