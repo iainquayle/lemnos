@@ -98,3 +98,11 @@ class Metrics:
 			return int(position / self._total_samples * len(self._samples))
 		else:
 			return int(self._total_samples * position)
+	def format(self, resolution: int | None) -> str:
+		if resolution is None:
+			resolution = len(self._samples)
+		return "\n".join([f"{self[i/resolution]}" for i in range(10)])
+	def __str__(self) -> str:
+		return self.format(10)
+	def __repr__(self) -> str:
+		return self.format(10)
