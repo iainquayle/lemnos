@@ -30,6 +30,23 @@ class IRNode:
 		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompilationIndex: {self.index}"
 
 
+# English version of how compilation works:
+#
+# The node with the lowest priority at the top of a stack is popped from the compilation tracker.
+# A transition group is selected, and attempts to be added to the tracker, this involves:
+#	- Creating new nodes for next schema nodes that are designated to be new, and set the priority to the priority of the taken transition.
+#	- Attempting to join existing nodes, this involves:
+#		- Get first available matching node, that has not been parented by the current node type before.
+#		- Get the input shape (Conformance) of the child node (ie all of the other parent nodes, after their shapes have been mergered according to the merge method of the schema node).
+#		- Attempt to merge the output shape of the current node with the conformance shape:
+#			- If successful, update the child node in the tracker with the new parent, priority given by the transition and conformance shape, and create new IR node and return it in a list.
+#			- If unsuccessful, but transition set to auto, create new node, else fail whole transition group.
+# If all transition groups fail, attempt next transition group from previous node in the build stack.
+# Repeat this until compilation tracker is empty, if a IR list is returned it is successful, else no solution was found.
+#
+# Note, this current implementation cannot solve all valid graphs, as it only has a single look ahead, and all previous compilation efforts in the stack are immutable.
+#	However if the graph takes into account the single look ahead, it can solve all.
+
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
@@ -98,10 +115,14 @@ class SchemaNode:
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
 		return self
-	def get_transform(self) -> Transform | None:
-		return self._transform
 	def get_merge_method(self) -> MergeMethod | None:
 		return self._merge_method
+	def get_transform(self) -> Transform | None:
+		return self._transform
+	def get_activation(self) -> Activation | None:
+		return self._activation
+	def get_regularization(self) -> Regularization | None:
+		return self._regularization
 	def get_components(self) -> list[Component]:
 		return [component for component in (self._merge_method, self._transform, self._activation, self._regularization) if component is not None]
 	def dimensionality(self) -> int:

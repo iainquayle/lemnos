@@ -92,17 +92,17 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 	init_statements: list[str] = []
 	forward_statements: list[str] = []
 	available_registers: list[ID] = []
-	max_register: ID = ID(0) 
+	greatest_register: ID = ID(0) 
 	for node in ir:
 		registers_in: list[ID] = []
 		register_out: ID
 		if len(node.parent_ids) == 0:
-			max_register += 1
-			node_register[node.id] = max_register
-			registers_in = [max_register]
-			register_out = max_register
-			forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(max_register), node.input_shape)))
-			arg_registers.append(max_register)
+			greatest_register += 1
+			node_register[node.id] = greatest_register
+			registers_in = [greatest_register]
+			register_out = greatest_register
+			forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(greatest_register), node.input_shape)))
+			arg_registers.append(greatest_register)
 		else:
 			for id in node.parent_ids:
 				registers_in.append(node_register[id])
@@ -110,8 +110,8 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 				if children_counts[id] == 0:
 					available_registers.append(node_register[id])
 			if len(available_registers) == 0:
-				max_register += 1
-				register_out = max_register
+				greatest_register += 1
+				register_out = greatest_register
 			else:
 				register_out = available_registers.pop()
 		node_register[node.id] = register_out
@@ -128,7 +128,8 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 				forward_statement = [flatten_view_(expr, node.input_shape) for expr in forward_statement]
 			current_shape = component_formatter.get_shape_requirment(component)
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
-		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
+		#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
+		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))))
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 	return concat_lines_(import_torch_(), *module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
