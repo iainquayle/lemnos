@@ -51,6 +51,7 @@ class TorchEvaluator(Evaluator):
 			accuracy_function: AccuracyFunction | None,
 			optimizer: Optimizer,
 			require_cuda: bool,
+			metrics_resolution: int = 2048,
 			formatter: TorchComponentFormatter = DefaultComponentFormatter(),
 			torch_compiler: CompileBackend | None = None,
 		) -> None:
@@ -63,12 +64,13 @@ class TorchEvaluator(Evaluator):
 		self._criterion = criterion
 		self._accuracy_function = accuracy_function
 		self._optimizer = optimizer
+		self._metrics_resolution = metrics_resolution
 		self._formatter = formatter
 		self._torch_compiler = torch_compiler
 	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		device = torch.cuda.current_device() if self._device_type == CUDA else torch.device(CPU)
-		training_metrics = Metrics(2048)
-		validation_metrics = Metrics(2048)
+		training_metrics = Metrics(self._metrics_resolution)
+		validation_metrics = Metrics(self._metrics_resolution)
 		model: Any = create_module("Model", ir, self._formatter)
 		if self._torch_compiler is not None:
 			model = torch.compile(model, backend=str(self._torch_compiler))

@@ -1,25 +1,19 @@
 changes:
 	guarenteed:
-		deal with time and epochs in metrics
 		refactor adapters
 			break any mixed responsiblities 
 			divide more naturally
 		make useful as library
-			clean requirements and reinstall
 			deal with model saving
 			rename src 
-			make mroe graph build checks, ie no merge method with multiple inputs
+			make more graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
 		refactor mix conv
 			maybe split it
 	possible:
-		should the control just be moved to schema???
-			it does somewhat make sense, as the entire process is centered around the schema
+		consider making the merging of sample collections to immutable, or just sample collections in general
 		implement some kind of node ratio rules
 			the search space for larger models needs to be brought down
-		perhaps make breed indices hold IDs instead of nodes
-			then move these over to control? 
-			it is somewhat a control owned process, but not at the same time? idk
 		consider renaming the project 
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
@@ -27,8 +21,6 @@ changes:
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
-		add explicit gc calls, memory issues when machine already in use 
 		move templates to jinja or the sort
 			may atleast have some syntax highlighting then
 problems:
-

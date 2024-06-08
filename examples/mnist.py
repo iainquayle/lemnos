@@ -6,30 +6,43 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import torch
-from torchvision import datasets
+from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch import nn
 
 from src.shared import LockedShape, Conformance, ShapeBound, ID
-from src.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices
-from src.schema.components import Conv, BatchNorm, ReLU6, Softmax, Full
+from src.schema import Schema, SchemaNode, New, PowerGrowth, LinearGrowth, BreedIndices
+from src.schema.components import Conv, BatchNorm, ReLU6, Softmax
 from src.adapter.torch import TorchEvaluator, generate_source, Adam
 from src.control import or_search, MinAvgLossSelector
 
 
+#
+# This example demonstrates a simple search using pre built components.
+# The most important part is the schema definition, everything else is boilerplate that has been abstracted away but can be replaced when needed.
+# Infact, it is encouraged to replace at least the evaluator based on the needs of the goal.
+#
+# IF YOU ARE READING THIS, it currently doesnt save or output the results
+#	as in there isnt a way built in, figuring out where to put it
+
+
 def main():
-	train_data = datasets.MNIST('data', train=True, download=True)
-	validation_data = datasets.MNIST('data', train=False, download=True)
+	train_data = datasets.MNIST('data', train=True, download=True, transform=transforms.ToTensor())
+	validation_data = datasets.MNIST('data', train=False, download=True, transform=transforms.ToTensor())
 
-	train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
-	validation_loader = DataLoader(validation_data, batch_size=64, shuffle=True)
-	#oops make sure the output is in tensor
+	train_loader = DataLoader(train_data, batch_size=64, shuffle=True, pin_memory=True)
+	validation_loader = DataLoader(validation_data, batch_size=64, shuffle=True, pin_memory=True)
 
-	evaluator = TorchEvaluator(train_loader, validation_loader, 1, nn.CrossEntropyLoss(), None, Adam(0.002), True)
+	accuracy_func = lambda x, y: torch.mean((x.argmax(dim=1) == y).float()).item()
+	evaluator = TorchEvaluator(train_loader, validation_loader, 1, nn.CrossEntropyLoss(), accuracy_func, Adam(0.002), True)
+
 	if (ir := create_schema().compile_ir([LockedShape(1, 28, 28)], BreedIndices(), ID(15))) is not None:
-		training_metrics, validation_metrics = evaluator.evaluate(ir)
-		print(training_metrics)
-			
+		print(generate_source("Example", ir))
+		model_pool = or_search(create_schema(), evaluator, MinAvgLossSelector(), ID(15), 5, 5)
+
+	else:
+		print("Failed to compile schema")
+
 
 def create_schema() -> Schema:
 	#
@@ -39,8 +52,8 @@ def create_schema() -> Schema:
 	#
 
 	start = SchemaNode(ShapeBound(None, None, None), LinearGrowth(10, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "start")
-	conv_3 = SchemaNode(ShapeBound(None, None, None), PowerGrowth(45, .7, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "conv_3")
-	conv_5 = SchemaNode(ShapeBound(None, None, None), PowerGrowth(45, .5, .2), None, Conv(5), ReLU6(), BatchNorm(), 1, "conv_5")
+	conv_3 = SchemaNode(ShapeBound(None, None, None), PowerGrowth(45, .8, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "conv_3")
+	conv_5 = SchemaNode(ShapeBound(None, None, None), PowerGrowth(45, .6, .2), None, Conv(5), ReLU6(), BatchNorm(), 1, "conv_5")
 	end = SchemaNode(ShapeBound(10, 1, 1), None, None, Conv(2), Softmax(), None, 1, "end")
 
 	start.add_group(New(conv_3, 0))

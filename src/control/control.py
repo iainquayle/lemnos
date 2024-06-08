@@ -7,33 +7,36 @@ from abc import ABC as Abstract, abstractmethod
 
 from copy import copy
 
-#ModelPool = list[tuple[list[IRNode], Metrics, Metrics | None]]
-def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID, save_dir: str, model_pool_size: int = 1, breed_iterations: int = 1) -> None:
-	test_indices: list[BreedIndices] = [BreedIndices() for _ in range(model_pool_size)]
-	model_pool: list[tuple[list[IRNode], Metrics, Metrics | None]] = [] 
-	failed_compilations = 0
+def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID, model_pool_size: int = 1, breed_iterations: int = 1) -> ModelPool:
+	indices = BreedIndices()
+	model_pool: ModelPool = [] 
 	i = 0
 	while i < breed_iterations: #will switch this to use a call back? allowing for an interactive cli?
-		for j, indices in enumerate(test_indices):
+		for j in range(model_pool_size):
 			if (ir := schema.compile_ir(evaluator.get_input_shapes(), indices, max_id)) is not None:
 				training_metrics, validation_metrics = evaluator.evaluate(ir)
 				model_pool.append((ir, training_metrics, validation_metrics))
 			else:
-				failed_compilations += 1
-				if failed_compilations > 10:
-					raise ValueError("Too many failed compilations")
-		test_indices = selector.select(model_pool)
+				raise ValueError("Failed compilation")
+		model_pool = selector.select(model_pool, model_pool_size)
+		indices = BreedIndices([ir for ir, _, _ in model_pool], .2, .2, .2) 
 		i += 1
+	return model_pool
 
 class Selector(Abstract):
 	@abstractmethod
-	def select(self, models: list[tuple[list[IRNode], Metrics, Metrics | None]]) -> list[BreedIndices]:
+	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
 		pass
 
-class MinAvgLossSelector(Selector):
-	def select(self, models: list[tuple[list[IRNode], Metrics, Metrics | None]]) -> list[BreedIndices]:
+class AvgEpochLossSelector(Selector):
+	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
 		#models.sort(key=lambda pair: pair[1].avg_loss)
-		return [BreedIndices([ir for ir, _, _ in models[:len(models) // 2]], .2, .2, .2) for _ in models]
+		epoch_quantized_models = []
+		for ir, training_metrics, validation_metrics in models:
+			pass	
+		
+		epoch_quantized_models = epoch_quantized_models[:model_pool_size]
+		return [models[i] for i, _, _, _ in epoch_quantized_models] 
 
 class Evaluator(Abstract):
 	@abstractmethod
@@ -63,6 +66,10 @@ class SampleCollection:
 		return self
 	def __copy__(self) -> SampleCollection:
 		return SampleCollection(self.avg_loss, self.max_loss, self.min_loss, self.accuracy, self.time, self.epoch, self.sample_size,)
+	def __str__(self) -> str:
+		return f"loss: {self.avg_loss}, max: {self.max_loss}, min: {self.min_loss}, accuracy: {self.accuracy}, time: {self.time}, epoch: {self.epoch}"
+	def __repr__(self) -> str:
+		return str(self)
 
 class Metrics:
 	def __init__(self, max_samples: int = 2**14) -> None:
@@ -72,7 +79,7 @@ class Metrics:
 		self._samples: list[SampleCollection] = []
 		self._total_time: float = 0
 	def record(self, sample: SampleCollection) -> None:
-		if self._samples[-1].sample_size < self._target_sample_size:
+		if (not len(self._samples) == 0) and self._samples[-1].sample_size < self._target_sample_size:
 			self._samples[-1].merge(sample)
 			self._last_sample_size += self._samples[-1].sample_size
 		else:
@@ -82,6 +89,11 @@ class Metrics:
 			self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
 			self._target_sample_size *= 2
 		self._total_samples += 1
+		if self._samples[-1].sample_size < self._target_sample_size:
+			self._samples[-1].merge(sample)
+			self._last_sample_size += self._samples[-1].sample_size
+	def get_epochs(self) -> list[SampleCollection]:
+		return []
 	def __getitem__(self, position: int | float) -> SampleCollection:
 		return self._samples[self._get_index(position)]
 	def merge_range(self, start: int | float, end: int | float) -> SampleCollection:
@@ -103,6 +115,8 @@ class Metrics:
 			resolution = len(self._samples)
 		return "\n".join([f"{self[i/resolution]}" for i in range(10)])
 	def __str__(self) -> str:
-		return self.format(10)
+		return self.format(20)
 	def __repr__(self) -> str:
-		return self.format(10)
+		return self.format(20)
+
+ModelPool = list[tuple[list[IRNode], Metrics, Metrics | None]]
