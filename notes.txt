@@ -1,3 +1,6 @@
+features:
+	implement the means of supplying the input shapes
+
 changes:
 	guarenteed:
 		refactor adapters
