@@ -1,9 +1,9 @@
 import unittest
 
-from src.schema import *
-from src.schema.components import *
-from src.shared import *
-from src.schema.schema_graph import Conformance
+from lemnos.schema import *
+from lemnos.schema.components import *
+from lemnos.shared import *
+from lemnos.schema.schema_graph import Conformance
 
 class TestSchemaGraph(unittest.TestCase):
 	def setUp(self):

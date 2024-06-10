@@ -1,10 +1,10 @@
 import unittest
 
-from src.schema.schema_graph import _CompilationNode, _CompilationNodeStack, _CompilationTracker 
-from src.schema.schema_graph import *
-from src.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full
-from src.schema.compilation_indices import BreedIndices
-from src.shared import *
+from lemnos.schema.schema_graph import _CompilationNode, _CompilationNodeStack, _CompilationTracker 
+from lemnos.schema.schema_graph import *
+from lemnos.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full
+from lemnos.schema.compilation_indices import BreedIndices
+from lemnos.shared import *
 
 class Test_Compilation(unittest.TestCase):
 	def test_split(self):

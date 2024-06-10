@@ -1,8 +1,8 @@
 import unittest
 
-from src.schema.schema_graph import SchemaNode, _CompilationNodeStack, _CompilationTracker, _CompilationNode
-from src.schema.components import Concat 
-from src.shared import *
+from lemnos.schema.schema_graph import SchemaNode, _CompilationNodeStack, _CompilationTracker, _CompilationNode
+from lemnos.schema.components import Concat 
+from lemnos.shared import *
 
 class TestStack(unittest.TestCase):
 	def setUp(self):

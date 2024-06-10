@@ -1,9 +1,9 @@
 import unittest
 
-from src.schema import SchemaNode, Schema, BreedIndices, New, Existing 
-from src.schema.components import Sum, Conv, ReLU, BatchNorm, Full
-from src.shared import LockedShape, ShapeBound, ID
-from src.adapter.torch import create_module, generate_source 
+from lemnos.schema import SchemaNode, Schema, BreedIndices, New, Existing 
+from lemnos.schema.components import Sum, Conv, ReLU, BatchNorm, Full
+from lemnos.shared import LockedShape, ShapeBound, ID
+from lemnos.adapter.torch import create_module, generate_source 
 import torch
 
 

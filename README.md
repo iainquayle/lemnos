@@ -1,11 +1,13 @@
-# Model Make
+# Lemnos 
 
 ## Overview
 
-Model Make is a library for discovering efficient and performant neural network architectures.
+Lemnos is a library for discovering efficient and performant neural network architectures.
 
 Rather than requiring the user to manually create and test models, or create bespoke search engines,
 Model Make provides a generalized framework for defining search spaces and optimizing over them.
+
+Check out these [examples](/tree/master/examples).
 
 ## Setup 
 

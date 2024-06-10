@@ -249,8 +249,6 @@ class _CompilationTracker:
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
 	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
-		print(self._stacks_lookup.__contains__(key))
-		print(key.debug_name)
 		return self._stacks[self._stacks_lookup[key]]
 	def __len__(self) -> int:
 		return len(self._stacks)

@@ -3,8 +3,8 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from src.schema.components import Conv 
-from src.shared import LockedShape, OpenShape, ShapeBound 
+from lemnos.schema.components import Conv 
+from lemnos.shared import LockedShape, OpenShape, ShapeBound 
 
 #TODO: splits these tests up
 class TestConv(unittest.TestCase):

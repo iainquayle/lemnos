@@ -1,6 +1,6 @@
 import unittest
 
-from src.shared import Shape, LockedShape, OpenShape, ShapeBound 
+from lemnos.shared import Shape, LockedShape, OpenShape, ShapeBound 
 
 class TestShapeCommons(unittest.TestCase):
 	def setUp(self) -> None:
