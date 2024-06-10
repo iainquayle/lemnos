@@ -7,7 +7,7 @@ Lemnos is a library for discovering efficient and performant neural network arch
 Rather than requiring the user to manually create and test models, or create bespoke search engines,
 Model Make provides a generalized framework for defining search spaces and optimizing over them.
 
-Check out these [examples](/tree/master/examples).
+Check out these [examples](examples).
 
 ## Setup 
 
