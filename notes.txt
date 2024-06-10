@@ -5,7 +5,6 @@ changes:
 			divide more naturally
 		make useful as library
 			deal with model saving
-			rename src 
 			make more graph build checks, ie no merge method with multiple inputs
 			make failed compilation logging
 		refactor mix conv

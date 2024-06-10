@@ -1,7 +1,7 @@
 import unittest
 
-from src.schema.components import Sum, Concat
-from src.shared import LockedShape, OpenShape 
+from lemnos.schema.components import Sum, Concat
+from lemnos.shared import LockedShape, OpenShape 
 
 class TestMergeMethod(unittest.TestCase):
 	def setUp(self) -> None:

@@ -1,6 +1,6 @@
 import unittest
 
-from src.shared import ID
+from lemnos.shared import ID
 
 class TestID(unittest.TestCase):
 	def test_new(self):

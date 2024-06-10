@@ -1,9 +1,9 @@
 
 import unittest
 
-from src.schema import Schema, SchemaNode 
-from src.schema.components import *
-from src.shared import ShapeBound, LockedShape
+from lemnos.schema import Schema, SchemaNode 
+from lemnos.schema.components import *
+from lemnos.shared import ShapeBound, LockedShape
 
 from torch.utils.data import Dataset
 from torch.nn import BCEWithLogitsLoss 

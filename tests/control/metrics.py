@@ -1,6 +1,6 @@
 import unittest
 
-from src.control import Metrics, SampleCollection
+from lemnos.control import Metrics, SampleCollection
 
 class TestMetrics(unittest.TestCase):
 	def setUp(self):
