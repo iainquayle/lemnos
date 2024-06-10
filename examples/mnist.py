@@ -10,11 +10,11 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch import nn
 
-from src.shared import LockedShape, Conformance, ShapeBound, ID
-from src.schema import Schema, SchemaNode, New, PowerGrowth, LinearGrowth, BreedIndices
-from src.schema.components import Conv, BatchNorm, ReLU6, Softmax
-from src.adapter.torch import TorchEvaluator, generate_source, Adam
-from src.control import or_search, MinAvgLossSelector
+from lemnos.shared import LockedShape, Conformance, ShapeBound, ID
+from lemnos.schema import Schema, SchemaNode, New, PowerGrowth, LinearGrowth, BreedIndices
+from lemnos.schema.components import Conv, BatchNorm, ReLU6, Softmax
+from lemnos.adapter.torch import TorchEvaluator, generate_source, Adam
+from lemnos.control import or_search, AvgEpochLossSelector
 
 
 #
@@ -36,13 +36,13 @@ def main():
 	accuracy_func = lambda x, y: torch.mean((x.argmax(dim=1) == y).float()).item()
 	evaluator = TorchEvaluator(train_loader, validation_loader, 1, nn.CrossEntropyLoss(), accuracy_func, Adam(0.002), True)
 
-	if (ir := create_schema().compile_ir([LockedShape(1, 28, 28)], BreedIndices(), ID(15))) is not None:
+	if (ir := create_schema().compile_ir([LockedShape(1, 28, 28)], BreedIndices(), ID(15))) is not None: #purely for demonstration purposes
 		print(generate_source("Example", ir))
-		model_pool = or_search(create_schema(), evaluator, MinAvgLossSelector(), ID(15), 5, 5)
-
 	else:
 		print("Failed to compile schema")
 
+	exit()
+	model_pool = or_search(create_schema(), evaluator, AvgEpochLossSelector(), ID(15), 5, 5) 
 
 def create_schema() -> Schema:
 	#
@@ -52,10 +52,18 @@ def create_schema() -> Schema:
 	#
 
 	start = SchemaNode(ShapeBound(None, None, None), LinearGrowth(10, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "start")
-	conv_3 = SchemaNode(ShapeBound(None, None, None), PowerGrowth(45, .8, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "conv_3")
-	conv_5 = SchemaNode(ShapeBound(None, None, None), PowerGrowth(45, .6, .2), None, Conv(5), ReLU6(), BatchNorm(), 1, "conv_5")
+
+	conv_3 = SchemaNode(ShapeBound((10, 45), None, None), PowerGrowth(45, .8, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "conv_3")
+	conv_5 = SchemaNode(ShapeBound(None, (6, None), (6, None)), PowerGrowth(45, .6, .2), None, Conv(5), ReLU6(), BatchNorm(), 1, "conv_5")
+	# The convolutions above have been given bounds for the purpose of demonstration, but they are not needed  for this graph to be valid.
+	# conv_3 will be bound at 10 to 45 channels, while conv_5 is unbounded and free to grow following the growth function.
+	# conv_5 is given the lower bound of 6x6, demonstrating how limit the use of a node based on the necessary output shape.
+	#	ie, once the output shape of the nodes layers has reached <= 6x6, conv_5 wont be used.
+
 	end = SchemaNode(ShapeBound(10, 1, 1), None, None, Conv(2), Softmax(), None, 1, "end")
 
+	
+	# Note: Groups can have more than one transition.
 	start.add_group(New(conv_3, 0))
 	start.add_group(New(conv_5, 0))
 
