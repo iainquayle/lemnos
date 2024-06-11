@@ -12,7 +12,8 @@ class Schema:
 				raise ValueError("End patterns cannot not have transitions out")
 		self._starts: list[SchemaNode] = starts 
 		self._ends: list[SchemaNode] = ends 
-	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_id: ID) -> list[IRNode] | None:
+	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_id: ID | int) -> list[IRNode] | None:
+		max_id = ID(max_id)
 		tracker = _CompilationTracker(
 			[_CompilationNodeStack(schema_node, [_CompilationNode(set(), [], shape, i-len(input_shapes))]) for i, (schema_node, shape) in enumerate(zip(self._starts, input_shapes))], 
 			None)

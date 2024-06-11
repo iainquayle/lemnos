@@ -7,7 +7,7 @@ from abc import ABC as Abstract, abstractmethod
 
 from copy import copy
 
-def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID, model_pool_size: int = 1, breed_iterations: int = 1) -> ModelPool:
+def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID | int, model_pool_size: int = 1, breed_iterations: int = 1) -> ModelPool:
 	indices = BreedIndices()
 	model_pool: ModelPool = [] 
 	i = 0
@@ -37,7 +37,7 @@ class AvgLossWindowSelector(Selector):
 	def __init__(self, window_size: int) -> None:
 		self._window_size = window_size
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
-		scores = []
+		scores= []
 		for model in models:
 			_, training_metrics, validation_metrics = model
 			focused_metrics = training_metrics if validation_metrics is None else validation_metrics
@@ -56,9 +56,9 @@ class AvgLossWindowSelector(Selector):
 					loss -= focused_metrics[start_index].total_loss
 					samples -= focused_metrics[start_index].sample_size
 					start_index += 1
-			scores.append(min_loss)
-		models.sort(key=lambda pair: scores[models.index(pair)])
-		return models[:model_pool_size]
+			scores.append((min_loss, model))
+		scores.sort(key=lambda pair: pair[0])
+		return [model for _, model in scores[:model_pool_size]]
 
 class Evaluator(Abstract):
 	@abstractmethod
