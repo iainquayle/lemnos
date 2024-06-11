@@ -6,6 +6,7 @@ changes:
 		refactor adapters
 			break any mixed responsiblities 
 			divide more naturally
+			make torch evaluator get_shape more robust
 		make useful as library
 			deal with model saving
 			make more graph build checks, ie no merge method with multiple inputs

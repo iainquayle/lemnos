@@ -12,6 +12,7 @@ def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: 
 	model_pool: ModelPool = [] 
 	i = 0
 	while i < breed_iterations: #will switch this to use a call back? allowing for an interactive cli?
+		print(f"Breeding iteration {i} (this will be taken away when better logging is implemented)")
 		for j in range(model_pool_size):
 			if (ir := schema.compile_ir(evaluator.get_input_shapes(), indices, max_id)) is not None:
 				training_metrics, validation_metrics = evaluator.evaluate(ir)
@@ -30,13 +31,34 @@ class Selector(Abstract):
 
 class AvgEpochLossSelector(Selector):
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
-		#models.sort(key=lambda pair: pair[1].avg_loss)
-		epoch_quantized_models = []
-		for ir, training_metrics, validation_metrics in models:
-			pass	
-		
-		epoch_quantized_models = epoch_quantized_models[:model_pool_size]
-		return [models[i] for i, _, _, _ in epoch_quantized_models] 
+		raise NotImplementedError
+
+class AvgLossWindowSelector(Selector):
+	def __init__(self, window_size: int) -> None:
+		self._window_size = window_size
+	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
+		scores = []
+		for model in models:
+			_, training_metrics, validation_metrics = model
+			focused_metrics = training_metrics if validation_metrics is None else validation_metrics
+			start_index, end_index = 0, 0
+			loss = 0
+			min_loss = float("inf")
+			samples = 0
+			while end_index < len(focused_metrics.get_sample_list()):
+				while samples < self._window_size and end_index < len(focused_metrics.get_sample_list()):
+					loss += focused_metrics[end_index].total_loss
+					samples += focused_metrics[end_index].sample_size
+					end_index += 1
+				if loss / samples < min_loss:
+					min_loss = loss / samples
+				while samples >= self._window_size:
+					loss -= focused_metrics[start_index].total_loss
+					samples -= focused_metrics[start_index].sample_size
+					start_index += 1
+			scores.append(min_loss)
+		models.sort(key=lambda pair: scores[models.index(pair)])
+		return models[:model_pool_size]
 
 class Evaluator(Abstract):
 	@abstractmethod
@@ -47,10 +69,10 @@ class Evaluator(Abstract):
 		pass
 
 class SampleCollection:
-	__slots__ = ["sample_size", "avg_loss", "max_loss", "min_loss", "accuracy", "time", "epoch"]
-	def __init__(self, avg_loss: float, max_loss: float, min_loss: float, accuracy: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
+	__slots__ = ["sample_size", "total_loss", "max_loss", "min_loss", "accuracy", "time", "epoch"]
+	def __init__(self, total_loss: float, max_loss: float, min_loss: float, accuracy: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
 		self.sample_size: int = sample_size 
-		self.avg_loss: float = avg_loss
+		self.total_loss: float = total_loss
 		self.max_loss: float = max_loss
 		self.min_loss: float = min_loss 
 		self.accuracy: float | None = accuracy 
@@ -58,19 +80,20 @@ class SampleCollection:
 		self.epoch: int | None = epoch
 	def merge(self, other: SampleCollection) -> SampleCollection:
 		new_sample_size = self.sample_size + other.sample_size
-		self.avg_loss = (other.avg_loss * other.sample_size + self.avg_loss * other.sample_size) / new_sample_size
-		self.max_loss = max(self.max_loss, other.max_loss)
-		self.min_loss = min(self.min_loss, other.min_loss)
-		self.accuracy = (other.accuracy * other.sample_size + self.accuracy * self.sample_size) / new_sample_size if self.accuracy is not None and other.accuracy is not None else None
-		self.sample_size = new_sample_size
-		return self
+		return SampleCollection(
+			self.total_loss + other.total_loss,
+			max(self.max_loss, other.max_loss),
+			min(self.min_loss, other.min_loss),
+			(other.accuracy * other.sample_size + self.accuracy * self.sample_size) / new_sample_size if self.accuracy is not None and other.accuracy is not None else None,
+			self.epoch,
+			new_sample_size,
+		)
 	def __copy__(self) -> SampleCollection:
-		return SampleCollection(self.avg_loss, self.max_loss, self.min_loss, self.accuracy, self.time, self.epoch, self.sample_size,)
+		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.accuracy, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
-		return f"loss: {self.avg_loss}, max: {self.max_loss}, min: {self.min_loss}, accuracy: {self.accuracy}, time: {self.time}, epoch: {self.epoch}"
+		return f"loss: {self.total_loss}, max: {self.max_loss}, min: {self.min_loss}, accuracy: {self.accuracy}, time: {self.time}, epoch: {self.epoch}"
 	def __repr__(self) -> str:
 		return str(self)
-
 class Metrics:
 	def __init__(self, max_samples: int = 2**14) -> None:
 		self._total_samples: int = 0
@@ -101,9 +124,9 @@ class Metrics:
 		end_index = self._get_index(end)
 		if start_index > end_index:
 			raise ValueError("Invalid range")
-		output = copy(self._samples[start_index]) 
+		output = self._samples[start_index] 
 		for i in range(start_index + 1, end_index):
-			output.merge(self._samples[i])
+			output = output.merge(self._samples[i])
 		return output
 	def _get_index(self, position: int | float) -> int:
 		if isinstance(position, int):
@@ -114,6 +137,8 @@ class Metrics:
 		if resolution is None:
 			resolution = len(self._samples)
 		return "\n".join([f"{self[i/resolution]}" for i in range(10)])
+	def get_sample_list(self) -> list[SampleCollection]:
+		return self._samples
 	def __str__(self) -> str:
 		return self.format(20)
 	def __repr__(self) -> str:

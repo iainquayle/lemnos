@@ -104,7 +104,8 @@ class TorchEvaluator(Evaluator):
 						gc.collect()
 		return training_metrics, validation_metrics if self._validation_loader is not None else None
 	def get_input_shapes(self) -> list[LockedShape]:
-		return [LockedShape(1)]
+		first = list(next(iter(self._train_loader))[0].shape[1:])
+		return [LockedShape(*first)]
 		
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
