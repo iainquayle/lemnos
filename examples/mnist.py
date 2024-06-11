@@ -39,7 +39,7 @@ def main():
 	else:
 		print("Failed to compile schema")
 
-	model_pool = or_search(create_schema(), evaluator, AvgLossWindowSelector(10000), ID(15), 5, 5) 
+	model_pool = or_search(create_schema(), evaluator, AvgLossWindowSelector(10000), 15, 3, 3) 
 	# model pool holds the final internal chosen models, though this may be changed in the future to return a larger history of models. 
 
 	for i in range(len(model_pool)):
