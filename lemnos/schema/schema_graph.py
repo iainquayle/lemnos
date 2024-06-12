@@ -105,11 +105,13 @@ class SchemaNode:
 				return output_shape 
 		else:
 			return None
-	def get_conformance(self, sibling_shapes: list[LockedShape]) -> Conformance | None:
+	def get_conformance(self, parent_shapes: list[LockedShape]) -> Conformance | None:
 		conformance_shape = OpenShape()
-		if (self._merge_method is not None
-	  			and (conformance_shape := self._merge_method.get_conformance_shape(sibling_shapes)) is None):
-			return None
+		if self._merge_method is not None:
+			if (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None:
+				return None
+		elif len(parent_shapes) > 1:
+			raise ValueError(f"No merge method defined for multiple inputs '{self.debug_name}'")
 		divisor = math.lcm(self._divisor_hint, self._transform.get_divisor()) if self._transform is not None else self._divisor_hint 
 		return Conformance(conformance_shape, self._activation.get_divisor(divisor) if self._activation is not None else divisor)
 	def add_group(self, *transitions: Transition) -> Self:
@@ -249,7 +251,10 @@ class _CompilationTracker:
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
 	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
-		return self._stacks[self._stacks_lookup[key]]
+		try:
+			return self._stacks[self._stacks_lookup[key]]
+		except KeyError:
+			raise KeyError(f"SchemaNode '{key.debug_name}' not in tracker, check for unmatched 'Existing' transitions.")
 	def __len__(self) -> int:
 		return len(self._stacks)
 	def __copy__(self) -> _CompilationTracker:

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 
 from lemnos.shared import LockedShape, ShapeBound, ID
-from lemnos.schema import Schema, SchemaNode, New, PowerGrowth, LinearGrowth, BreedIndices
+from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices
 from lemnos.schema.components import Conv, BatchNorm, ReLU6, Softmax
 from lemnos.adapter.torch import TorchEvaluator, generate_source, Adam
 from lemnos.control import or_search, AvgLossWindowSelector 
@@ -39,6 +39,7 @@ def main():
 	else:
 		print("Failed to compile schema")
 
+	exit()
 	model_pool = or_search(create_schema(), evaluator, AvgLossWindowSelector(10000), 15, 3, 3) 
 	# model pool holds the final internal chosen models, though this may be changed in the future to return a larger history of models. 
 
