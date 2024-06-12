@@ -5,20 +5,16 @@ changes:
 		refactor adapters
 			break any mixed responsiblities 
 			divide more naturally
-		make useful as library
-			make more graph build checks, ie no merge method with multiple inputs
-			make failed compilation logging
 		refactor mix conv
 			maybe split it
 	possible:
+		make it so that errors are recovered from in compilation? just attempt next transition?
+			not sure if this is necessary to expand valid graphs or just a crutch
 		make sample collection immutable?
 		implement some kind of node ratio rules
 			the search space for larger models needs to be brought down
-		move conformance to its own module, then allow components to pull it in
-			perhaps put it under shared
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
-		move templates to jinja or the sort
-			may atleast have some syntax highlighting then
+		move templates to jinja or the sort?
 problems:
