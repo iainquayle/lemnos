@@ -11,13 +11,11 @@ changes:
 		refactor mix conv
 			maybe split it
 	possible:
-		consider making the merging of sample collections to immutable, or just sample collections in general
+		make sample collection immutable?
 		implement some kind of node ratio rules
 			the search space for larger models needs to be brought down
-		consider renaming the project 
 		move conformance to its own module, then allow components to pull it in
 			perhaps put it under shared
-			perhpas rename shared to shape, as that seems to be the only thing it holds
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
