@@ -7,6 +7,8 @@ changes:
 			divide more naturally
 		refactor mix conv
 			maybe split it
+		look into more flexible means of working with grouping
+			even see if there would be any way to somewhat fit a square root curve, but still be solvable
 	possible:
 		make it so that errors are recovered from in compilation? just attempt next transition?
 			not sure if this is necessary to expand valid graphs or just a crutch
