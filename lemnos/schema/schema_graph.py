@@ -193,7 +193,7 @@ class New(Transition):
 
 class Existing(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
-		return tracker[self._next].get_conformance(parent)
+		return tracker.get_conformance(self._next, parent)
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		tracker.join_existing(self._next, parent, parent_shape, parent_id, self._priority)
 		return tracker
@@ -250,6 +250,10 @@ class _CompilationTracker:
 		self._stacks.append(_CompilationNodeStack(key, []))
 		self._stacks_lookup[key] = len(self._stacks) - 1
 		return self._stacks[-1]
+	def get_conformance(self, node: SchemaNode, parent: SchemaNode) -> Conformance | None:
+		if (node in self._stacks_lookup
+				and (compilation_node := self[node].get_available(parent)) is not None):
+			return node.get_conformance([compilation_node.input_shape])
 	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
 		try:
 			return self._stacks[self._stacks_lookup[key]]

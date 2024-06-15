@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from .schema_graph import CompilationIndex 
 from ..shared import LockedShape
+from math import log
 
+class LogGrowth:
+	def __init__(self, intercept: int, base: float, variability: float) -> None:
+		raise NotImplemented()
+	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
+		raise NotImplemented()
+		
 class PowerGrowth:
 	__slots__ = ["_exponent", "_variability", "_zero"]
 	def __init__(self, intercept: int, exponent: float, variability: float) -> None:
