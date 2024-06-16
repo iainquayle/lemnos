@@ -188,25 +188,29 @@ class New(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		return self._next.get_conformance([])
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		tracker.join_new(self._next, parent, parent_shape, parent_id, self._priority)
+		tracker.get_mutable(self._next).push(_CompilationNode({parent}, [parent_id], parent_shape, self._priority))
 		return tracker 
 
 class Existing(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
-		return tracker.get_conformance(self._next, parent)
+		if (compilation_node := tracker.get_immutable(self._next).get_immutable(parent)) is not None:
+			return self._next.get_conformance([compilation_node.input_shape])
+		return None
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		tracker.join_existing(self._next, parent, parent_shape, parent_id, self._priority)
+		if (compilation_node := tracker.get_mutable(self._next).get_mutable(parent)) is not None:
+			compilation_node.record(parent, parent_id, self._next.get_input_shape([compilation_node.input_shape, parent_shape]), self._priority)
 		return tracker
 
 class Auto(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
-		if (conformance := tracker[self._next].get_conformance(parent)) is not None:
-			return conformance
+		if (compilation_node := tracker.get_immutable(self._next).get_immutable(parent)) is not None:
+			return self._next.get_conformance([compilation_node.input_shape])
 		return self._next.get_conformance([])
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
-		if tracker.join_existing(self._next, parent, parent_shape, parent_id, self._priority):
-			return tracker
-		tracker.join_new(self._next, parent, parent_shape, parent_id, self._priority)
+		stack = tracker.get_mutable(self._next)
+		if (compilation_node := stack.get_mutable(parent)) is not None:
+			compilation_node.record(parent, parent_id, self._next.get_input_shape([compilation_node.input_shape, parent_shape]), self._priority)
+		stack.push(_CompilationNode({parent}, [parent_id], parent_shape, self._priority))
 		return tracker
 
 @dataclass(frozen=False)
@@ -239,26 +243,19 @@ class _CompilationTracker:
 		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
-	def join_new(self, schema_node: SchemaNode, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> None:
-		self._manipulation_get(schema_node).push(_CompilationNode({parent}, [parent_id], parent_output_shape, priority))
-	def join_existing(self, schema_node: SchemaNode, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> bool:
-		return self._manipulation_get(schema_node).join_existing(parent, parent_output_shape, parent_id, priority)
-	def _manipulation_get(self, key: SchemaNode) -> _CompilationNodeStack:
-		if key in self._stacks_lookup:
-			self._stacks[self._stacks_lookup[key]] = copy(self._stacks[self._stacks_lookup[key]])
-			return self._stacks[self._stacks_lookup[key]]
-		self._stacks.append(_CompilationNodeStack(key, []))
-		self._stacks_lookup[key] = len(self._stacks) - 1
+	def get_mutable(self, node: SchemaNode) -> _CompilationNodeStack:
+		if node in self._stacks_lookup:
+			self._stacks[self._stacks_lookup[node]] = copy(self._stacks[self._stacks_lookup[node]])
+			return self._stacks[self._stacks_lookup[node]]
+		self._stacks.append(_CompilationNodeStack(node, []))
+		self._stacks_lookup[node] = len(self._stacks) - 1
 		return self._stacks[-1]
-	def get_conformance(self, node: SchemaNode, parent: SchemaNode) -> Conformance | None:
-		if (node in self._stacks_lookup
-				and (compilation_node := self[node].get_available(parent)) is not None):
-			return node.get_conformance([compilation_node.input_shape])
-	def __getitem__(self, key: SchemaNode) -> _CompilationNodeStack:
-		try:
-			return self._stacks[self._stacks_lookup[key]]
-		except KeyError:
-			raise KeyError(f"SchemaNode '{key.debug_name}' not in tracker, check for unmatched 'Existing' transitions.")
+	def get_immutable(self, node: SchemaNode) -> _CompilationNodeStack:
+		#these are not actually immutable, just dont break the trust
+		#safest would be to copy every time
+		if node in self._stacks_lookup:
+			return self._stacks[self._stacks_lookup[node]]
+		return _CompilationNodeStack(node, [])
 	def __len__(self) -> int:
 		return len(self._stacks)
 	def __copy__(self) -> _CompilationTracker:
@@ -269,16 +266,12 @@ class _CompilationNodeStack:
 	def __init__(self, schema_node: SchemaNode, stack: list[_CompilationNode]) -> None:
 		self._schema_node: SchemaNode = schema_node
 		self._stack: list[_CompilationNode] = stack
-	def get_conformance(self, parent: SchemaNode) -> Conformance | None:
-		if (node := self.get_available(parent)) is not None:
-			return self._schema_node.get_conformance([node.input_shape])
+	def get_mutable(self, parent: SchemaNode) -> _CompilationNode | None:
+		if (node_index := self._get_available_index(parent)) is not None:
+			self._stack[node_index] = copy(self._stack[node_index])
+			return self._stack[node_index]
 		return None
-	def join_existing(self, parent: SchemaNode, parent_output_shape: LockedShape, parent_id: ID, priority: int) -> bool:
-		if (node := self.get_available(parent)) is not None:
-			self._stack[self._stack.index(node)] = node.copy_and_record(parent, self._schema_node.get_input_shape([node.input_shape, parent_output_shape]), parent_id, priority)
-			return True
-		return False 
-	def get_available(self, parent: SchemaNode) -> _CompilationNode | None:
+	def get_immutable(self, parent: SchemaNode) -> _CompilationNode | None:
 		if (node_index := self._get_available_index(parent)) is not None:
 			return self._stack[node_index]
 		return None
@@ -302,14 +295,19 @@ class _CompilationNodeStack:
 	def __copy__(self) -> _CompilationNodeStack:
 		return _CompilationNodeStack(self._schema_node, copy(self._stack))
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class _CompilationNode:
 	parent_nodes: set[SchemaNode]
 	parent_ids: list[ID]
 	input_shape: LockedShape 
 	priority: int
-	def copy_and_record(self, parent: SchemaNode, input_shape: LockedShape, parent_id: ID, priority: int) -> _CompilationNode:
-		return _CompilationNode(self.parent_nodes | {parent}, self.parent_ids + [parent_id], input_shape, priority)
+	def record(self, parent: SchemaNode, parent_id: ID, new_input_shape: LockedShape, priority: int) -> None:
+		self.parent_nodes.add(parent)
+		self.parent_ids.append(parent_id)
+		self.input_shape = new_input_shape
+		self.priority = priority
+	def __copy__(self) -> _CompilationNode:
+		return _CompilationNode(copy(self.parent_nodes), copy(self.parent_ids), self.input_shape, self.priority)
 
 class CompilationIndices(Abstract):
 	@abstractmethod
