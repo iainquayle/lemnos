@@ -1,6 +1,6 @@
 changes:
 	guarenteed:
-		review the conformance shape flow, can be simplified
+		may be the get mutable is safe to have no checks as it will have needed the get immutable checks
 		create ir save and load, allowing for resuming of search
 		make more tests for control and surrounding functionality
 		refactor adapters
@@ -11,6 +11,7 @@ changes:
 		look into more flexible means of working with grouping
 			even see if there would be any way to somewhat fit a square root curve, but still be solvable
 	possible:
+		consider making runtime checks on whether a mutable part of a tracker is being used correctly?
 		add optional shape bounds to transitions, not to be conformed to but allow more flexibility in defining when to use transitions
 			may need to make "add group" take an explicit iterable instead of a arg list
 			it seems to always be possible to work around, but would be easier to not
