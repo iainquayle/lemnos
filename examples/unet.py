@@ -1,5 +1,5 @@
 #
-# NOTE: this only demonstrates how to make a resnet like search space, not the use of a search controller
+# NOTE: this only demonstrates how to make a UNet LIKE search space, not the use of a search controller
 # To see the use of a controller, go to the mnist example.
 #
 
