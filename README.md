@@ -24,6 +24,9 @@ When built correctly, a schema can describe complex architectures, such as ResNe
 The nodes bundle three operations often seen together in modern neural networks, the operation, the activation, and the normalization.
 The edges represent the flow of data between nodes, with the weights describing how the graph is to be walked.
 
+Let it be known, that as of right now, schemas are limited to using modules that only take and produce a single tensor,
+however future expansion is being considered.
+
 ### Adapters
 
 Adapters are responsible for compiling the intermediate representation into a specific runnable backend, such as PyTorch,
