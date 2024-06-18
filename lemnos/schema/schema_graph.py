@@ -47,6 +47,7 @@ class IRNode:
 # Note, this current implementation cannot solve all valid graphs, as it only has a single look ahead, and all previous compilation efforts in the stack are immutable.
 #	However if the graph takes into account the single look ahead, it can solve all.
 
+
 class SchemaNode:
 	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
