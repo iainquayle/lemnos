@@ -24,7 +24,7 @@ depthwise = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1
 dw_point_expand = SchemaNode(ShapeBound(None, None, None), None, None, Conv(), ReLU6(), BatchNorm())
 
 skip = SchemaNode(ShapeBound(None, None, None), None, Sum(), None, None, BatchNorm())
-downsampe = SchemaNode(ShapeBound(None, (4, None), (4, None)), PowerGrowth(256, .6, .2), Sum(), Conv(2, 0, 2), ReLU6(), BatchNorm())
+downsample = SchemaNode(ShapeBound(None, (4, None), (4, None)), PowerGrowth(256, .6, .2), Sum(), Conv(2, 0, 2), ReLU6(), BatchNorm())
 
 end = SchemaNode(ShapeBound(10, 1, 1), None, None, Conv(4, 0), Softmax(), None)
 
@@ -34,13 +34,13 @@ head2.add_group(New(skip, 1), New(dw_point_squeeze, 0))
 dw_point_squeeze.add_group(New(depthwise, 0))
 depthwise.add_group(New(dw_point_expand, 0))
 dw_point_expand.add_group(Existing(skip, 0))
-dw_point_expand.add_group(Existing(downsampe, 0))
+dw_point_expand.add_group(Existing(downsample, 0))
 
 skip.add_group(New(dw_point_squeeze, 0), New(skip, 1))
-skip.add_group(New(dw_point_squeeze, 0), New(downsampe, 1))
+skip.add_group(New(dw_point_squeeze, 0), New(downsample, 1))
 skip.add_group(New(end, 0))
 
-downsampe.add_group(New(skip, 1), New(dw_point_squeeze, 0))
+downsample.add_group(New(skip, 1), New(dw_point_squeeze, 0))
 
 schema = Schema([head], [end])
 

@@ -12,6 +12,8 @@ changes:
 			even see if there would be any way to somewhat fit a square root curve, but still be solvable
 	possible:
 		consider making runtime checks on whether a mutable part of a tracker is being used correctly?
+		may be the case that mutable priorities are not actually needed? since it pops the top of the stack in any case
+			check this on Unet example
 		add optional shape bounds to transitions, not to be conformed to but allow more flexibility in defining when to use transitions
 			may need to make "add group" take an explicit iterable instead of a arg list
 			it seems to always be possible to work around, but would be easier to not
