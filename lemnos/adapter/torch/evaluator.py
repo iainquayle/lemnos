@@ -51,6 +51,7 @@ class TorchEvaluator(Evaluator):
 			accuracy_function: AccuracyFunction | None,
 			optimizer: Optimizer,
 			require_cuda: bool,
+			input_shapes: list[LockedShape] | None = None,
 			metrics_resolution: int = 2048,
 			formatter: TorchComponentFormatter = DefaultComponentFormatter(),
 			torch_compiler: CompileBackend | None = None,
@@ -64,6 +65,7 @@ class TorchEvaluator(Evaluator):
 		self._criterion = criterion
 		self._accuracy_function = accuracy_function
 		self._optimizer = optimizer
+		self._input_shapes = input_shapes
 		self._metrics_resolution = metrics_resolution
 		self._formatter = formatter
 		self._torch_compiler = torch_compiler
@@ -104,8 +106,11 @@ class TorchEvaluator(Evaluator):
 						gc.collect()
 		return training_metrics, validation_metrics if self._validation_loader is not None else None
 	def get_input_shapes(self) -> list[LockedShape]:
-		first = list(next(iter(self._train_loader))[0].shape[1:])
-		return [LockedShape(*first)]
+		if self._input_shapes is not None:
+			return self._input_shapes
+		else:
+			first = list(next(iter(self._train_loader))[0].shape[1:])
+			return [LockedShape(*first)]
 		
 def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
