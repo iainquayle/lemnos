@@ -33,7 +33,8 @@ so if there is a shape inference that requires a longer lookahead than one, it w
 #### Beware of...  
 
 Make sure to include bounds on looping nodes, or else the search space explodes (Shapes currently are not bound to be positive, will fix).
-As well, there is no debugger on why a schema is not compiling, so make them incrementally, and attempt to compile after each addition.
+There is no debugger on why a schema is not compiling, so make them incrementally, and attempt to compile after each addition.
+As well, the dimensionality of the shape bound for a node will define the dimensionality of the output, so None values can't be excluded.
 
 ### Adapters
 
