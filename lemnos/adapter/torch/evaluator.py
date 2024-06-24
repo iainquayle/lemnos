@@ -69,6 +69,7 @@ class TorchEvaluator(Evaluator):
 		self._metrics_resolution = metrics_resolution
 		self._formatter = formatter
 		self._torch_compiler = torch_compiler
+		self._training_example_count = 0
 	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		device = torch.cuda.current_device() if self._device_type == CUDA else torch.device(CPU)
 		training_metrics = Metrics(self._metrics_resolution)
@@ -92,6 +93,11 @@ class TorchEvaluator(Evaluator):
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
+				if self._training_example_count % 2**10 == 0:
+					print(f"example count: {self._training_example_count}")
+				if self._training_example_count % 2**20 == 0:
+					print(training_metrics)
+				self._training_example_count += 1
 				gc.collect()
 			if self._validation_loader is not None:
 				model.eval()
