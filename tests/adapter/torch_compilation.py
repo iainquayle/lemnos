@@ -55,7 +55,7 @@ class TestTorchModule(unittest.TestCase):
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
-			Conv(kernel=2, stride=2),
+			Conv(kernel=2, stride=2, mix_groups=True),
 			ReLU(), 
 			BatchNorm(), 1, "split_2")
 		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, 1, "end")
