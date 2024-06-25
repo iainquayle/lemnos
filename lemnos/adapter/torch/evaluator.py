@@ -93,11 +93,10 @@ class TorchEvaluator(Evaluator):
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
+				self._training_example_count += 1
 				if self._training_example_count % 2**10 == 0:
 					print(f"example count: {self._training_example_count}")
-				if self._training_example_count % 2**20 == 0:
 					print(training_metrics)
-				self._training_example_count += 1
 				gc.collect()
 			if self._validation_loader is not None:
 				model.eval()
