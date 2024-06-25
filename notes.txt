@@ -1,5 +1,10 @@
 changes:
 	guarenteed:
+		look into more flexible means of working with grouping
+			even see if there would be any way to somewhat fit a square root curve, but still be solvable
+			put in different branch
+			idea for conv sqrt groups, group based on the max of the input or output channels, or just have different grouping types
+			this may allow for the removal of the divisor hint, maybe, would be nice 
 		remove jank logging system in torch evaluator add proper user defined logging call back
 		review whther more work can be done together with the conformance gathering and tracker mutation passes
 			ie, caching the conformance gathering information and use it for tracker mutation if valid
@@ -10,20 +15,14 @@ changes:
 			divide more naturally
 		refactor mix conv
 			maybe split it
-		look into more flexible means of working with grouping
-			even see if there would be any way to somewhat fit a square root curve, but still be solvable
+		make possible call back for prescreening, allows for selecting models that only have certain node ratios
 	possible:
-		consider making runtime checks on whether a mutable part of a tracker is being used correctly?
 		may be the case that mutable priorities are not actually needed? since it pops the top of the stack in any case
 			check this on Unet example
 		add optional shape bounds to transitions, not to be conformed to but allow more flexibility in defining when to use transitions
 			may need to make "add group" take an explicit iterable instead of a arg list
 			it seems to always be possible to work around, but would be easier to not
-		look into making a prescreening/heauristic filter step that allows more filtering of the space prior to model testing,
-			will just toss the models
 		make sample collection immutable?
-		implement some kind of node ratio rules
-			the search space for larger models needs to be brought down
 		add a divisor option to the clamp val on shape bounds
 		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
