@@ -94,14 +94,14 @@ class SampleCollection:
 		return (f"loss: {self.total_loss / self.sample_size}, max: {self.max_loss}, min: {self.min_loss}"
 			+ f", accuracy: {self.correct / self.sample_size}" if self.correct is not None else ""
 			+ f", sample size: {self.sample_size}"
-			+ f", time: {self.time}"	if self.time is not None else ""
+			+ f", time: {self.time}" if self.time is not None else ""
 		  	+ f", epoch: {self.epoch}" if self.epoch is not None else "")
 	def __repr__(self) -> str:
 		return str(self)
 class Metrics:
-	def __init__(self, max_samples: int = 2**14) -> None:
+	def __init__(self, max_resolution: int = 2**14) -> None:
 		self._total_samples: int = 0
-		self._max_samples: int = max_samples
+		self._max_resolution: int = max_resolution
 		self._target_sample_size: int = 1
 		self._samples: list[SampleCollection] = []
 		self._total_time: float = 0
@@ -112,18 +112,18 @@ class Metrics:
 		else:
 			self._samples.append(sample)
 			self._last_sample_size = self._samples[-1].sample_size
-		if len(self._samples) > self._max_samples:
+		if len(self._samples) > self._max_resolution:
 			self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
 			self._target_sample_size *= 2
-		self._total_samples += 1
-		if self._samples[-1].sample_size < self._target_sample_size:
-			self._samples[-1].merge(sample)
-			self._last_sample_size += self._samples[-1].sample_size
+		self._total_samples += sample.sample_size 
 	def get_epochs(self) -> list[SampleCollection]:
-		return []
-	def __getitem__(self, position: int | float) -> SampleCollection:
-		return self._samples[self._get_index(position)]
+		raise NotImplementedError
+	def __getitem__(self, index: int) -> SampleCollection:
+		return self._samples[index]
+	def __len__(self) -> int:
+		return len(self._samples)
 	def merge_range(self, start: int | float, end: int | float) -> SampleCollection:
+		raise NotImplementedError
 		start_index = self._get_index(start)
 		end_index = self._get_index(end)
 		if start_index > end_index:
@@ -132,17 +132,12 @@ class Metrics:
 		for i in range(start_index + 1, end_index):
 			output = output.merge(self._samples[i])
 		return output
-	def _get_index(self, position: int | float) -> int:
-		index = 0
-		if isinstance(position, int):
-			index = int(position / self._total_samples * len(self._samples))
-		else:
-			index = int(self._total_samples * position)
-		return min(index, len(self._samples) - 1)
+	def get_fractional(self, position: float) -> SampleCollection:
+		return self._samples[int(len(self._samples) * position)]
 	def format(self, resolution: int | None) -> str:
 		if resolution is None:
 			resolution = len(self._samples)
-		return "\n".join([f"{self[i/resolution]}" for i in range(10)])
+		return "\n".join([f"{self.get_fractional(i/resolution)}" for i in range(resolution)])
 	def get_sample_list(self) -> list[SampleCollection]:
 		return self._samples
 	def __str__(self) -> str:
