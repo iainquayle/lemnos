@@ -69,29 +69,29 @@ class Evaluator(Abstract):
 		pass
 
 class SampleCollection:
-	__slots__ = ["sample_size", "total_loss", "max_loss", "min_loss", "accuracy", "time", "epoch"]
-	def __init__(self, total_loss: float, max_loss: float, min_loss: float, accuracy: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
+	__slots__ = ["sample_size", "total_loss", "max_loss", "min_loss", "correct", "time", "epoch"]
+	def __init__(self, total_loss: float, max_loss: float, min_loss: float, total_correct: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
 		self.sample_size: int = sample_size 
 		self.total_loss: float = total_loss
 		self.max_loss: float = max_loss
 		self.min_loss: float = min_loss 
-		self.accuracy: float | None = accuracy 
+		self.correct: float | None = total_correct 
 		self.time: float | None = time 
 		self.epoch: int | None = epoch
 	def merge(self, other: SampleCollection) -> SampleCollection:
-		new_sample_size = self.sample_size + other.sample_size
 		return SampleCollection(
 			self.total_loss + other.total_loss,
 			max(self.max_loss, other.max_loss),
 			min(self.min_loss, other.min_loss),
-			(other.accuracy * other.sample_size + self.accuracy * self.sample_size) / new_sample_size if self.accuracy is not None and other.accuracy is not None else None,
+			self.correct + other.correct if self.correct is not None and other.correct is not None else None,
+			self.time + other.time if self.time is not None and other.time is not None else None,
 			self.epoch,
-			new_sample_size,
+			self.sample_size + other.sample_size,
 		)
 	def __copy__(self) -> SampleCollection:
-		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.accuracy, self.time, self.epoch, self.sample_size,)
+		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
-		return f"loss: {self.total_loss}, max: {self.max_loss}, min: {self.min_loss}, accuracy: {self.accuracy}, time: {self.time}, epoch: {self.epoch}"
+		return f"loss: {self.total_loss}, max: {self.max_loss}, min: {self.min_loss}, accuracy: {self.correct}, sample size: {self.sample_size}, time: {self.time}, epoch: {self.epoch}"
 	def __repr__(self) -> str:
 		return str(self)
 class Metrics:
@@ -102,8 +102,8 @@ class Metrics:
 		self._samples: list[SampleCollection] = []
 		self._total_time: float = 0
 	def record(self, sample: SampleCollection) -> None:
-		if (not len(self._samples) == 0) and self._samples[-1].sample_size < self._target_sample_size:
-			self._samples[-1].merge(sample)
+		if len(self._samples) > 0 and self._samples[-1].sample_size < self._target_sample_size:
+			self._samples[-1] = self._samples[-1].merge(sample)
 			self._last_sample_size += self._samples[-1].sample_size
 		else:
 			self._samples.append(sample)
@@ -129,10 +129,12 @@ class Metrics:
 			output = output.merge(self._samples[i])
 		return output
 	def _get_index(self, position: int | float) -> int:
+		index = 0
 		if isinstance(position, int):
-			return int(position / self._total_samples * len(self._samples))
+			index = int(position / self._total_samples * len(self._samples))
 		else:
-			return int(self._total_samples * position)
+			index = int(self._total_samples * position)
+		return min(index, len(self._samples) - 1)
 	def format(self, resolution: int | None) -> str:
 		if resolution is None:
 			resolution = len(self._samples)
