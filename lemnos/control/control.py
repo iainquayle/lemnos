@@ -91,7 +91,11 @@ class SampleCollection:
 	def __copy__(self) -> SampleCollection:
 		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
-		return f"loss: {self.total_loss}, max: {self.max_loss}, min: {self.min_loss}, accuracy: {self.correct}, sample size: {self.sample_size}, time: {self.time}, epoch: {self.epoch}"
+		return (f"loss: {self.total_loss / self.sample_size}, max: {self.max_loss}, min: {self.min_loss}"
+			+ f", accuracy: {self.correct / self.sample_size}" if self.correct is not None else ""
+			+ f", sample size: {self.sample_size}"
+			+ f", time: {self.time}"	if self.time is not None else ""
+		  	+ f", epoch: {self.epoch}" if self.epoch is not None else "")
 	def __repr__(self) -> str:
 		return str(self)
 class Metrics:
