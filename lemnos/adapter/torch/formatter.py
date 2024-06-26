@@ -47,6 +47,8 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 			return silu_init_()
 		elif isinstance(component, BatchNorm):
 			return batchnorm_init_(output_shape) 
+		elif isinstance(component, LayerNorm):
+			return layernorm_init_(output_shape) 
 		elif isinstance(component, Dropout):
 			return dropout_init_(component.get_probability()) 
 		elif isinstance(component, ChannelDropout):

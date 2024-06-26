@@ -17,3 +17,5 @@ class ChannelDropout(Regularization):
 		return self._probability
 class BatchNorm(Regularization):
 	pass
+class LayerNorm(Regularization):
+	pass
