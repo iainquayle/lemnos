@@ -45,8 +45,8 @@ class AvgLossWindowSelector(Selector):
 			loss = 0
 			min_loss = float("inf")
 			samples = 0
-			while end_index < len(focused_metrics.get_sample_list()):
-				while samples < self._window_size and end_index < len(focused_metrics.get_sample_list()):
+			while end_index < len(focused_metrics):
+				while samples < self._window_size and end_index < len(focused_metrics):
 					loss += focused_metrics[end_index].total_loss
 					samples += focused_metrics[end_index].sample_size
 					end_index += 1
@@ -138,8 +138,6 @@ class Metrics:
 		if resolution is None:
 			resolution = len(self._samples)
 		return "\n".join([f"{self.get_fractional(i/resolution)}" for i in range(resolution)])
-	def get_sample_list(self) -> list[SampleCollection]:
-		return self._samples
 	def __str__(self) -> str:
 		return self.format(20)
 	def __repr__(self) -> str:

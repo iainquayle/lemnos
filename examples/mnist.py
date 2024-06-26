@@ -31,7 +31,7 @@ def main():
 	train_loader = DataLoader(train_data, batch_size=64, shuffle=True, pin_memory=True, num_workers=1, persistent_workers=True, prefetch_factor=1)
 	validation_loader = DataLoader(validation_data, batch_size=64, shuffle=True, pin_memory=True, num_workers=1, persistent_workers=True, prefetch_factor=1)
 
-	accuracy_func = lambda x, y: torch.mean((x.argmax(dim=1) == y).float()).item()
+	accuracy_func = lambda x, y: (x.argmax(dim=1) == y).float().sum().item()
 	evaluator = TorchEvaluator(train_loader, validation_loader, 2, nn.CrossEntropyLoss(), accuracy_func, Adam(0.002), True)
 
 	if (ir := create_schema().compile_ir([LockedShape(1, 28, 28)], BreedIndices(), 15)) is not None: #purely for demonstration purposes
