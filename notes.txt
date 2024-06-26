@@ -1,5 +1,6 @@
 changes:
 	guarenteed:
+		need to fix max and min loss
 		look into more flexible means of working with grouping
 			even see if there would be any way to somewhat fit a square root curve, but still be solvable
 			put in different branch
