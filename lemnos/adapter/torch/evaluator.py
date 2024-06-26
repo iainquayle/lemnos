@@ -40,6 +40,7 @@ class SGD(Optimizer):
 	def get(self, model: Any) -> torch.optim.Optimizer:
 		return torch.optim.SGD(model.parameters(), lr=self._lr, momentum=self._momentum)
 
+#accuracy should return the number of correct predictions, not the mean
 AccuracyFunction = Callable[[Tensor, Tensor], float]
 
 class TorchEvaluator(Evaluator):
@@ -89,13 +90,13 @@ class TorchEvaluator(Evaluator):
 					output = model(input)
 					loss = self._criterion(output, truth)
 					accuracy = self._accuracy_function(output, truth) if self._accuracy_function is not None else None
-					training_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch))
+					training_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch, len(input)))
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
 				self._training_example_count += 1
 				if self._training_example_count % 2**10 == 0:
-					print(f"example count: {self._training_example_count}")
+					print(f"example count: {self._training_example_count} * batch size")
 					print(training_metrics)
 				gc.collect()
 			if self._validation_loader is not None:
