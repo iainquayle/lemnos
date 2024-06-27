@@ -52,7 +52,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		elif isinstance(component, Dropout):
 			return dropout_init_(component.get_probability()) 
 		elif isinstance(component, ChannelDropout):
-			return channeldropout_init_(component.get_probability()) 
+			return channeldropout_init_(input_shape, component.get_probability()) 
 		elif isinstance(component, GLU):
 			return glu_init_()
 		return "" 
@@ -68,6 +68,8 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		if isinstance(component, Conv):
 			return ShapeView.REAL
 		elif isinstance(component, BatchNorm):
+			return ShapeView.REAL
+		elif isinstance(component, LayerNorm):
 			return ShapeView.REAL
 		elif isinstance(component, ChannelDropout):
 			return ShapeView.REAL

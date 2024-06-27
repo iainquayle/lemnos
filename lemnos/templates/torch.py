@@ -55,10 +55,10 @@ def softmax_init_() -> str:
 def batchnorm_init_(input_shape: LockedShape) -> str:
 	return nn_(f"BatchNorm{len(input_shape) - 1}d({input_shape[0]})")
 def layernorm_init_(input_shape: LockedShape) -> str:
-	return nn_(f"LayerNorm({input_shape[0]})")
+	return nn_(f"LayerNorm({input_shape[-1]})")
 def dropout_init_(p: float) -> str:
 	return nn_(f"Dropout(p={p})")
-def channeldropout_init_(p: float) -> str:
-	return nn_(f"ChannelDropout(p={p})")
+def channeldropout_init_(input_shape: LockedShape, p: float) -> str:
+	return nn_(f"Dropout{len(input_shape) - 1}d(p={p})")
 def glu_init_() -> str:
 	return nn_("GLU(dim=1)")
