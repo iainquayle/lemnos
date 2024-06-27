@@ -107,7 +107,7 @@ class Metrics:
 			self._samples.append(sample)
 			self._last_sample_size = sample.sample_size 
 			self._total_samples += sample.sample_size
-			self.target_sample_size = sample.sample_size
+			self._target_sample_size = sample.sample_size
 			return
 		if self._samples[-1].sample_size < self._target_sample_size:
 			self._samples[-1] = self._samples[-1].merge(sample)
@@ -121,6 +121,8 @@ class Metrics:
 		self._total_samples += sample.sample_size 
 	def get_epochs(self) -> list[SampleCollection]:
 		raise NotImplementedError
+	def get_total_samples(self) -> int:
+		return self._total_samples
 	def __getitem__(self, index: int) -> SampleCollection:
 		return self._samples[index]
 	def __len__(self) -> int:

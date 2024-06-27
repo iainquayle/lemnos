@@ -83,6 +83,7 @@ class TorchEvaluator(Evaluator):
 		model.train()
 		scaler = torch.cuda.amp.GradScaler()
 		for epoch in range(self._epochs):
+			print("here")
 			for (input, truth) in self._train_loader:
 				input, truth = input.to(device), truth.to(device)
 				optimizer.zero_grad(set_to_none=True)
@@ -95,8 +96,8 @@ class TorchEvaluator(Evaluator):
 				scaler.step(optimizer)
 				scaler.update()
 				self._training_example_count += 1
-				if self._training_example_count % 2**10 == 0:
-					print(f"example count: {self._training_example_count} * batch size")
+				if training_metrics.get_total_samples() % 2**12 == 0:
+					print(f"sample count: {training_metrics.get_total_samples()}")
 					print(training_metrics)
 				gc.collect()
 			if self._validation_loader is not None:
@@ -108,8 +109,10 @@ class TorchEvaluator(Evaluator):
 							output = model(input)
 							loss = self._criterion(output, truth)
 							accuracy = self._accuracy_function(output, truth) if self._accuracy_function is not None else None
-						validation_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch))
+						validation_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch, len(input)))
 						gc.collect()
+				print("Validation Metrics")
+				print(validation_metrics)
 		return training_metrics, validation_metrics if self._validation_loader is not None else None
 	def get_input_shapes(self) -> list[LockedShape]:
 		if self._input_shapes is not None:

@@ -29,3 +29,4 @@ changes:
 		rename transitions to edges or something?
 		move templates to jinja or the sort?
 problems:
+	intermitent bug in compilation, that causes out of order evaluation
