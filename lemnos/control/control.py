@@ -5,8 +5,6 @@ from ..shared import LockedShape, ID
 
 from abc import ABC as Abstract, abstractmethod
 
-from copy import copy
-
 def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID | int, model_pool_size: int = 1, breed_iterations: int = 1) -> ModelPool:
 	indices = BreedIndices()
 	model_pool: ModelPool = [] 
@@ -85,17 +83,17 @@ class SampleCollection:
 			min(self.min_loss, other.min_loss),
 			self.correct + other.correct if self.correct is not None and other.correct is not None else None,
 			self.time + other.time if self.time is not None and other.time is not None else None,
-			self.epoch,
+			max(self.epoch, other.epoch) if self.epoch is not None and other.epoch is not None else None,
 			self.sample_size + other.sample_size,
 		)
 	def __copy__(self) -> SampleCollection:
 		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
 		return (f"loss: {self.total_loss}, max: {self.max_loss}, min: {self.min_loss}"
-			+ f", accuracy: {self.correct / self.sample_size}" if self.correct is not None else ""
+			+ (f", accuracy: {self.correct / self.sample_size}" if self.correct is not None else "")
 			+ f", sample size: {self.sample_size}"
-			+ f", time: {self.time}" if self.time is not None else ""
-		  	+ f", epoch: {self.epoch}" if self.epoch is not None else "")
+			+ (f", time: {self.time}" if self.time is not None else "")
+		  	+ (f", epoch: {self.epoch}" if self.epoch is not None else ""))
 	def __repr__(self) -> str:
 		return str(self)
 class Metrics:
@@ -104,9 +102,14 @@ class Metrics:
 		self._max_resolution: int = max_resolution
 		self._target_sample_size: int = 1
 		self._samples: list[SampleCollection] = []
-		self._total_time: float = 0
 	def record(self, sample: SampleCollection) -> None:
-		if len(self._samples) > 0 and self._samples[-1].sample_size < self._target_sample_size:
+		if len(self._samples) == 0:
+			self._samples.append(sample)
+			self._last_sample_size = sample.sample_size 
+			self._total_samples += sample.sample_size
+			self.target_sample_size = sample.sample_size
+			return
+		if self._samples[-1].sample_size < self._target_sample_size:
 			self._samples[-1] = self._samples[-1].merge(sample)
 			self._last_sample_size += self._samples[-1].sample_size
 		else:
