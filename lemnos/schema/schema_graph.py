@@ -79,9 +79,6 @@ class SchemaNode:
 					and (output_shape := self.get_output_shape(input_shape, conformance, index)) is not None):
 				next_tracker = group.join_nodes(tracker, self, output_shape, id)
 				next_schema, next_node = next_tracker.pop_min()
-				print(next_schema.debug_name, len(next_node.parent_nodes))
-				#for schema in next_node.parent_nodes:
-				#	print("\t" + schema.debug_name)
 				if (ir := next_schema._compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
 					return ir + [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
 		if (len(self) == 0
@@ -199,7 +196,6 @@ class Existing(Transition):
 	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> Conformance | None:
 		if (compilation_node := tracker.get_immutable(self._next).get_immutable(parent)) is not None:
 			return self._next.get_conformance([compilation_node.input_shape])
-		#print("here")
 		return None
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		if (compilation_node := tracker.get_mutable(self._next).get_mutable(parent)) is not None:
@@ -245,6 +241,7 @@ class _CompilationTracker:
 		min_stack_index: int = min(range(len(self._stacks)), key=lambda i: self._stacks[i].get_priority())
 		if len(self._stacks[min_stack_index]) == 0:
 			raise ValueError("Empty stack")
+		self._stacks[min_stack_index] = copy(self._stacks[min_stack_index])
 		return self._stacks[min_stack_index].get_schema(), self._stacks[min_stack_index].pop()
 	def stacks_str(self) -> str:
 		return "\n".join([str(stack) for stack in self._stacks])
