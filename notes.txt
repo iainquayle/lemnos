@@ -1,5 +1,6 @@
 changes:
 	guarenteed:
+		add option for weight decay
 		need to fix max and min loss
 		look into more flexible means of working with grouping
 			even see if there would be any way to somewhat fit a square root curve, but still be solvable
@@ -29,4 +30,3 @@ changes:
 		rename transitions to edges or something?
 		move templates to jinja or the sort?
 problems:
-	intermitent bug in compilation, that causes out of order evaluation
