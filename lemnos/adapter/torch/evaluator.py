@@ -32,13 +32,30 @@ class Adam(Optimizer):
 	def __init__(self, lr: float) -> None:
 		self._lr = lr
 	def get(self, model: Any) -> torch.optim.Optimizer:
-		return torch.optim.Adam(model.parameters(), lr=self._lr)
+		return torch.optim.Adam(model.parameters(), lr=self._lr, weight_decay=0.0000)
 class SGD(Optimizer):
 	def __init__(self, lr: float, momentum: float) -> None:
 		self._lr = lr
 		self._momentum = momentum
 	def get(self, model: Any) -> torch.optim.Optimizer:
 		return torch.optim.SGD(model.parameters(), lr=self._lr, momentum=self._momentum)
+
+class Scheduler(Abstract):
+	@abstractmethod
+	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
+		pass
+class StepLR(Scheduler):
+	def __init__(self, step_size: int, gamma: float) -> None:
+		self._step_size = step_size
+		self._gamma = gamma
+	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
+		return torch.optim.lr_scheduler.StepLR(optimizer, step_size=self._step_size, gamma=self._gamma)
+class OneCycleLR(Scheduler):
+	def __init__(self, max_lr: float, total_steps: int) -> None:
+		self._max_lr = max_lr
+		self._total_steps = total_steps
+	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
+		return torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self._max_lr, total_steps=self._total_steps)
 
 #accuracy should return the number of correct predictions, not the mean
 AccuracyFunction = Callable[[Tensor, Tensor], float]
@@ -51,6 +68,7 @@ class TorchEvaluator(Evaluator):
 			criterion: Module,
 			accuracy_function: AccuracyFunction | None,
 			optimizer: Optimizer,
+			scheduler: Scheduler | None,
 			require_cuda: bool,
 			input_shapes: list[LockedShape] | None = None,
 			metrics_resolution: int = 2048,
@@ -66,6 +84,7 @@ class TorchEvaluator(Evaluator):
 		self._criterion = criterion
 		self._accuracy_function = accuracy_function
 		self._optimizer = optimizer
+		self._scheduler = scheduler
 		self._input_shapes = input_shapes
 		self._metrics_resolution = metrics_resolution
 		self._formatter = formatter
@@ -80,6 +99,7 @@ class TorchEvaluator(Evaluator):
 			model = torch.compile(model, backend=str(self._torch_compiler))
 		model.to(device)
 		optimizer = self._optimizer.get(model)
+		scheduler = self._scheduler.get(optimizer) if self._scheduler is not None else None
 		model.train()
 		scaler = torch.cuda.amp.GradScaler()
 		for epoch in range(self._epochs):
@@ -100,6 +120,8 @@ class TorchEvaluator(Evaluator):
 					print(f"sample count: {training_metrics.get_total_samples()}")
 					print(training_metrics)
 				gc.collect()
+			if scheduler is not None:
+				scheduler.step()
 			if self._validation_loader is not None:
 				model.eval()
 				with torch.no_grad():
