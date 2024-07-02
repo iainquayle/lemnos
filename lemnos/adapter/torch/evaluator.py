@@ -29,16 +29,18 @@ class Optimizer(Abstract):
 	def get(self, model: Any) -> torch.optim.Optimizer:
 		pass
 class Adam(Optimizer):
-	def __init__(self, lr: float) -> None:
+	def __init__(self, lr: float, decay: float = 0.0) -> None:
 		self._lr = lr
+		self._decay = decay
 	def get(self, model: Any) -> torch.optim.Optimizer:
-		return torch.optim.Adam(model.parameters(), lr=self._lr, weight_decay=0.0000)
+		return torch.optim.Adam(model.parameters(), lr=self._lr, weight_decay=self._decay)
 class SGD(Optimizer):
-	def __init__(self, lr: float, momentum: float) -> None:
+	def __init__(self, lr: float, momentum: float, decay: float = 0.0) -> None:
 		self._lr = lr
 		self._momentum = momentum
+		self._decay = decay
 	def get(self, model: Any) -> torch.optim.Optimizer:
-		return torch.optim.SGD(model.parameters(), lr=self._lr, momentum=self._momentum)
+		return torch.optim.SGD(model.parameters(), lr=self._lr, momentum=self._momentum, weight_decay=self._decay)
 
 class Scheduler(Abstract):
 	@abstractmethod

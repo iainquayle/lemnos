@@ -40,6 +40,8 @@ def conv_mix_definition_(dimensions: int) -> list[str]:
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int, mixed: bool) -> str:
 	base = (f"{'Conv' if not mixed else 'ConvMix'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
 	return nn_(base) if not mixed else base
+def maxpool_init_(kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...]) -> str:
+	return nn_(f"MaxPool{len(kernel)}d({kernel}, {stride}, {padding}, {dilation})")
 def full_init_(input_shape: LockedShape, output_shape: LockedShape) -> str:
 	return nn_(f"Linear({input_shape.get_product()}, {output_shape.get_product()}, bias=True)") 
 def relu_init_() -> str:
