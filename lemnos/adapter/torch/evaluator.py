@@ -105,7 +105,6 @@ class TorchEvaluator(Evaluator):
 		model.train()
 		scaler = torch.cuda.amp.GradScaler()
 		for epoch in range(self._epochs):
-			print("here")
 			for (input, truth) in self._train_loader:
 				input, truth = input.to(device), truth.to(device)
 				optimizer.zero_grad(set_to_none=True)
@@ -118,9 +117,9 @@ class TorchEvaluator(Evaluator):
 				scaler.step(optimizer)
 				scaler.update()
 				self._training_example_count += 1
-				if training_metrics.get_total_samples() % 2**12 == 0:
-					print(f"sample count: {training_metrics.get_total_samples()}")
-					print(training_metrics)
+				#if training_metrics.get_total_samples() % 2**12 == 0:
+				#	print(f"sample count: {training_metrics.get_total_samples()}")
+				#	print(training_metrics)
 				gc.collect()
 			if scheduler is not None:
 				scheduler.step()

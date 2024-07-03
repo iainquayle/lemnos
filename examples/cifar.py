@@ -29,7 +29,7 @@ def main():
 		validation_loader = DataLoader(validation_data, batch_size=64, shuffle=False, pin_memory=True, num_workers=1, persistent_workers=True, prefetch_factor=16)
 
 		accuracy_func = lambda x, y: (x.argmax(dim=1) == y).float().sum().item()
-		evaluator = TorchEvaluator(train_loader, validation_loader, 5, nn.CrossEntropyLoss(), accuracy_func, Adam(0.0003, 0.001), None, True)
+		evaluator = TorchEvaluator(train_loader, validation_loader, 10, nn.CrossEntropyLoss(), accuracy_func, Adam(0.001, 0.001), StepLR(2, 0.5), True)
 
 		train_metrics, validation_metrics = evaluator.evaluate(ir)
 		#model_pool = or_search(model_1(), evaluator, AvgLossWindowSelector(1024), 80, 3, 3) 
@@ -45,10 +45,9 @@ def model_1() -> Schema:
 
 	head_1.add_group(New(head_2, 0))
 
-	accume = SchemaNode(ShapeBound(None, None, None), None, Sum(), None, None, BatchNorm() , debug_name="accume")
-	skip = SchemaNode(ShapeBound(None, None, None), None, None, None, None, ChannelDropout(.3), debug_name="skip")
+	accume = SchemaNode(ShapeBound(None, (4, None), (4, None)), None, Sum(), None, None, BatchNorm() , debug_name="accume")
+	skip = SchemaNode(ShapeBound(None, None, None), None, None, None, None, ChannelDropout(.1), debug_name="skip")
 	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), PowerGrowth(256, .7, .0), Sum(), Conv(2, 0, 2, 1, groups, mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
-
 	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=groups, mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
 	depthwise_3 = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, GroupType.DEPTHWISE), ReLU6(), BatchNorm(), debug_name="depthwise_3")
 	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=groups, mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
@@ -68,39 +67,13 @@ def model_1() -> Schema:
 	downsample.add_group(New(skip, 1), New(dw_3_point, 0))
 	accume.add_group(New(skip, 1), New(dw_3_point, 0))
 
-	accume.add_group(New(tail_1, 1))
+	downsample.add_group(New(tail_1, 1))
 
 	tail_1.add_group(New(tail_2, 1))
 
 	return Schema([head_1], [tail_2])
 
 def model_2() -> Schema:
-	groups = 1 
-
-	head_1 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
-	head_2 = SchemaNode(ShapeBound(64, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
-
-	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), PowerGrowth(128, .7, .0), Sum(), Conv(2, 0, 2, 1, groups, mix_groups=True), ReLU6(), BatchNorm())
-
-	conv_3 = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, groups=groups, mix_groups=True), ReLU6(), BatchNorm())
-
-	tail_1 = SchemaNode(ShapeBound(128, 1), None, None, Conv(2, 0), ReLU6(), BatchNorm())
-	tail_2 = SchemaNode(ShapeBound(10, 1), None, None, Full(), Softmax(), None)
-
-	head_1.add_group(New(head_2, 0))
-	head_2.add_group(New(downsample, 0))
-
-	downsample.add_group(New(conv_3, 0))
-	conv_3.add_group(New(conv_3, 0))
-	conv_3.add_group(New(downsample, 0))
-
-
-	conv_3.add_group(New(tail_1, 0))
-	tail_1.add_group(New(tail_2, 0))
-
-	return Schema([head_1], [tail_2])
-def model_3() -> Schema:
-	
 	conv_1_1 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
 	conv_1_2 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
 

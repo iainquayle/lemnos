@@ -1,5 +1,6 @@
 changes:
 	guarenteed:
+		make transforms take in a conformance rahter than a shape and a divisor
 		impl max pool
 		need to fix max and min loss
 		look into more flexible means of working with grouping
