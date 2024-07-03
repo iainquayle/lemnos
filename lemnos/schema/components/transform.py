@@ -23,7 +23,6 @@ class Full(Transform):
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		return shape_in.dimensionality() == shape_out.dimensionality()
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: Shape, shape_bounds: ShapeBound, divisor: int, growth_factor: float) -> LockedShape | None:
-		#if input_shape[1] == 1:
 		upper_shape = input_shape.to_open()
 		if output_conformance.is_locked():
 			channel_raw = output_conformance.get_product() // upper_shape.get_product()
@@ -38,6 +37,22 @@ class Full(Transform):
 
 class GroupType(Enum):
 	DEPTHWISE = "depthwise"
+
+class Grouping(Abstract):
+	@abstractmethod
+	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
+		pass
+class DepthwiseGrouping(Grouping):
+	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
+		return input_shape[0]
+class SqrtGrouping(Grouping):
+	def __init__(self, size_factor: float = 1.0) -> None:
+		self._size_factor: float = size_factor
+	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
+		channels = min(input_shape[0], proposed_output_shape[0])
+		groups = 2**int(math.log2(math.sqrt(channels * self._size_factor)))
+		return groups
+
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups", "_mix_groups"]
 	def __init__(self,
