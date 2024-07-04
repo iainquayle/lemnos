@@ -49,7 +49,7 @@ class IRNode:
 
 
 class SchemaNode:
-	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_divisor_hint", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
+	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
 			growth_function: Callable[[LockedShape, CompilationIndex], float] | None = None,
@@ -57,7 +57,6 @@ class SchemaNode:
 			transform: Transform | None = None,
 			activation: Activation | None = None,
 			regularization: Regularization | None = None,
-			divisor_hint: int = 1,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
 		self._growth_function: Callable[[LockedShape, CompilationIndex], float] | None = growth_function 
@@ -66,7 +65,6 @@ class SchemaNode:
 		self._transform: Transform | None = transform 
 		self._activation: Activation | None = activation 
 		self._regularization: Regularization | None = regularization 
-		self._divisor_hint: int = divisor_hint 
 		self.debug_name: str = debug_name 
 	def _compile(self, node: _CompilationNode, tracker: _CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
 		if id >= max_id:
@@ -107,14 +105,18 @@ class SchemaNode:
 			return None
 	def get_conformance(self, proposed_parent_shape: LockedShape, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
 		conformance_shape = OpenShape()
+		proposed_input_shape = proposed_parent_shape
 		if self._merge_method is not None:
 			if (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None:
 				return None
+			elif len(parent_shapes) > 0:
+				proposed_input_shape = self.get_input_shape(parent_shapes)
 		elif len(parent_shapes) > 1:
 			raise ValueError(f"No merge method defined for multiple inputs '{self.debug_name}'")
-		conformance = ShapeConformance(conformance_shape, self._divisor_hint)
-		divisor = math.lcm(self._divisor_hint, self._transform.get_divisor()) if self._transform is not None else self._divisor_hint 
-		return ShapeConformance(conformance_shape, self._activation.get_divisor(divisor) if self._activation is not None else divisor)
+		divisor = self._transform.get_divisor(proposed_input_shape) if self._transform is not None else 1
+		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
+		conformance = ShapeConformance(conformance_shape, divisor)
+		return conformance
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
 		return self
