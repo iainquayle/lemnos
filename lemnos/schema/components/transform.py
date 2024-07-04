@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from ...shared import Shape, LockedShape, OpenShape, ShapeBound, ShapeConformance
+from ...shared import LockedShape, OpenShape, ShapeBound, ShapeConformance
 
 import math
 
 from abc import ABC as Abstract, abstractmethod 
-from enum import Enum
 
 class Transform(Abstract):
 	@abstractmethod
@@ -14,8 +13,8 @@ class Transform(Abstract):
 	@abstractmethod
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: ShapeConformance, shape_bounds: ShapeBound, growth_factor: float) -> LockedShape | None:
 		pass
-	def get_divisor(self) -> int:
-		return 1 
+	def get_divisor(self, input_shape: LockedShape) -> int:
+		return 1
 
 class Full(Transform):
 	def __init__(self) -> None:
@@ -35,9 +34,6 @@ class Full(Transform):
 				return upper_shape.to_locked(channel_raw)
 			return None
 
-class GroupType(Enum):
-	DEPTHWISE = "depthwise"
-
 class Grouping(Abstract):
 	@abstractmethod
 	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
@@ -52,7 +48,7 @@ class ConstantGrouping(Grouping):
 class DepthwiseGrouping(Grouping):
 	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
 		return input_shape[0]
-class SqrtGrouping(Grouping):
+class SqrtBase2Grouping(Grouping):
 	def __init__(self, size_factor: float = 1.0) -> None:
 		self._size_factor: float = size_factor
 	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
@@ -102,7 +98,7 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
-	def get_divisor(self, output_shape: LockedShape) -> int:
+	def get_divisor(self, input_shape: LockedShape) -> int:
 		return self._groups.get_groups()
 	def get_kernel(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._kernel.expand(input_shape.dimensionality() - 1)
