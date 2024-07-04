@@ -3,7 +3,7 @@ import unittest
 from lemnos.schema.schema_graph import _CompilationNode, _CompilationNodeStack, _CompilationTracker 
 from lemnos.schema.schema_graph import *
 from lemnos.schema.growth_functions import PowerGrowth
-from lemnos.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full, SqrtBase2Grouping 
+from lemnos.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full, InputSqrtBase2Grouping 
 from lemnos.schema.compilation_indices import BreedIndices
 from lemnos.shared import *
 
@@ -57,7 +57,7 @@ class Test_Compilation(unittest.TestCase):
 			self.fail()
 		self.assertEqual(len(nodes), 11)
 	def test_grouping(self):
-		main = SchemaNode(ShapeBound((1, 32), (1, 16)), PowerGrowth(32, .5, .0), None, Conv(kernel=2, stride=2, groups=SqrtBase2Grouping()), None, None, "main")
+		main = SchemaNode(ShapeBound((1, 32), (1, 16)), PowerGrowth(32, .5, .0), None, Conv(kernel=2, stride=2, groups=InputSqrtBase2Grouping()), None, None, "main")
 		end = SchemaNode(ShapeBound((1, 32), (1, 1)), None, None, None, None, None, "end")
 		main.add_group(New(end, 0))
 		main.add_group(New(main, 0))
@@ -72,7 +72,7 @@ class Test_Compilation(unittest.TestCase):
 		self.assertGreater(node_1.input_shape[0], 4)
 		#print(node_1.input_shape[0])
 		if (transform := node_1.schema_node.get_transform()) is not None:
-			self.assertGreater(transform.get_divisor(node_1.input_shape), 1)
-			self.assertLess(transform.get_divisor(node_1.input_shape), 5)
+			self.assertGreater(transform.get_proposed_divisor(node_1.input_shape), 1)
+			self.assertLess(transform.get_proposed_divisor(node_1.input_shape), 5)
 		else:
 			self.fail()

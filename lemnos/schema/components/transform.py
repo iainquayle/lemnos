@@ -13,7 +13,7 @@ class Transform(Abstract):
 	@abstractmethod
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: ShapeConformance, shape_bounds: ShapeBound, growth_factor: float) -> LockedShape | None:
 		pass
-	def get_divisor(self, input_shape: LockedShape) -> int:
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
 		return 1
 
 class Full(Transform):
@@ -38,8 +38,9 @@ class Grouping(Abstract):
 	@abstractmethod
 	def get_groups(self, input_shape: LockedShape) -> int:
 		pass
-	def get_divisor(self, input_shape: LockedShape) -> int:
-		return self.get_groups(input_shape)
+	@abstractmethod
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
+		pass
 class ConstantGrouping(Grouping):
 	def __init__(self, groups: int) -> None:
 		if groups < 1:
@@ -47,18 +48,31 @@ class ConstantGrouping(Grouping):
 		self._groups: int = groups
 	def get_groups(self, input_shape: LockedShape) -> int:
 		return self._groups
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
+		return self._groups
 class DepthwiseGrouping(Grouping):
 	def get_groups(self, input_shape: LockedShape) -> int:
 		return input_shape[0]
-	def get_divisor(self, input_shape: LockedShape) -> int:
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
 		return 1 
-class SqrtBase2Grouping(Grouping):
+class InputSqrtBase2Grouping(Grouping):
 	def __init__(self, size_factor: float = 1.0) -> None:
 		self._size_factor: float = size_factor
 	def get_groups(self, input_shape: LockedShape) -> int:
 		channels = input_shape[0]
 		groups = 2**int(math.log2(math.sqrt(channels * self._size_factor)))
 		return groups
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
+		return self.get_groups(input_shape)
+class OutputSqrtBase2Grouping(Grouping):
+	def __init__(self, size_factor: float = 1.0) -> None:
+		self._size_factor: float = size_factor
+	def get_groups(self, input_shape: LockedShape) -> int:
+		channels = input_shape[0]
+		groups = 2**int(math.log2(math.sqrt(channels * self._size_factor)))
+		return groups
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
+		return self.get_groups(input_shape)
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups", "_mix_groups"]
@@ -86,6 +100,20 @@ class Conv(Transform):
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
+		if output_conformance.shape.is_locked():
+			proposed_output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
+			groups = self._groups.get_groups(input_shape)
+			divisor = output_conformance.get_divisor(groups)
+			if input_shape[0] % groups == 0 and proposed_output_shape[0] % divisor == 0 and shape_bounds.contains_value(proposed_output_shape[0], 0):
+				return upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
+		else:
+			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
+			groups = self._groups.get_groups(input_shape)
+			divisor = output_conformance.get_divisor(groups)
+			if input_shape[0] % groups == 0:
+				pass
+			pass
+		raise NotImplementedError
 		channels_raw = output_conformance.shape.get_product() // upper_shape.get_product() if output_conformance.shape.is_locked() else shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0)
 		proposed_output_shape = upper_shape.to_locked(channels_raw)
 		groups = self._groups.get_groups(input_shape)
@@ -102,8 +130,8 @@ class Conv(Transform):
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
-	def get_divisor(self, input_shape: LockedShape) -> int:
-		return self._groups.get_divisor(input_shape)
+	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
+		return self._groups.get_proposed_divisor(input_shape)
 	def get_kernel(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._kernel.expand(input_shape.dimensionality() - 1)
 	def get_stride(self, input_shape: LockedShape) -> tuple[int, ...]:
