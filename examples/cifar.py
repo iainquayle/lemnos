@@ -12,7 +12,7 @@ from torch import nn
 
 from lemnos.shared import LockedShape, ShapeBound
 from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices
-from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout, SqrtBase2Grouping, DepthwiseGrouping
+from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout, InputSqrtBase2Grouping, DepthwiseGrouping
 from lemnos.adapter.torch import TorchEvaluator, generate_source, Adam, SGD, StepLR 
 from lemnos.control import or_search, AvgLossWindowSelector 
 
@@ -46,8 +46,8 @@ def model_1() -> Schema:
 
 	accume = SchemaNode(ShapeBound(None, (4, None), (4, None)), None, Sum(), None, None, BatchNorm() , debug_name="accume")
 	skip = SchemaNode(ShapeBound(None, None, None), None, None, None, None, ChannelDropout(.1), debug_name="skip")
-	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), PowerGrowth(384, .7, .0), Sum(), Conv(2, 0, 2, 1, SqrtBase2Grouping(), mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
-	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=SqrtBase2Grouping(), mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
+	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), PowerGrowth(384, .7, .0), Sum(), Conv(2, 0, 2, 1, InputSqrtBase2Grouping(), mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
+	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=InputSqrtBase2Grouping(), mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
 	depthwise_3 = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, DepthwiseGrouping()), ReLU6(), BatchNorm(), debug_name="depthwise_3")
 	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=1, mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
 

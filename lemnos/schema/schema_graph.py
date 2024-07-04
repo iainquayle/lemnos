@@ -112,7 +112,7 @@ class SchemaNode:
 				proposed_input_shape = self.get_input_shape(parent_shapes)
 		elif len(parent_shapes) > 1:
 			raise ValueError(f"No merge method defined for multiple inputs '{self.debug_name}'")
-		divisor = self._transform.get_divisor(proposed_input_shape) if self._transform is not None else 1
+		divisor = self._transform.get_proposed_divisor(proposed_input_shape) if self._transform is not None else 1
 		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
 		conformance = ShapeConformance(conformance_shape, divisor)
 		return conformance
