@@ -8,7 +8,6 @@ from .components.merge_method import MergeMethod
 from .components.component import Component
 
 import random
-import math
 from copy import copy
 
 from typing import Iterator, Iterable, Callable, Any

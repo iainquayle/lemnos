@@ -2,7 +2,8 @@ import unittest
 
 from lemnos.schema.schema_graph import _CompilationNode, _CompilationNodeStack, _CompilationTracker 
 from lemnos.schema.schema_graph import *
-from lemnos.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full
+from lemnos.schema.growth_functions import PowerGrowth
+from lemnos.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full, SqrtBase2Grouping 
 from lemnos.schema.compilation_indices import BreedIndices
 from lemnos.shared import *
 
@@ -41,7 +42,7 @@ class Test_Compilation(unittest.TestCase):
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
-			Conv(kernel=2, stride=2, mix_groups=True),
+			Conv(kernel=2, stride=2),
 			ReLU(), 
 			BatchNorm(), "split_2")
 		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
@@ -55,3 +56,23 @@ class Test_Compilation(unittest.TestCase):
 		if nodes is None:
 			self.fail()
 		self.assertEqual(len(nodes), 11)
+	def test_grouping(self):
+		main = SchemaNode(ShapeBound((1, 32), (1, 16)), PowerGrowth(32, .5, .0), None, Conv(kernel=2, stride=2, groups=SqrtBase2Grouping()), None, None, "main")
+		end = SchemaNode(ShapeBound((1, 32), (1, 1)), None, None, None, None, None, "end")
+		main.add_group(New(end, 0))
+		main.add_group(New(main, 0))
+		tracker = _CompilationTracker([_CompilationNodeStack(main, [_CompilationNode(set(), [], LockedShape(1, 8), 0)])], None) 
+		schema, node = tracker.pop_min()
+		nodes = schema._compile(node, tracker, BreedIndices(), ID(0), ID(5))
+		if nodes is None:
+			self.fail()
+		self.assertEqual(len(nodes), 4)
+		node_1 = nodes[1]
+		#node_2 = nodes[2]
+		self.assertGreater(node_1.input_shape[0], 4)
+		#print(node_1.input_shape[0])
+		if (transform := node_1.schema_node.get_transform()) is not None:
+			self.assertGreater(transform.get_divisor(node_1.input_shape), 1)
+			self.assertLess(transform.get_divisor(node_1.input_shape), 5)
+		else:
+			self.fail()
