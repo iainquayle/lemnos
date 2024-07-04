@@ -125,7 +125,7 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 		current_shape = ShapeView.FLAT
 		for i, component in enumerate(node.schema_node.get_components()):
 			if (init := component_formatter.get_init(component, node.input_shape, node.output_shape)) != "":
-				init_statements.append(assign_(self_(_component_name(node.id, i)), self_(init)))
+				init_statements.append(assign_(self_(_component_name(node.id, i)), self_(init)) + " # " + str(node.schema_node.debug_name))
 			if component_formatter.get_shape_requirment(component) == ShapeView.REAL and current_shape == ShapeView.FLAT:
 				forward_statement = [view_(expr, node.input_shape) for expr in forward_statement]
 			elif component_formatter.get_shape_requirment(component) == ShapeView.FLAT and current_shape == ShapeView.REAL:
@@ -133,7 +133,7 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 			current_shape = component_formatter.get_shape_requirment(component)
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
 		#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
-		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))))
+		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))) + " # " + str(node.schema_node.debug_name))
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 	return concat_lines_(import_torch_(), *module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))

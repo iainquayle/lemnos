@@ -1,13 +1,9 @@
 changes:
 	guarenteed:
-		make transforms take in a conformance rahter than a shape and a divisor
+		make the groupings take in the final output shape? allow specific ones to use that
+			in the case of a massive drop in channels, taking into account the necessary finalized output is, necessary
 		impl max pool
 		need to fix max and min loss
-		look into more flexible means of working with grouping
-			even see if there would be any way to somewhat fit a square root curve, but still be solvable
-			put in different branch
-			idea for conv sqrt groups, group based on the max of the input or output channels, or just have different grouping types
-			this may allow for the removal of the divisor hint, maybe, would be nice 
 		remove jank logging system in torch evaluator add proper user defined logging call back
 		review whther more work can be done together with the conformance gathering and tracker mutation passes
 			ie, caching the conformance gathering information and use it for tracker mutation if valid
@@ -18,7 +14,7 @@ changes:
 			divide more naturally
 		refactor mix conv
 			maybe split it
-		make possible call back for prescreening, allows for selecting models that only have certain node ratios
+		impl a screening on the ir, allow for culling initial bad models
 	possible:
 		may be the case that mutable priorities are not actually needed? since it pops the top of the stack in any case
 			check this on Unet example

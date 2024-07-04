@@ -38,6 +38,8 @@ class Grouping(Abstract):
 	@abstractmethod
 	def get_groups(self, input_shape: LockedShape) -> int:
 		pass
+	def get_divisor(self, input_shape: LockedShape) -> int:
+		return self.get_groups(input_shape)
 class ConstantGrouping(Grouping):
 	def __init__(self, groups: int) -> None:
 		if groups < 1:
@@ -48,6 +50,8 @@ class ConstantGrouping(Grouping):
 class DepthwiseGrouping(Grouping):
 	def get_groups(self, input_shape: LockedShape) -> int:
 		return input_shape[0]
+	def get_divisor(self, input_shape: LockedShape) -> int:
+		return 1 
 class SqrtBase2Grouping(Grouping):
 	def __init__(self, size_factor: float = 1.0) -> None:
 		self._size_factor: float = size_factor
@@ -99,7 +103,7 @@ class Conv(Transform):
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
 	def get_divisor(self, input_shape: LockedShape) -> int:
-		return self._groups.get_groups(input_shape)
+		return self._groups.get_divisor(input_shape)
 	def get_kernel(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._kernel.expand(input_shape.dimensionality() - 1)
 	def get_stride(self, input_shape: LockedShape) -> tuple[int, ...]:
@@ -109,7 +113,7 @@ class Conv(Transform):
 	def get_padding(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._padding.expand(input_shape.dimensionality() - 1)
 	def get_groups(self, input_shape: LockedShape) -> int:
-		return self._groups if isinstance(self._groups, int) else input_shape[0]
+		return self._groups.get_groups(input_shape)
 	def get_mix_groups(self) -> bool:
 		return self._mix_groups
 
