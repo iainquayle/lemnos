@@ -30,7 +30,7 @@ def main():
 		validation_loader = DataLoader(validation_data, batch_size=64, shuffle=False, pin_memory=True, num_workers=1, persistent_workers=True, prefetch_factor=16)
 
 		accuracy_func = lambda x, y: (x.argmax(dim=1) == y).float().sum().item()
-		evaluator = TorchEvaluator(train_loader, validation_loader, 10, nn.CrossEntropyLoss(), accuracy_func, Adam(0.001, 0.001), StepLR(2, 0.5), True)
+		evaluator = TorchEvaluator(train_loader, validation_loader, 10, nn.CrossEntropyLoss(), accuracy_func, Adam(0.001, 0.0005), StepLR(2, 0.5), True)
 
 		train_metrics, validation_metrics = evaluator.evaluate(ir)
 		#model_pool = or_search(model_1(), evaluator, AvgLossWindowSelector(1024), 80, 3, 3) 
