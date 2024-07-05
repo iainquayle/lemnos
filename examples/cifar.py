@@ -12,14 +12,14 @@ from torch import nn
 
 from lemnos.shared import LockedShape, ShapeBound
 from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices
-from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout, InputSqrtBase2Grouping, DepthwiseGrouping
+from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout, InputSqrtBase2Grouping, DepthwiseGrouping, SqrtBase2GcdGrouping
 from lemnos.adapter.torch import TorchEvaluator, generate_source, Adam, SGD, StepLR 
 from lemnos.control import or_search, AvgLossWindowSelector 
 
 def main():
 	if (ir := model_1().compile_ir([LockedShape(3, 32, 32)], BreedIndices(), 70)) is not None: #purely for demonstration purposes
 		print(generate_source("Example", ir))
-		exit()
+		#exit()
 		#train_transform = transforms.Compose([transforms.ToTensor(), transforms.RandomHorizontalFlip(p=.5), transforms.RandomErasing(p=.4, scale=(.02, .2)), transforms.RandomVerticalFlip(p=.5)])
 		train_transform = transforms.Compose([transforms.ToTensor(), transforms.RandomHorizontalFlip(p=.5)])
 
@@ -39,22 +39,24 @@ def main():
 
 
 def model_1() -> Schema:
-	head_1 = SchemaNode(ShapeBound(48, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
-	head_2 = SchemaNode(ShapeBound(128, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
+	head_1 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
+	head_2 = SchemaNode(ShapeBound(64, None, None), None, None, Conv(3, 1, groups=SqrtBase2GcdGrouping()), ReLU6(), BatchNorm())
+	head_3 = SchemaNode(ShapeBound(128, None, None), None, None, Conv(3, 1, groups=SqrtBase2GcdGrouping()), ReLU6(), BatchNorm())
 
 	head_1.add_group(New(head_2, 0))
+	head_2.add_group(New(head_3, 0))
 
 	accume = SchemaNode(ShapeBound(None, (4, None), (4, None)), None, Sum(), None, None, BatchNorm() , debug_name="accume")
 	skip = SchemaNode(ShapeBound(None, None, None), None, None, None, None, ChannelDropout(.1), debug_name="skip")
 	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), PowerGrowth(384, .7, .0), Sum(), Conv(2, 0, 2, 1, InputSqrtBase2Grouping(), mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
 	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=InputSqrtBase2Grouping(), mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
 	depthwise_3 = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, DepthwiseGrouping()), ReLU6(), BatchNorm(), debug_name="depthwise_3")
-	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=1, mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
+	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=SqrtBase2GcdGrouping(), mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
 
 	tail_1 = SchemaNode(ShapeBound(256, 1), None, None, Conv(2, 0), ReLU6(), BatchNorm(), debug_name="tail_1")
 	tail_2 = SchemaNode(ShapeBound(10, 1), None, None, Full(), Softmax(), None)
 
-	head_2.add_group(New(skip, 1), New(dw_3_point, 0))
+	head_3.add_group(New(skip, 1), New(dw_3_point, 0))
 
 	dw_3_point.add_group(New(depthwise_3, 0))
 	depthwise_3.add_group(New(dw_collect, 2))

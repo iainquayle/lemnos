@@ -36,7 +36,7 @@ class Full(Transform):
 
 class Grouping(Abstract):
 	@abstractmethod
-	def get_groups(self, input_shape: LockedShape) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		pass
 	@abstractmethod
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
@@ -46,33 +46,37 @@ class ConstantGrouping(Grouping):
 		if groups < 1:
 			raise ValueError("groups must be greater than 0")
 		self._groups: int = groups
-	def get_groups(self, input_shape: LockedShape) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		return self._groups
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
 		return self._groups
 class DepthwiseGrouping(Grouping):
-	def get_groups(self, input_shape: LockedShape) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		return input_shape[0]
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
 		return 1 
 class InputSqrtBase2Grouping(Grouping):
 	def __init__(self, size_factor: float = 1.0) -> None:
 		self._size_factor: float = size_factor
-	def get_groups(self, input_shape: LockedShape) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		channels = input_shape[0]
 		groups = 2**int(math.log2(math.sqrt(channels * self._size_factor)))
 		return groups
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
-		return self.get_groups(input_shape)
-class OutputSqrtBase2Grouping(Grouping):
+		return self.get_groups(input_shape, LockedShape(0))
+class SqrtBase2GcdGrouping(Grouping):
 	def __init__(self, size_factor: float = 1.0) -> None:
 		self._size_factor: float = size_factor
-	def get_groups(self, input_shape: LockedShape) -> int:
-		channels = input_shape[0]
-		groups = 2**int(math.log2(math.sqrt(channels * self._size_factor)))
-		return groups
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
+		channels = min(input_shape[0], output_shape[0])
+		start = int(math.log2(math.sqrt(channels * self._size_factor)))
+		for i in range(start, 0, -1):
+			groups = 2**i
+			if input_shape[0] % groups == 0 and output_shape[0] % groups == 0:
+				return groups
+		return 1
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
-		return self.get_groups(input_shape)
+		return 1
 
 class Conv(Transform):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups", "_mix_groups"]
@@ -101,30 +105,17 @@ class Conv(Transform):
 			raise ValueError("input shape must have at least 2 dimensions")
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.shape.is_locked():
-			proposed_output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
-			groups = self._groups.get_groups(input_shape)
+			output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
+			groups = self._groups.get_groups(input_shape, output_shape)
 			divisor = output_conformance.get_divisor(groups)
-			if input_shape[0] % groups == 0 and proposed_output_shape[0] % divisor == 0 and shape_bounds.contains_value(proposed_output_shape[0], 0):
+			if input_shape[0] % groups == 0 and output_shape[0] % divisor == 0 and shape_bounds.contains_value(output_shape[0], 0):
 				return upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
 		else:
 			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
-			groups = self._groups.get_groups(input_shape)
+			groups = self._groups.get_groups(input_shape, proposed_output_shape)
 			divisor = output_conformance.get_divisor(groups)
-			if input_shape[0] % groups == 0:
-				pass
-			pass
-		raise NotImplementedError
-		channels_raw = output_conformance.shape.get_product() // upper_shape.get_product() if output_conformance.shape.is_locked() else shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0)
-		proposed_output_shape = upper_shape.to_locked(channels_raw)
-		groups = self._groups.get_groups(input_shape)
-		divisor = output_conformance.get_divisor(groups)
-		if input_shape[0] % groups == 0:
-			if output_conformance.shape.is_locked():
-				if shape_bounds.contains_value(channels_raw, 0) and channels_raw % divisor == 0:
-					return proposed_output_shape
-			else:
-				if (channels := _closest_divisible(channels_raw, divisor, shape_bounds)) is not None:
-					return upper_shape.to_locked(channels)
+			if input_shape[0] % groups == 0 and (channels := _closest_divisible(proposed_output_shape[0], divisor, shape_bounds)) is not None:
+				return upper_shape.to_locked(channels)
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		i = 1
 		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
@@ -140,8 +131,8 @@ class Conv(Transform):
 		return self._dilation.expand(input_shape.dimensionality() - 1)
 	def get_padding(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._padding.expand(input_shape.dimensionality() - 1)
-	def get_groups(self, input_shape: LockedShape) -> int:
-		return self._groups.get_groups(input_shape)
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
+		return self._groups.get_groups(input_shape, output_shape)
 	def get_mix_groups(self) -> bool:
 		return self._mix_groups
 

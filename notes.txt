@@ -1,7 +1,8 @@
 changes:
 	guarenteed:
-		make the groupings take in the final output shape? allow specific ones to use that
-			in the case of a massive drop in channels, taking into account the necessary finalized output is, necessary
+		make it such that groups give off a proposed grouping? and the transform then attempts to fit the grouping or the output
+			would make it more resilient, and may allow the removal of the output being used
+			removing the output would still be problematic, but this would still possible be helpful
 		impl max pool
 		need to fix max and min loss
 		remove jank logging system in torch evaluator add proper user defined logging call back

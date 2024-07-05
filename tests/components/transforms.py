@@ -4,7 +4,7 @@ from torch import zeros
 from torch.nn import Conv1d
 
 from lemnos.schema.components import Conv 
-from lemnos.shared import LockedShape, OpenShape, ShapeBound 
+from lemnos.shared import LockedShape, OpenShape, ShapeBound, ShapeConformance
 
 #TODO: splits these tests up
 class TestConv(unittest.TestCase):
