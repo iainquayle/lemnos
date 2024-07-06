@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from lemnos.shared import LockedShape, ShapeBound
 from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices
-from lemnos.schema.components import Conv, BatchNorm, ReLU6, Softmax, GroupType, Sum
+from lemnos.schema.components import Conv, BatchNorm, ReLU6, Softmax, Sum, DepthwiseGrouping
 from lemnos.adapter.torch import generate_source 
 
 
@@ -20,7 +20,7 @@ head = SchemaNode(ShapeBound(None, None, None), LinearGrowth(4, .2), None, Conv(
 head2 = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .2), None, Conv(3, 1), ReLU6(), BatchNorm())
 
 dw_point_squeeze = SchemaNode(ShapeBound(None, None, None), LinearGrowth(.5, .2), None, Conv(), ReLU6(), BatchNorm())
-depthwise = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, GroupType.DEPTHWISE), ReLU6(), BatchNorm())
+depthwise = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, DepthwiseGrouping()), ReLU6(), BatchNorm())
 dw_point_expand = SchemaNode(ShapeBound(None, None, None), None, None, Conv(), ReLU6(), BatchNorm())
 
 skip = SchemaNode(ShapeBound(None, None, None), None, Sum(), None, None, BatchNorm())

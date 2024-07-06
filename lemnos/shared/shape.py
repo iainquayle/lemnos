@@ -6,6 +6,9 @@ from math import prod
 from copy import copy
 
 from abc import ABC as Abstract, abstractmethod
+from dataclasses import dataclass
+
+import math
 
 #rules:
 #	if no remaining open dims
@@ -218,3 +221,21 @@ class ShapeBound:
 		return f"ShapeBound({self._bounds})"
 	def __repr__(self) -> str:
 		return str(self)
+
+
+@dataclass(frozen=True)
+class ShapeConformance:
+	shape: Shape
+	divisor: int
+	def common(self, other: ShapeConformance) -> ShapeConformance | None:
+		if (shape := self.shape.common_lossless(other.shape)) is not None:
+			return ShapeConformance(shape, math.lcm(self.divisor, other.divisor))
+		else:
+			return None
+	def common_divisor(self, divisor: int) -> ShapeConformance:
+		return ShapeConformance(self.shape, math.lcm(self.divisor, divisor))
+	def common_shape(self, shape: Shape) -> ShapeConformance | None:
+		return self.common(ShapeConformance(shape, 1))
+	def get_divisor(self, other_divisor: int) -> int:
+		return math.lcm(self.divisor, other_divisor)
+	

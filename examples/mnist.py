@@ -54,16 +54,16 @@ def create_schema() -> Schema:
 	# The number of channels in the hidden layers will grow following a fractional exponent curve up to 32 channels, with the freedom to vary by 20%.
 	#
 
-	start = SchemaNode(ShapeBound(None, None, None), LinearGrowth(6, .3), None, Conv(3), ReLU6(), BatchNorm(), 1, "start")
+	start = SchemaNode(ShapeBound(None, None, None), LinearGrowth(6, .3), None, Conv(3), ReLU6(), BatchNorm(), "start")
 
-	conv_3 = SchemaNode(ShapeBound((6, 32), None, None), PowerGrowth(32, .8, .2), None, Conv(3), ReLU6(), BatchNorm(), 1, "conv_3")
-	conv_5 = SchemaNode(ShapeBound(None, (4, None), (4, None)), PowerGrowth(32, .6, .2), None, Conv(5), ReLU6(), BatchNorm(), 1, "conv_5")
+	conv_3 = SchemaNode(ShapeBound((6, 32), None, None), PowerGrowth(32, .8, .2), None, Conv(3), ReLU6(), BatchNorm(), "conv_3")
+	conv_5 = SchemaNode(ShapeBound(None, (4, None), (4, None)), PowerGrowth(32, .6, .2), None, Conv(5), ReLU6(), BatchNorm(), "conv_5")
 	# The convolutions above have been given bounds for the purpose of demonstration, but they are not needed  for this graph to be valid.
 	# conv_3 will be bound at 6 to 32 channels, while conv_5 is unbounded and free to grow following the growth function.
 	# conv_5 is given the lower bound of 4x4, demonstrating how limit the use of a node based on the necessary output shape.
 	#	ie, once the output shape of the nodes layers has reached <= 4x4, conv_5 wont be used.
 
-	end = SchemaNode(ShapeBound(10, 1, 1), None, None, Conv(2), Softmax(), None, 1, "end")
+	end = SchemaNode(ShapeBound(10, 1, 1), None, None, Conv(2), Softmax(), None, "end")
 
 	
 	# Note: Groups can have more than one transition.

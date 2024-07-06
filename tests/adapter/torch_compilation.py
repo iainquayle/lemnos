@@ -9,20 +9,20 @@ import torch
 
 class TestTorchCompilation(unittest.TestCase):
 	def test_split_loop(self):
-		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, 1, "main")
+		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, "main")
 		split_1 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
 			Conv(kernel=2, stride=2),
 			ReLU(), 
-			BatchNorm(), 1, "split_1")
+			BatchNorm(), "split_1")
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
 			Conv(kernel=2, stride=2),
 			ReLU(), 
-			BatchNorm(), 1, "split_2")
-		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, 1, "end")
+			BatchNorm(), "split_2")
+		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
 		main.add_group( New(split_1, 0), New(split_2, 1))
 		split_1.add_group( New(main, 2))
 		split_2.add_group( Existing(main, 2))
@@ -45,20 +45,20 @@ class TestTorchModule(unittest.TestCase):
 		module = torch_adapter.get_module("test", ir)
 		self.assertEqual(module(torch.ones(10)).shape, torch.Size([1, 1]))
 	def test_conv_full(self):
-		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, 1, "main")
+		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, "main")
 		split_1 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
 			Conv(kernel=2, stride=2),
 			ReLU(), 
-			BatchNorm(), 1, "split_1")
+			BatchNorm(), "split_1")
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
 			Conv(kernel=2, stride=2, mix_groups=True),
 			ReLU(), 
-			BatchNorm(), 1, "split_2")
-		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, 1, "end")
+			BatchNorm(), "split_2")
+		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
 		main.add_group( New(split_1, 0), New(split_2, 1))
 		split_1.add_group( New(main, 2))
 		split_2.add_group( Existing(main, 2))
