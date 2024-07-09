@@ -1,30 +1,29 @@
 changes:
 	guarenteed:
-		make it such that groups give off a proposed grouping? and the transform then attempts to fit the grouping or the output
-			would make it more resilient, and may allow the removal of the output being used
-			removing the output would still be problematic, but this would still possible be helpful
+		refactorings:
+			clean namings
+				make divisors clearer, ir proposed divisors
+				naming of transitions
+				naming of functions surrounding compilation
+				sampel collection to results sample?
+			attempt to clean up divior checks, make them more self explanitory and hardened
+			adapters, split up and fix any naming
+			split conv and mix conv
+			fix jank in sample collection
 		impl max pool
-		need to fix max and min loss
 		remove jank logging system in torch evaluator add proper user defined logging call back
-		review whther more work can be done together with the conformance gathering and tracker mutation passes
-			ie, caching the conformance gathering information and use it for tracker mutation if valid
 		create ir save and load, allowing for resuming of search
 		make tests for breeding
-		refactor adapters
-			break any mixed responsiblities 
-			divide more naturally
-		refactor mix conv
-			maybe split it
 		impl a screening on the ir, allow for culling initial bad models
 	possible:
+		review whther more work can be done together with the conformance gathering and tracker mutation passes
+			ie, caching the conformance gathering information and use it for tracker mutation if valid
 		may be the case that mutable priorities are not actually needed? since it pops the top of the stack in any case
 			check this on Unet example
 		add optional shape bounds to transitions, not to be conformed to but allow more flexibility in defining when to use transitions
 			may need to make "add group" take an explicit iterable instead of a arg list
 			it seems to always be possible to work around, but would be easier to not
-		make sample collection immutable?
 		add a divisor option to the clamp val on shape bounds
-		make it so the divisor lookahead doesnt take into account the nodes hint
 		rename transitions to edges or something?
 		move templates to jinja or the sort?
 problems:

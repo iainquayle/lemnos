@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, OpenShape, ShapeConformance, ShapeBound, ID
-from .components.transform import Transform
-from .components.activation import Activation
-from .components.regularization import Regularization
+from .components.transforms import Transform
+from .components.activations import Activation
+from .components.regularizations import Regularization
 from .components.merge_method import MergeMethod
 from .components.component import Component
 
