@@ -55,21 +55,21 @@ class DepthwiseGrouping(Grouping):
 		return input_shape[0]
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
 		return 1 
-class InputSqrtBase2Grouping(Grouping):
-	def __init__(self, size_factor: float = 1.0) -> None:
-		self._size_factor: float = size_factor
+class InputSqrtPotGrouping(Grouping):
+	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
+		self._sqrt_input_scale: float = sqrt_input_scale
 	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		channels = input_shape[0]
-		groups = 2**int(math.log2(math.sqrt(channels * self._size_factor)))
+		groups = 2**int(math.log2(math.sqrt(channels * self._sqrt_input_scale)))
 		return groups
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
 		return self.get_groups(input_shape, LockedShape(0))
-class SqrtBase2GcdGrouping(Grouping):
-	def __init__(self, size_factor: float = 1.0) -> None:
-		self._size_factor: float = size_factor
+class SqrtPotGcdGrouping(Grouping):
+	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
+		self._sqrt_input_scale: float = sqrt_input_scale
 	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		channels = min(input_shape[0], output_shape[0])
-		start = int(math.log2(math.sqrt(channels * self._size_factor)))
+		start = int(math.log2(math.sqrt(channels * self._sqrt_input_scale)))
 		for i in range(start, 0, -1):
 			groups = 2**i
 			if input_shape[0] % groups == 0 and output_shape[0] % groups == 0:

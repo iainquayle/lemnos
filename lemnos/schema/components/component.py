@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from .transform import Transform
-from .activation import Activation 
-from .regularization import Regularization
+from .transforms import Transform
+from .activations import Activation 
+from .regularizations import Regularization
 from .merge_method import MergeMethod
 
 from abc import ABC as Abstract

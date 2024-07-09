@@ -68,17 +68,17 @@ class Evaluator(Abstract):
 
 class SampleCollection:
 	__slots__ = ["sample_size", "total_loss", "max_loss", "min_loss", "correct", "time", "epoch"]
-	def __init__(self, total_loss: float, max_loss: float, min_loss: float, total_correct: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
+	def __init__(self, loss: float, max_loss: float, min_loss: float, total_correct: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
 		self.sample_size: int = sample_size 
-		self.total_loss: float = total_loss
+		self.total_loss: float = loss * sample_size 
 		self.max_loss: float = max_loss
 		self.min_loss: float = min_loss 
 		self.correct: float | None = total_correct 
 		self.time: float | None = time 
 		self.epoch: int | None = epoch
 	def merge(self, other: SampleCollection) -> SampleCollection:
-		return SampleCollection(
-			self.total_loss + other.total_loss,
+		new_collection = SampleCollection(
+			(self.total_loss + other.total_loss) / (self.sample_size + other.sample_size),
 			max(self.max_loss, other.max_loss),
 			min(self.min_loss, other.min_loss),
 			self.correct + other.correct if self.correct is not None and other.correct is not None else None,
@@ -86,10 +86,13 @@ class SampleCollection:
 			max(self.epoch, other.epoch) if self.epoch is not None and other.epoch is not None else None,
 			self.sample_size + other.sample_size,
 		)
+		return new_collection
+	def get_loss(self) -> float:
+		return self.total_loss / self.sample_size
 	def __copy__(self) -> SampleCollection:
 		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
-		return (f"loss: {self.total_loss}, max: {self.max_loss}, min: {self.min_loss}"
+		return (f"loss: {self.get_loss()}, max: {self.max_loss}, min: {self.min_loss}"
 			+ (f", accuracy: {self.correct / self.sample_size}" if self.correct is not None else "")
 			+ f", sample size: {self.sample_size}"
 			+ (f", time: {self.time}" if self.time is not None else "")
@@ -97,7 +100,7 @@ class SampleCollection:
 	def __repr__(self) -> str:
 		return str(self)
 class Metrics:
-	def __init__(self, max_resolution: int = 2**14) -> None:
+	def __init__(self, max_resolution: int = 2**10) -> None:
 		self._total_samples: int = 0
 		self._max_resolution: int = max_resolution
 		self._target_sample_size: int = 1
@@ -108,17 +111,17 @@ class Metrics:
 			self._last_sample_size = sample.sample_size 
 			self._total_samples += sample.sample_size
 			self._target_sample_size = sample.sample_size
-			return
-		if self._samples[-1].sample_size < self._target_sample_size:
-			self._samples[-1] = self._samples[-1].merge(sample)
-			self._last_sample_size += self._samples[-1].sample_size
 		else:
-			self._samples.append(sample)
-			self._last_sample_size = self._samples[-1].sample_size
-		if len(self._samples) > self._max_resolution:
-			self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
-			self._target_sample_size *= 2
-		self._total_samples += sample.sample_size 
+			if self._samples[-1].sample_size < self._target_sample_size:
+				self._samples[-1] = self._samples[-1].merge(sample)
+				self._last_sample_size += self._samples[-1].sample_size
+			else:
+				self._samples.append(sample)
+				self._last_sample_size = self._samples[-1].sample_size
+			if len(self._samples) > self._max_resolution:
+				self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
+				self._target_sample_size *= 2
+			self._total_samples += sample.sample_size 
 	def get_epochs(self) -> list[SampleCollection]:
 		raise NotImplementedError
 	def get_total_samples(self) -> int:
@@ -127,10 +130,7 @@ class Metrics:
 		return self._samples[index]
 	def __len__(self) -> int:
 		return len(self._samples)
-	def merge_range(self, start: int | float, end: int | float) -> SampleCollection:
-		raise NotImplementedError
-		start_index = self._get_index(start)
-		end_index = self._get_index(end)
+	def get_merged_range(self, start_index: int, end_index: int) -> SampleCollection:
 		if start_index > end_index:
 			raise ValueError("Invalid range")
 		output = self._samples[start_index] 
@@ -142,7 +142,8 @@ class Metrics:
 	def format(self, resolution: int | None) -> str:
 		if resolution is None:
 			resolution = len(self._samples)
-		return "\n".join([f"{self.get_fractional(i/resolution)}" for i in range(resolution)])
+		step = len(self._samples) / resolution
+		return "\n".join((f"{self.get_merged_range(int(i * step), int((i + 1) * step) - 1)}" for i in range(resolution)))
 	def __str__(self) -> str:
 		return self.format(20)
 	def __repr__(self) -> str:
