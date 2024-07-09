@@ -76,6 +76,7 @@ class TorchEvaluator(Evaluator):
 			metrics_resolution: int = 2048,
 			formatter: TorchComponentFormatter = DefaultComponentFormatter(),
 			torch_compiler: CompileBackend | None = None,
+			logging_callback: Callable[[Tensor, Tensor, Tensor, Metrics], None] | None = None
 		) -> None:
 		self._device_type = CUDA if torch.cuda.is_available() else CPU 
 		if require_cuda and not self._device_type == CUDA:
@@ -91,7 +92,7 @@ class TorchEvaluator(Evaluator):
 		self._metrics_resolution = metrics_resolution
 		self._formatter = formatter
 		self._torch_compiler = torch_compiler
-		self._training_example_count = 0
+		self._logging_callback: Callable[[Tensor, Tensor, Tensor, Metrics], None] | None = logging_callback 
 	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		device = torch.cuda.current_device() if self._device_type == CUDA else torch.device(CPU)
 		training_metrics = Metrics(self._metrics_resolution)
@@ -116,10 +117,8 @@ class TorchEvaluator(Evaluator):
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
-				self._training_example_count += 1
-				#if training_metrics.get_total_samples() % 2**12 == 0:
-				#	print(f"sample count: {training_metrics.get_total_samples()}")
-				#	print(training_metrics)
+				if self._logging_callback is not None:
+					self._logging_callback(input, truth, output, training_metrics)
 				gc.collect()
 			if scheduler is not None:
 				scheduler.step()
