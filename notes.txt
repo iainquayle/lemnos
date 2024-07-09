@@ -3,9 +3,10 @@ changes:
 		refactorings:
 			clean namings
 				make divisors clearer, ir proposed divisors
-				naming of transitions
-				naming of functions surrounding compilation
+				transitions to edges perhaps
+				functions surrounding compilation
 				sampel collection to results sample?
+				linear growth to perhaps scaling
 			attempt to clean up divior checks, make them more self explanitory and hardened
 			adapters, split up and fix any naming
 			split conv and mix conv
