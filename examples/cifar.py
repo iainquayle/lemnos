@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 
 from lemnos.shared import LockedShape, ShapeBound
-from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices
+from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices, InvertedParabolicGrowth
 from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout, InputSqrtPotGrouping, DepthwiseGrouping, SqrtPotGcdGrouping
 from lemnos.adapter.torch import TorchEvaluator, generate_source, Adam, SGD, StepLR 
 from lemnos.control import or_search, AvgLossWindowSelector 
@@ -30,7 +30,8 @@ def main():
 		validation_loader = DataLoader(validation_data, batch_size=64, shuffle=False, pin_memory=True, num_workers=1, persistent_workers=True, prefetch_factor=16)
 
 		accuracy_func = lambda x, y: (x.argmax(dim=1) == y).float().sum().item()
-		evaluator = TorchEvaluator(train_loader, validation_loader, 10, nn.CrossEntropyLoss(), accuracy_func, Adam(0.001, 0.0005), StepLR(1, 0.7), True)
+		#evaluator = TorchEvaluator(train_loader, validation_loader, 10, nn.CrossEntropyLoss(), accuracy_func, Adam(0.001, 0.0004), StepLR(2, 0.5), True)
+		evaluator = TorchEvaluator(train_loader, validation_loader, 10, nn.CrossEntropyLoss(), accuracy_func, SGD(0.02, 0.9, 0.0007), StepLR(2, 0.5), True)
 
 		train_metrics, validation_metrics = evaluator.evaluate(ir)
 		#model_pool = or_search(model_1(), evaluator, AvgLossWindowSelector(1024), 80, 3, 3) 
@@ -40,18 +41,20 @@ def main():
 
 def model_1() -> Schema:
 	head_1 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
-	head_2 = SchemaNode(ShapeBound(64, None, None), None, None, Conv(3, 1, groups=SqrtPotGcdGrouping()), ReLU6(), BatchNorm())
+	head_2 = SchemaNode(ShapeBound(96, None, None), None, None, Conv(3, 1, groups=SqrtPotGcdGrouping()), ReLU6(), BatchNorm())
 	head_3 = SchemaNode(ShapeBound(128, None, None), None, None, Conv(3, 1, groups=SqrtPotGcdGrouping()), ReLU6(), BatchNorm())
+	#head_2 = SchemaNode(ShapeBound(64, None, None), None, None, Conv(3, 1, groups=1), ReLU6(), BatchNorm())
+	#head_3 = SchemaNode(ShapeBound(128, None, None), None, None, Conv(3, 1, groups=1), ReLU6(), BatchNorm())
 
 	head_1.add_group(New(head_2, 0))
 	head_2.add_group(New(head_3, 0))
 
 	accume = SchemaNode(ShapeBound(None, (4, None), (4, None)), None, Sum(), None, None, BatchNorm() , debug_name="accume")
 	skip = SchemaNode(ShapeBound(None, None, None), None, None, None, None, ChannelDropout(.1), debug_name="skip")
-	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), PowerGrowth(384, .5, .0), Sum(), Conv(2, 0, 2, 1, InputSqrtPotGrouping(), mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
-	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=InputSqrtPotGrouping(), mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
+	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), InvertedParabolicGrowth(256, .0), Sum(), Conv(2, 0, 2, 1, InputSqrtPotGrouping(1.2), mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
+	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=InputSqrtPotGrouping(1.2), mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
 	depthwise_3 = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, DepthwiseGrouping()), ReLU6(), BatchNorm(), debug_name="depthwise_3")
-	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=SqrtPotGcdGrouping(), mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
+	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=SqrtPotGcdGrouping(1.2), mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
 
 	tail_1 = SchemaNode(ShapeBound(256, 1), None, None, Conv(2, 0), ReLU6(), BatchNorm(), debug_name="tail_1")
 	tail_2 = SchemaNode(ShapeBound(10, 1), None, None, Full(), Softmax(), None)
