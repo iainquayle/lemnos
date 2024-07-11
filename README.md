@@ -11,7 +11,7 @@ Check out these [examples](examples).
 
 ## Setup 
 
-... 
+Not on PyPi, and no license yet...
 
 ## Structure
 
