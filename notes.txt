@@ -11,6 +11,7 @@ changes:
 			adapters, split up and fix any naming
 			split conv and mix conv
 			fix jank in sample collection
+			add vertical spacing to code, looks fine in nvim but vsc is disgusting
 		impl max pool
 		remove jank logging system in torch evaluator add proper user defined logging call back
 		create ir save and load, allowing for resuming of search

@@ -24,4 +24,4 @@ class Schema:
 			return ir 
 		return None
 	def search(self, ) -> None:
-		pass
+		raise NotImplementedError()
