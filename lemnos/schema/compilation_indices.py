@@ -6,12 +6,18 @@ from .schema_graph import SchemaNode, CompilationIndices, CompilationIndex, IRNo
 import random
 from copy import copy
 
+from csv import DictReader, DictWriter
+
 class SequenceIndices(CompilationIndices):
 	__slots__ = ["_indices"]
 	def __init__(self, ir: list[IRNode]) -> None:
 		self._indices: dict[ID, CompilationIndex] = {node.id: node.index for node in ir} 
 	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:
 		return self._indices[id] 
+	def save(self, path: str) -> None:
+		raise NotImplementedError()
+	def load(self,) -> None: #guess make this static
+		raise NotImplementedError()
 
 class BreedIndices(CompilationIndices):
 	__slots__ = ["_sequences", "_sequence_change_prob", "_ignore_shape_prob", "_mutate_prob", "_sequence_index", "_previous_id"]
@@ -57,3 +63,4 @@ class BreedIndices(CompilationIndices):
 						index, self._previous_id = result
 						return index 
 		return CompilationIndex.random() 
+

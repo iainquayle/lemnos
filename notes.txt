@@ -13,10 +13,9 @@ changes:
 			fix jank in sample collection
 			add vertical spacing to code, looks fine in nvim but vsc is disgusting
 		impl max pool
-		remove jank logging system in torch evaluator add proper user defined logging call back
 		create ir save and load, allowing for resuming of search
 		make tests for breeding
-		impl a screening on the ir, allow for culling initial bad models
+		impl a screening on the ir, allow for culling on structural heuristics
 	possible:
 		review whther more work can be done together with the conformance gathering and tracker mutation passes
 			ie, caching the conformance gathering information and use it for tracker mutation if valid
