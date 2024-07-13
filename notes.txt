@@ -7,6 +7,14 @@ changes:
 				functions surrounding compilation
 				linear growth to perhaps scaling
 			attempt to clean up divior checks, make them more self explanitory and hardened
+				would it be possible to set it up such that a new joining node fix divisor problems casued by a previous one?
+					think this may fuck up the ability to make the current divisor
+					because suppose that what is needed is 8x+3 to get it to 8y..., but the current will need a grouping of 8x
+				comp right now
+					ideal output shape < input, open conformance, index //full get shape, but 
+					conformance from group < sibling outputs, ideal proposed output, index
+						aggregate conformance < input, new proposed output, index
+					true output shape < input, conformance, index
 			adapters, split up and fix any naming
 			split conv and mix conv
 			fix jank in sample collection

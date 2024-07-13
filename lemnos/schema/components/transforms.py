@@ -38,9 +38,8 @@ class Grouping(Abstract):
 	@abstractmethod
 	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		pass
-	@abstractmethod
 	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
-		pass
+		return 1	
 class ConstantGrouping(Grouping):
 	def __init__(self, groups: int) -> None:
 		if groups < 1:
@@ -53,8 +52,6 @@ class ConstantGrouping(Grouping):
 class DepthwiseGrouping(Grouping):
 	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		return input_shape[0]
-	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
-		return 1 
 class InputSqrtPotGrouping(Grouping):
 	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
 		self._sqrt_input_scale: float = sqrt_input_scale
@@ -75,25 +72,21 @@ class SqrtPotGcdGrouping(Grouping):
 			if input_shape[0] % groups == 0 and output_shape[0] % groups == 0:
 				return groups
 		return 1
-	def get_proposed_divisor(self, input_shape: LockedShape) -> int:
-		return 1
 
 class Conv(Transform):
-	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups", "_mix_groups"]
+	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups"]
 	def __init__(self,
 			kernel: tuple | int = 1, 
 			padding: tuple | int = 0,
 			stride: tuple | int = 1, 
 			dilation: tuple | int = 1,
 			groups: int | Grouping = 1, #none would be depthwise, so needs to be switched to some other signifier than None
-			mix_groups: bool = False
 			) -> None:
 		self._kernel: _Clamptuple = _Clamptuple(kernel)
 		self._padding: _Clamptuple = _Clamptuple(padding)
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
 		self._groups: Grouping = groups if isinstance(groups, Grouping) else ConstantGrouping(groups)
-		self._mix_groups: bool = mix_groups
 	def output_dim_to_input_dim(self, output_shape: LockedShape, i: int) -> int:
 		i -= 1
 		return (output_shape[i + 1] - 1) * self._stride[i] + (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1)) - self._padding[i] * 2
@@ -133,8 +126,9 @@ class Conv(Transform):
 		return self._padding.expand(input_shape.dimensionality() - 1)
 	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
 		return self._groups.get_groups(input_shape, output_shape)
-	def get_mix_groups(self) -> bool:
-		return self._mix_groups
+
+class MixedConv(Conv):
+	pass
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)
