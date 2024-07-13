@@ -238,4 +238,6 @@ class ShapeConformance:
 		return self.common(ShapeConformance(shape, 1))
 	def get_divisor(self, other_divisor: int) -> int:
 		return math.lcm(self.divisor, other_divisor)
+	def is_compatible(self, shape: LockedShape) -> bool:
+		return self.shape.compatible(shape) and shape[0] % self.divisor == 0
 	

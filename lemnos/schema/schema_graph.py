@@ -70,7 +70,7 @@ class SchemaNode:
 			return None
 		input_shape = self.get_input_shape([node.input_shape])
 		index = indices.get_index(id, self, input_shape)
-		offset: int = int(index.get_shuffled(len(self), 0))
+		offset = int(index.get_shuffled(len(self), 0))
 		for group in (self[(i + offset) % len(self)] for i in range(len(self))):
 			if ((proposed_output_shape := self.get_output_shape(input_shape, ShapeConformance(OpenShape(), 1), index)) is not None
 					and (conformance := group.get_conformance(tracker, proposed_output_shape, self)) is not None
@@ -98,7 +98,7 @@ class SchemaNode:
 		output_shape = self._transform.get_output_shape(input_shape, conformance, bounds, growth_factor) if self._transform is not None else input_shape
 		if output_shape is not None:
 			output_shape = self._activation.scale_output_shape(output_shape) if self._activation is not None else output_shape
-			if output_shape in self._shape_bounds and conformance.shape.compatible(output_shape): 
+			if output_shape in self._shape_bounds and conformance.is_compatible(output_shape): 
 				return output_shape 
 		else:
 			return None
@@ -114,8 +114,7 @@ class SchemaNode:
 			raise ValueError(f"No merge method defined for multiple inputs '{self.debug_name}'")
 		divisor = self._transform.get_proposed_divisor(proposed_input_shape) if self._transform is not None else 1
 		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
-		conformance = ShapeConformance(conformance_shape, divisor)
-		return conformance
+		return ShapeConformance(conformance_shape, divisor)
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
 		return self

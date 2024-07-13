@@ -32,7 +32,11 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 		if isinstance(component, Conv):
 			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
 				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape), component.get_mix_groups())
+				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape), False)
+		elif isinstance(component, MixedConv):
+			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
+				component.get_stride(input_shape), component.get_padding(input_shape),
+				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape), True)
 		elif isinstance(component, Full):
 			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):
