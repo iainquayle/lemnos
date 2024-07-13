@@ -2,7 +2,7 @@
 
 ## Overview
 
-Lemnos is a library for discovering efficient and performant neural network architectures.
+Lemnos is a library to aid in the discovery of efficient, performant and effective neural network architectures.
 
 Rather than requiring the user to manually create and test models, or create bespoke search engines,
 Model Make provides a generalized framework for defining search spaces and optimizing over them.

@@ -1,15 +1,15 @@
 import unittest
 
-from lemnos.control import Metrics, SampleCollection
+from lemnos.control import Metrics, ResultsSample
 
 class TestMetrics(unittest.TestCase):
 	def setUp(self):
-		self.sample_1 = SampleCollection(1.0, 1.0, 1.0, 0, None, None, 1)
-		self.sample_2 = SampleCollection(2.0, 2.0, 2.0, 1, None, None, 1)
+		self.sample_1 = ResultsSample(1.0, 1.0, 1.0, 0, None, None, 1)
+		self.sample_2 = ResultsSample(2.0, 2.0, 2.0, 1, None, None, 1)
 		pass
 	def test_init(self):
-		sample = SampleCollection(1.0, 1.0, 1.0, 0, None, None, 1)
-		sample_2 = SampleCollection(2.0, 2.0, 2.0, 1, None, None, 2)
+		sample = ResultsSample(1.0, 1.0, 1.0, 0, None, None, 1)
+		sample_2 = ResultsSample(2.0, 2.0, 2.0, 1, None, None, 2)
 		self.assertEqual(sample.total_loss, 1.0)
 		self.assertEqual(sample_2.total_loss, 4.0)
 	def test_merge(self):

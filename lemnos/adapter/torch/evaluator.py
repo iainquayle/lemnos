@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ...shared import LockedShape
 from ...schema import IRNode
-from ...control import Evaluator, Metrics, SampleCollection
+from ...control import Evaluator, Metrics, ResultsSample
 from .formatter import DefaultComponentFormatter, TorchComponentFormatter, create_module 
 
 import torch
@@ -113,7 +113,7 @@ class TorchEvaluator(Evaluator):
 					output = model(input)
 					loss = self._criterion(output, truth)
 					accuracy = self._accuracy_function(output, truth) if self._accuracy_function is not None else None
-					training_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch, len(input)))
+					training_metrics.record(ResultsSample(loss.item(), loss.item(), loss.item(), accuracy, None, epoch, len(input)))
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
@@ -131,7 +131,7 @@ class TorchEvaluator(Evaluator):
 							output = model(input)
 							loss = self._criterion(output, truth)
 							accuracy = self._accuracy_function(output, truth) if self._accuracy_function is not None else None
-						validation_metrics.record(SampleCollection(loss.item(), loss.item(), loss.item(), accuracy, None, epoch, len(input)))
+						validation_metrics.record(ResultsSample(loss.item(), loss.item(), loss.item(), accuracy, None, epoch, len(input)))
 						gc.collect()
 				print("Validation Metrics")
 				print(validation_metrics)

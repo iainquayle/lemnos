@@ -5,7 +5,6 @@ changes:
 				make divisors clearer, ir proposed divisors
 				transitions to edges perhaps
 				functions surrounding compilation
-				sampel collection to results sample?
 				linear growth to perhaps scaling
 			attempt to clean up divior checks, make them more self explanitory and hardened
 			adapters, split up and fix any naming
@@ -13,7 +12,6 @@ changes:
 			fix jank in sample collection
 			add vertical spacing to code, looks fine in nvim but vsc is disgusting
 		impl max pool
-		create ir save and load, allowing for resuming of search
 		make tests for breeding
 		impl a screening on the ir, allow for culling on structural heuristics
 	possible:
