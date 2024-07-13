@@ -31,9 +31,9 @@ class AvgEpochLossSelector(Selector):
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
 		raise NotImplementedError
 
-class AvgLossWindowSelector(Selector):
-	def __init__(self, window_size: int) -> None:
-		self._window_size = window_size
+class AvgLossSampleSelector(Selector):
+	def __init__(self, sample_size: int) -> None:
+		self._sample_size = sample_size
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
 		scores= []
 		for model in models:
@@ -44,13 +44,13 @@ class AvgLossWindowSelector(Selector):
 			min_loss = float("inf")
 			samples = 0
 			while end_index < len(focused_metrics):
-				while samples < self._window_size and end_index < len(focused_metrics):
+				while samples < self._sample_size and end_index < len(focused_metrics):
 					loss += focused_metrics[end_index].total_loss
 					samples += focused_metrics[end_index].sample_size
 					end_index += 1
 				if loss / samples < min_loss:
 					min_loss = loss / samples
-				while samples >= self._window_size:
+				while samples >= self._sample_size:
 					loss -= focused_metrics[start_index].total_loss
 					samples -= focused_metrics[start_index].sample_size
 					start_index += 1
@@ -66,7 +66,7 @@ class Evaluator(Abstract):
 	def get_input_shapes(self) -> list[LockedShape]:
 		pass
 
-class SampleCollection:
+class ResultsSample:
 	__slots__ = ["sample_size", "total_loss", "max_loss", "min_loss", "correct", "time", "epoch"]
 	def __init__(self, loss: float, max_loss: float, min_loss: float, total_correct: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
 		self.sample_size: int = sample_size 
@@ -76,8 +76,8 @@ class SampleCollection:
 		self.correct: float | None = total_correct 
 		self.time: float | None = time 
 		self.epoch: int | None = epoch
-	def merge(self, other: SampleCollection) -> SampleCollection:
-		new_collection = SampleCollection(
+	def merge(self, other: ResultsSample) -> ResultsSample:
+		new_collection = ResultsSample(
 			(self.total_loss + other.total_loss) / (self.sample_size + other.sample_size),
 			max(self.max_loss, other.max_loss),
 			min(self.min_loss, other.min_loss),
@@ -89,8 +89,8 @@ class SampleCollection:
 		return new_collection
 	def get_loss(self) -> float:
 		return self.total_loss / self.sample_size
-	def __copy__(self) -> SampleCollection:
-		return SampleCollection(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
+	def __copy__(self) -> ResultsSample:
+		return ResultsSample(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
 		return (f"loss: {self.get_loss()}, max: {self.max_loss}, min: {self.min_loss}"
 			+ (f", accuracy: {self.correct / self.sample_size}" if self.correct is not None else "")
@@ -104,8 +104,8 @@ class Metrics:
 		self._total_samples: int = 0
 		self._max_resolution: int = max_resolution
 		self._target_sample_size: int = 1
-		self._samples: list[SampleCollection] = []
-	def record(self, sample: SampleCollection) -> None:
+		self._samples: list[ResultsSample] = []
+	def record(self, sample: ResultsSample) -> None:
 		if len(self._samples) == 0:
 			self._samples.append(sample)
 			self._last_sample_size = sample.sample_size 
@@ -122,22 +122,22 @@ class Metrics:
 				self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
 				self._target_sample_size *= 2
 			self._total_samples += sample.sample_size 
-	def get_epochs(self) -> list[SampleCollection]:
+	def get_epochs(self) -> list[ResultsSample]:
 		raise NotImplementedError
 	def get_total_samples(self) -> int:
 		return self._total_samples
-	def __getitem__(self, index: int) -> SampleCollection:
+	def __getitem__(self, index: int) -> ResultsSample:
 		return self._samples[index]
 	def __len__(self) -> int:
 		return len(self._samples)
-	def get_merged_range(self, start_index: int, end_index: int) -> SampleCollection:
+	def get_merged_range(self, start_index: int, end_index: int) -> ResultsSample:
 		if start_index > end_index:
 			raise ValueError("Invalid range")
 		output = self._samples[start_index] 
 		for i in range(start_index + 1, end_index):
 			output = output.merge(self._samples[i])
 		return output
-	def get_fractional(self, position: float) -> SampleCollection:
+	def get_fractional(self, position: float) -> ResultsSample:
 		return self._samples[int(len(self._samples) * position)]
 	def format(self, resolution: int | None) -> str:
 		if resolution is None:

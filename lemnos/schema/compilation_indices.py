@@ -6,18 +6,23 @@ from .schema_graph import SchemaNode, CompilationIndices, CompilationIndex, IRNo
 import random
 from copy import copy
 
-from csv import DictReader, DictWriter
+import csv
 
 class SequenceIndices(CompilationIndices):
 	__slots__ = ["_indices"]
-	def __init__(self, ir: list[IRNode]) -> None:
-		self._indices: dict[ID, CompilationIndex] = {node.id: node.index for node in ir} 
+	def __init__(self, ir_or_load_path: list[IRNode] | str) -> None:
+		if isinstance(ir_or_load_path, str):
+			with open(ir_or_load_path, 'r') as file:
+				self._indices = {ID(int(id)): CompilationIndex(int(index)) for id, index in csv.reader(file)}
+		else:
+			self._indices: dict[ID, CompilationIndex] = {node.id: node.index for node in ir_or_load_path} 
 	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:
 		return self._indices[id] 
 	def save(self, path: str) -> None:
-		raise NotImplementedError()
-	def load(self,) -> None: #guess make this static
-		raise NotImplementedError()
+		with open(path, 'w') as file:
+			writer = csv.writer(file)
+			for id, index in self._indices.items():
+				writer.writerow([id, index])
 
 class BreedIndices(CompilationIndices):
 	__slots__ = ["_sequences", "_sequence_change_prob", "_ignore_shape_prob", "_mutate_prob", "_sequence_index", "_previous_id"]
