@@ -105,6 +105,7 @@ class SchemaNode:
 	def get_conformance(self, proposed_parent_shape: LockedShape, known_parent_shapes: list[LockedShape]) -> ShapeConformance | None:
 		conformance_shape = OpenShape()
 		known_input_shape: LockedShape | None = None
+		proposed_input_shape = self.get_input_shape([proposed_parent_shape])
 		if self._merge_method is not None:
 			if (conformance_shape := self._merge_method.get_conformance_shape(known_parent_shapes)) is None:
 				return None
