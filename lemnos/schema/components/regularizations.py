@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from .component import Component
+
 from abc import ABC as Abstract 
 
-class Regularization(Abstract):
+class Regularization(Component, Abstract):
 	pass
 
 class Dropout(Regularization):

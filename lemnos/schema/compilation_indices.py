@@ -17,7 +17,10 @@ class SequenceIndices(CompilationIndices):
 		else:
 			self._indices: dict[ID, CompilationIndex] = {node.id: node.index for node in ir_or_load_path} 
 	def get_index(self, id: ID, schema_node: SchemaNode, shape_in: LockedShape) -> CompilationIndex:
-		return self._indices[id] 
+		if id in self._indices:
+			return self._indices[id]
+		else:
+			return CompilationIndex(0)
 	def save(self, path: str) -> None:
 		with open(path, 'w') as file:
 			writer = csv.writer(file)

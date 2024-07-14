@@ -36,7 +36,7 @@ class IRNode:
 #	- Creating new nodes for next schema nodes that are designated to be new, and set the priority to the priority of the taken transition.
 #	- Attempting to join existing nodes, this involves:
 #		- Get first available matching node, that has not been parented by the current node type before.
-#		- Get the input shape (ShapeConformance) of the child node (ie all of the other parent nodes, after their shapes have been mergered according to the merge method of the schema node).
+#		- Get the input shape (ShapeConformance) of the child node (ie all of the other parent nodes, after their shapes have been mergered according to the merge method of the child node).
 #		- Attempt to merge the output shape of the current node with the conformance shape:
 #			- If successful, update the child node in the tracker with the new parent, priority given by the transition and conformance shape, and create new IR node and return it in a list.
 #			- If unsuccessful, but transition set to auto, create new node, else fail whole transition group.
@@ -44,7 +44,7 @@ class IRNode:
 # Repeat this until compilation tracker is empty, if a IR list is returned it is successful, else no solution was found.
 #
 # Note, this current implementation cannot solve all valid graphs, as it only has a single look ahead, and all previous compilation efforts in the stack are immutable.
-#	However if the graph takes into account the single look ahead, it can solve all.
+#	However if the graph creator takes into account the single look ahead, it will always find a solution.
 
 
 class SchemaNode:
@@ -66,14 +66,14 @@ class SchemaNode:
 		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
 	def _compile(self, node: _CompilationNode, tracker: _CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
+		#print(self.debug_name, id)
 		if id >= max_id:
 			return None
 		input_shape = self.get_input_shape([node.input_shape])
 		index = indices.get_index(id, self, input_shape)
 		offset = int(index.get_shuffled(len(self), 0))
 		for group in (self[(i + offset) % len(self)] for i in range(len(self))):
-			if ((proposed_output_shape := self.get_output_shape(input_shape, ShapeConformance(OpenShape(), 1), index)) is not None
-					and (conformance := group.get_conformance(tracker, proposed_output_shape, self)) is not None
+			if ((conformance := group.get_conformance(tracker, self)) is not None
 					and (output_shape := self.get_output_shape(input_shape, conformance, index)) is not None):
 				next_tracker = group.join_nodes(tracker, self, output_shape, id)
 				next_schema, next_node = next_tracker.pop_min()
@@ -102,17 +102,12 @@ class SchemaNode:
 				return output_shape 
 		else:
 			return None
-	def get_conformance(self, proposed_parent_shape: LockedShape, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
+	def get_conformance(self, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
 		conformance_shape = OpenShape()
-		proposed_input_shape = proposed_parent_shape
-		if self._merge_method is not None:
-			if (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None:
-				return None
-			elif len(parent_shapes) > 0:
-				proposed_input_shape = self.get_input_shape(parent_shapes)
-		elif len(parent_shapes) > 1:
-			raise ValueError(f"No merge method defined for multiple inputs '{self.debug_name}'")
-		divisor = self._transform.get_proposed_divisor(proposed_input_shape) if self._transform is not None else 1
+		if (self._merge_method is not None
+					and (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None):
+			return None
+		divisor = self._transform.get_known_divisor() if self._transform is not None else 1
 		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
 		return ShapeConformance(conformance_shape, divisor)
 	def add_group(self, *transitions: Transition) -> Self:
@@ -146,10 +141,10 @@ class TransitionGroup:
 				raise ValueError("Duplicate state in transition group")
 			pattern_set.add(transition.get_next())
 		self._transitions: tuple[Transition, ...] = tuple(transitions) 
-	def get_conformance(self, tracker: _CompilationTracker, proposed_parent_shape: LockedShape, parent: SchemaNode) -> ShapeConformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> ShapeConformance | None:
 		conformance: ShapeConformance = ShapeConformance(OpenShape(), 1)
 		for transition in self._transitions:
-			if ((next_conformance := transition.get_conformance(tracker, proposed_parent_shape, parent)) is not None
+			if ((next_conformance := transition.get_conformance(tracker, parent)) is not None
 					and (next_conformance := conformance.common(next_conformance)) is not None):
 				conformance = next_conformance 
 			else:
@@ -179,23 +174,23 @@ class Transition(Abstract):
 	def get_priority(self) -> int:
 		return self._priority
 	@abstractmethod
-	def get_conformance(self, tracker: _CompilationTracker, proposed_parent_shape: LockedShape, parent: SchemaNode) -> ShapeConformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> ShapeConformance | None:
 		pass
 	@abstractmethod
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		pass
 
 class New(Transition):
-	def get_conformance(self, tracker: _CompilationTracker, proposed_parent_shape: LockedShape, parent: SchemaNode) -> ShapeConformance | None:
-		return self._next.get_conformance(proposed_parent_shape, [])
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> ShapeConformance | None:
+		return self._next.get_conformance([])
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		tracker.get_mutable(self._next).push(_CompilationNode({parent}, [parent_id], parent_shape, self._priority))
 		return tracker 
 
 class Existing(Transition):
-	def get_conformance(self, tracker: _CompilationTracker, proposed_parent_shape: LockedShape, parent: SchemaNode) -> ShapeConformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> ShapeConformance | None:
 		if (compilation_node := tracker.get_immutable(self._next).get_immutable(parent)) is not None:
-			return self._next.get_conformance(proposed_parent_shape, [compilation_node.input_shape])
+			return self._next.get_conformance([compilation_node.input_shape])
 		return None
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		if (compilation_node := tracker.get_mutable(self._next).get_mutable(parent)) is not None:
@@ -203,10 +198,10 @@ class Existing(Transition):
 		return tracker
 
 class Auto(Transition):
-	def get_conformance(self, tracker: _CompilationTracker, proposed_parent_shape: LockedShape, parent: SchemaNode) -> ShapeConformance | None:
+	def get_conformance(self, tracker: _CompilationTracker, parent: SchemaNode) -> ShapeConformance | None:
 		if (compilation_node := tracker.get_immutable(self._next).get_immutable(parent)) is not None:
-			return self._next.get_conformance(proposed_parent_shape, [compilation_node.input_shape])
-		return self._next.get_conformance(proposed_parent_shape, [])
+			return self._next.get_conformance([compilation_node.input_shape])
+		return self._next.get_conformance([])
 	def join_node(self, tracker: _CompilationTracker, parent: SchemaNode, parent_shape: LockedShape, parent_id: ID) -> _CompilationTracker:
 		stack = tracker.get_mutable(self._next)
 		if (compilation_node := stack.get_mutable(parent)) is not None:

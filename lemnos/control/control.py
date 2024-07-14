@@ -31,7 +31,7 @@ class AvgEpochLossSelector(Selector):
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
 		raise NotImplementedError
 
-class AvgLossSampleSelector(Selector):
+class AvgLossWindowSelector(Selector):
 	def __init__(self, sample_size: int) -> None:
 		self._sample_size = sample_size
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
@@ -89,6 +89,8 @@ class ResultsSample:
 		return new_collection
 	def get_loss(self) -> float:
 		return self.total_loss / self.sample_size
+	def get_accuracy(self) -> float | None:
+		return self.correct / self.sample_size if self.correct is not None else None
 	def __copy__(self) -> ResultsSample:
 		return ResultsSample(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
@@ -130,9 +132,15 @@ class Metrics:
 		return self._samples[index]
 	def __len__(self) -> int:
 		return len(self._samples)
-	def get_merged_range(self, start_index: int, end_index: int) -> ResultsSample:
-		if start_index > end_index:
-			raise ValueError("Invalid range")
+	def get_range_by_samples(self, start_sample: int, end_sample: int) -> ResultsSample:
+		start_index = self._get_sample_index(start_sample)
+		end_index = self._get_sample_index(end_sample)
+		if start_index == end_index:
+			return self._samples[start_index]
+		return self.get_range(start_index, end_index)
+	def get_range(self, start_index: int, end_index: int) -> ResultsSample:
+		start_index = self._get_index(start_index)
+		end_index = self._get_index(end_index)
 		output = self._samples[start_index] 
 		for i in range(start_index + 1, end_index):
 			output = output.merge(self._samples[i])
@@ -143,10 +151,16 @@ class Metrics:
 		if resolution is None:
 			resolution = len(self._samples)
 		step = len(self._samples) / resolution
-		return "\n".join((f"{self.get_merged_range(int(i * step), int((i + 1) * step) - 1)}" for i in range(resolution)))
+		return "\n".join((f"{self.get_range(int(i * step), int((i + 1) * step) - 1)}" for i in range(resolution)))
 	def __str__(self) -> str:
 		return self.format(20)
 	def __repr__(self) -> str:
 		return self.format(20)
+	def _get_index(self, index: int) -> int:
+		return index if index >= 0 else len(self._samples) + index
+	def _get_sample_index(self, sample_index: int) -> int:
+		sample_index = sample_index if sample_index >= 0 else self._total_samples + sample_index
+		return int(sample_index / self._total_samples * len(self._samples))
+		 
 
 ModelPool = list[tuple[list[IRNode], Metrics, Metrics | None]]

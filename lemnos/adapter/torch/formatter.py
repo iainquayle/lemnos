@@ -1,6 +1,6 @@
 from ...shared import LockedShape, ID
 from ...schema import IRNode 
-from ...schema.components import *
+from ...schema.components import Component
 from ...templates.torch import * 
 from ...templates.python import *
 from torch.nn import Module
@@ -8,10 +8,36 @@ from torch.nn import Module
 from abc import ABC as Abstract, abstractmethod
 from enum import Enum
 
+from dataclasses import dataclass
+
 class ShapeView(Enum):
 	FLAT = 'flat' 
 	REAL = 'real'
 	EITHER = 'either' 
+
+
+
+class InitType(Enum):
+	CALLABLE = 'callable'
+	DATA = 'data'
+@dataclass
+class InitStatement:
+	init_type: InitType
+	member: str
+	statement: str
+
+#need to be able to
+#	get multiple inits, all assigned to a name space
+#	allow for multiple forwards, must be able to use those names obviously
+#	name spaces would hypothetically be assigned by the formatter, and not the user defined function
+#	this makes sense for the inits, as they will need components that stick around for every forward
+#		but what about the forwards, they will need temp items that wouldnt necessarily get cleaned up if they were in their own namespace
+#		suppose for those that it doesnt need to be namespaced apart from just a temp space, they just get overwritten then
+#		hypothetically these temps should only ever be tensors, which is good
+#	the one good thing about unrolling the components is that many will likely have reusable internal states
+#		so have some way of hashing the internal components and reusing them when its possinble
+#		ie, if its not a callable that will have a graph created for it, then it can be reused
+
 
 class TorchComponentFormatter(Abstract):
 	@abstractmethod
@@ -24,19 +50,74 @@ class TorchComponentFormatter(Abstract):
 	def get_shape_requirment(self, component: Component) -> ShapeView:
 		pass
 	@abstractmethod
-	def get_class_definitions(self) -> list[str]:
+	def get_class_definitions(self, ir: list[IRNode]) -> list[list[str]]:
 		pass
+	@abstractmethod
+	def get_class_definition(self, ir_node: IRNode) -> list[str]:
+		pass
+	def generate_source(self, name: str, ir: list[IRNode]) -> str:
+		children_counts: dict[ID, int] = {}
+		for node in ir:
+			for parent_id in node.parent_ids:
+				children_counts[parent_id] = children_counts.get(parent_id, 0) + 1
+		node_register: dict[ID, ID] = {}
+		arg_registers: list[ID] = []
+		return_registers: list[ID] = []
+		init_statements: list[str] = []
+		forward_statements: list[str] = []
+		available_registers: list[ID] = []
+		greatest_register: ID = ID(0) 
+		for node in ir:
+			registers_in: list[ID] = []
+			register_out: ID
+			if len(node.parent_ids) == 0:
+				greatest_register += 1
+				node_register[node.id] = greatest_register
+				registers_in = [greatest_register]
+				register_out = greatest_register
+				forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(greatest_register), node.input_shape)))
+				arg_registers.append(greatest_register)
+			else:
+				for id in node.parent_ids:
+					registers_in.append(node_register[id])
+					children_counts[id] -= 1
+					if children_counts[id] == 0:
+						available_registers.append(node_register[id])
+				if len(available_registers) == 0:
+					greatest_register += 1
+					register_out = greatest_register
+				else:
+					register_out = available_registers.pop()
+			node_register[node.id] = register_out
+			if node.id not in children_counts: #dont need to worry about register being reclaimed
+				return_registers.append(register_out)
+			forward_statement = [_register_name(register) for register in registers_in] 
+			current_shape = ShapeView.FLAT
+			for i, component in enumerate(node.schema_node.get_components()):
+				if (init := self.get_init(component, node.input_shape, node.output_shape)) != "":
+					init_statements.append(assign_(self_(_component_name(node.id, i)), self_(init)) + " # " + str(node.schema_node.debug_name))
+				if self.get_shape_requirment(component) == ShapeView.REAL and current_shape == ShapeView.FLAT:
+					forward_statement = [view_(expr, node.input_shape) for expr in forward_statement]
+				elif self.get_shape_requirment(component) == ShapeView.FLAT and current_shape == ShapeView.REAL:
+					forward_statement = [flatten_view_(expr, node.input_shape) for expr in forward_statement]
+				current_shape = self.get_shape_requirment(component)
+				forward_statement = [self.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
+			forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
+			#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))) + " # " + node.schema_node.debug_name)
+			#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
+		forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
+		return concat_lines_(import_torch_(), *module_(name, [line for module_src in self.get_class_definitions(ir) for line in module_src], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+	def create_module(self, name: str, ir: list[IRNode]) -> Module:
+		source = self.generate_source(name, ir)
+		exec(source)
+		return locals()[name]()
 
 class DefaultComponentFormatter(TorchComponentFormatter):
 	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
 		if isinstance(component, Conv):
 			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
 				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape), False)
-		elif isinstance(component, MixedConv):
-			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
-				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape), True)
+				component.get_dilation(input_shape), component.get_groups())
 		elif isinstance(component, Full):
 			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):
@@ -71,19 +152,22 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 	def get_shape_requirment(self, component: Component) -> ShapeView:
 		if isinstance(component, Conv):
 			return ShapeView.REAL
-		elif isinstance(component, BatchNorm):
-			return ShapeView.REAL
-		elif isinstance(component, LayerNorm):
-			return ShapeView.REAL
-		elif isinstance(component, ChannelDropout):
+		elif isinstance(component, BatchNorm) or isinstance(component, LayerNorm) or isinstance(component, ChannelDropout):
 			return ShapeView.REAL
 		elif isinstance(component, Full):
 			return ShapeView.FLAT
 		elif isinstance(component, Concat) or isinstance(component, Sum):
 			return ShapeView.FLAT
 		return ShapeView.EITHER
-	def get_class_definitions(self) -> list[str]:
-		return conv_mix_definition_(1) + conv_mix_definition_(2) + conv_mix_definition_(3)
+	def get_class_definitions(self, ir: list[IRNode]) -> list[list[str]]:
+		definitions = []
+		for node in ir:
+			new_definition = self.get_class_definition(node)
+			if new_definition not in definitions:
+				definitions.append(new_definition)
+		return definitions
+	def get_class_definition(self, ir_node: IRNode) -> list[str]:
+		return [""]
 
 def _register_name(register: ID) -> str:
 	return f"r{register:04x}"
@@ -136,11 +220,12 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 				forward_statement = [flatten_view_(expr, node.input_shape) for expr in forward_statement]
 			current_shape = component_formatter.get_shape_requirment(component)
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
-		#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
-		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))) + " # " + str(node.schema_node.debug_name))
+		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])) + " # " + node.schema_node.debug_name)
+		#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))) + " # " + node.schema_node.debug_name)
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
-	return concat_lines_(import_torch_(), *module_(name, component_formatter.get_class_definitions(), [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+	return concat_lines_(import_torch_(), *module_(name, [line for module_src in component_formatter.get_class_definitions(ir) for line in module_src], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+
 def create_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
 	source = generate_source(name, ir, component_formatter)
 	exec(source)

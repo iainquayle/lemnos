@@ -23,3 +23,5 @@ def class_(name: str, super_classes: list[str], members: list[str]) -> list[str]
 	return [f"class {name}({arg_list_(*super_classes)}):"] + [f"\t{member}" for member in members]
 def print_(expr: str) -> str:
 	return f"print({expr})"
+def if_(condition: str, true: list[str], false: list[str] | None = None) -> list[str]:
+	return [f"if {condition}:" ] + [f"\t{statement}" for statement in true] + ([f"else:"] + [f"\t{statement}" for statement in false] if false is not None else [])
