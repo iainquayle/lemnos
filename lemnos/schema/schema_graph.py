@@ -102,16 +102,12 @@ class SchemaNode:
 				return output_shape 
 		else:
 			return None
-	def get_conformance(self, proposed_parent_shape: LockedShape, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
+	def get_conformance(self, proposed_parent_shape: LockedShape, known_parent_shapes: list[LockedShape]) -> ShapeConformance | None:
 		conformance_shape = OpenShape()
-		proposed_input_shape = proposed_parent_shape
+		known_input_shape: LockedShape | None = None
 		if self._merge_method is not None:
-			if (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None:
+			if (conformance_shape := self._merge_method.get_conformance_shape(known_parent_shapes)) is None:
 				return None
-			elif len(parent_shapes) > 0:
-				proposed_input_shape = self.get_input_shape(parent_shapes)
-		elif len(parent_shapes) > 1:
-			raise ValueError(f"No merge method defined for multiple inputs '{self.debug_name}'")
 		divisor = self._transform.get_proposed_divisor(proposed_input_shape) if self._transform is not None else 1
 		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
 		return ShapeConformance(conformance_shape, divisor)
