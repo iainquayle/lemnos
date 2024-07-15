@@ -1,32 +1,18 @@
+problems:
+	get flexible conv working, need case with perfect split of input so that neither component gets none
 changes:
 	guarenteed:
 		refactorings:
 			clean namings
-				make divisors clearer, ir proposed divisors
 				transitions to edges perhaps
-				functions surrounding compilation
 				linear growth to perhaps scaling
-			attempt to clean up divior checks, make them more self explanitory and hardened
-				comp right now
-					ideal output shape < input, open conformance, index //full get shape, but 
-					conformance from group < sibling outputs, ideal proposed output, index
-						aggregate conformance < input, new proposed output, index
-					true output shape < input, conformance, index
 			adapters, split up and fix any naming
-			split conv and mix conv
 			fix jank in sample collection
 			add vertical spacing to code, looks fine in nvim but vsc is disgusting
 		impl max pool
 		make tests for breeding
 		impl a screening on the ir, allow for culling on structural heuristics
 	possible:
-		refactor:
-			change it such that there are no guarentees about divisibility, just make custom modules that allow for any number
-				ie, suppose something that wants grouping x,
-				make the actual underlying module impl x number of sub modules that take varying numbers of channels that all concat to x
-					this would allow for much for fine grain control of grouping and what not, where it doesnt need to follow 2^y pattern
-				only thing that would need to still be dealt with would be something like GLU, where it requires a 2n layer
-					tho GLU could just be discarded? how often does it actually get used? or make a custom GLU layer?
 		review whther more work can be done together with the conformance gathering and tracker mutation passes
 			ie, caching the conformance gathering information and use it for tracker mutation if valid
 		may be the case that mutable priorities are not actually needed? since it pops the top of the stack in any case
@@ -37,4 +23,3 @@ changes:
 		add a divisor option to the clamp val on shape bounds
 		rename transitions to edges or something?
 		move templates to jinja or the sort?
-problems:
