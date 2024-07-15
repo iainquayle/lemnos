@@ -45,13 +45,23 @@ def flex_conv_definition_(dimensions: int) -> list[str]:
 	#conv1_size = channels - conv2_size
 	return module_(f"FlexConv{dimensions}d", [], 
 		["channels_in", "channels_out", "kernel", "stride", "padding", "dilation", "groups"], 
-		["diff = channels_out % groups",
-   		"conv_2_size = int(diff / groups * channels_out)" #fix this
-		f"self.c_1 = self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups,)",
-		assign_("s", "channels_out // groups"),
-		assign_(self_("indices"), "self.torch.Tensor([i + j * s for j in range(groups) for i in range(s)]).int()")],
+		["group_size_1 = channels_out // groups",
+   		"group_size_2 = group_size_1 + 1",
+   		"groups_2 = channels_in % group_size_1",
+   		"groups_1 = groups - groups_2",
+   		"self.channels_in_2 = group_size_2 * groups_2",
+   		"self.channels_in_1 = channels_in - channels_in_2",
+   		"channels_per_group = channels_out // groups",
+   		"self.channels_out_2 = groups_2 * channels_per_group",
+   		"self.channels_out_1 = groups_1 * channels_per_group",
+   		f"self.c_1 = self.torch.nn.Conv{dimensions}d(self.channels_in_1, self.channels_out_1, kernel, stride, padding, dilation, groups - diff,)",
+   		f"self.c_2 = self.torch.nn.Conv{dimensions}d(self.channels_in_2, self.channels_out_2, kernel, stride, padding, dilation, diff,)",
+		assign_(self_("indices"), "self.torch.Tensor([i + j * s for j in range(groups) for i in range(channels_per_group)]).int()")],
 		["x"], 
-		[return_("self.c(x)[:, self.indices]")])
+		["x_1, x_2 = self.torch.split(x, [self.channels_in_1, self.channels_in_2], dim=1)",
+   		"x_1 = self.c_1(x_1)",
+   		"x_2 = self.c_2(x_2)",
+		return_("self.torch.cat([x_1, x_2], dim=1)[:, self.indices]")])
 
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int, mixed: bool) -> str:
 	base = (f"{'Conv' if not mixed else 'ConvMix'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
