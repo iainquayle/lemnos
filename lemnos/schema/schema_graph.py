@@ -103,12 +103,12 @@ class SchemaNode:
 			return None
 	def get_conformance(self, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
 		conformance_shape = OpenShape()
-		if self._merge_method is not None:
-			if (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is not None:
-				divisor = self._transform.get_proposed_divisor(self.get_input_shape(parent_shapes)) if self._transform is not None else 1
-				divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
-				return ShapeConformance(conformance_shape, divisor)
-		return None
+		if (self._merge_method is not None
+					and (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None):
+			return None
+		divisor = self._transform.get_known_divisor() if self._transform is not None else 1
+		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
+		return ShapeConformance(conformance_shape, divisor)
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
 		return self
