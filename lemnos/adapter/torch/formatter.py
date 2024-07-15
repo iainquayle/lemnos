@@ -81,6 +81,10 @@ class TorchComponentFormatter(Abstract):
 			#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 		forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 		return concat_lines_(import_torch_(), *module_(name, [line for module_src in self.get_class_definitions(ir) for line in module_src], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+	def create_module(self, name: str, ir: list[IRNode]) -> Module:
+		source = self.generate_source(name, ir)
+		exec(source)
+		return locals()[name]()
 
 class DefaultComponentFormatter(TorchComponentFormatter):
 	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
@@ -201,6 +205,7 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 	return concat_lines_(import_torch_(), *module_(name, [line for module_src in component_formatter.get_class_definitions(ir) for line in module_src], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+
 def create_module(name: str, ir: list[IRNode], component_formatter: TorchComponentFormatter = DefaultComponentFormatter()) -> Module:
 	source = generate_source(name, ir, component_formatter)
 	exec(source)
