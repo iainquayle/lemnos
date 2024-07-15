@@ -72,29 +72,14 @@ class TestTorchModule(unittest.TestCase):
 		input = torch.ones(2, 1, 8)
 		self.assertEqual(module(input).shape, torch.Size([2, 1]))
 	def test_flex_conv(self):
-		main = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, "main")
-		split_1 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
-			None,
-			None, 
-			Conv(kernel=2, stride=2),
-			ReLU(), 
-			BatchNorm(), "split_1")
-		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
-			None,
-			None, 
-			FlexibleConv(kernel=2, stride=2),
-			ReLU(), 
-			BatchNorm(), "split_2")
-		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
-		main.add_group( New(split_1, 0), New(split_2, 1))
-		split_1.add_group( New(main, 2))
-		split_2.add_group( Existing(main, 2))
-		main.add_group( New(end_node, 0))
-		schema = Schema([main], [end_node])
-		ir = schema.compile_ir([LockedShape(1, 8)], BreedIndices(), ID(15))
+		#start = SchemaNode( ShapeBound(None, None), None, None, None, None, None, "main")
+		#end = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, "end")
+		conv = SchemaNode( ShapeBound((1, 10), (1, 8)), None, None, FlexibleConv(kernel=2, stride=2, groups=3), ReLU(), BatchNorm(), "conv")
+		schema = Schema([conv], [conv])
+		ir = schema.compile_ir([LockedShape(8, 8)], BreedIndices(), ID(1))
 		if ir is None:
 			self.fail()
 		print(generate_source("Test", ir))
 		module = create_module("test", ir)
-		input = torch.ones(2, 1, 8)
-		self.assertEqual(module(input).shape, torch.Size([2, 1]))
+		input = torch.ones(2, 8, 8)
+		self.assertEqual(module(input).shape, torch.Size([2, 36]))
