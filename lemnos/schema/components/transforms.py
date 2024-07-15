@@ -78,12 +78,12 @@ class Conv(Transform):
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
 		self._groups: Grouping = groups if isinstance(groups, Grouping) else ConstantGrouping(groups)
-	def output_dim_to_input_dim(self, output_shape: LockedShape, i: int) -> int:
-		i -= 1
-		return (output_shape[i + 1] - 1) * self._stride[i] + (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1)) - self._padding[i] * 2
-	def input_dim_to_output_dim(self, input_shape: LockedShape, i: int) -> int:
-		i -= 1
-		return ((input_shape[i + 1] + self._padding[i] * 2) - (self._kernel[i] * self._dilation[i] - (self._dilation[i] - 1))) // self._stride[i] + 1
+	def output_dim_to_input_dim(self, output_shape: LockedShape, index: int) -> int:
+		index -= 1 #remove the channel dimension
+		return (output_shape[index + 1] - 1) * self._stride[index] + (self._kernel[index] * self._dilation[index] - (self._dilation[index] - 1)) - self._padding[index] * 2
+	def input_dim_to_output_dim(self, input_shape: LockedShape, index: int) -> int:
+		index -= 1
+		return ((input_shape[index + 1] + self._padding[index] * 2) - (self._kernel[index] * self._dilation[index] - (self._dilation[index] - 1))) // self._stride[index] + 1
 	def get_output_shape(self, input_shape: LockedShape, output_conformance: ShapeConformance, shape_bounds: ShapeBound, growth_factor: float) -> LockedShape | None:
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
@@ -120,6 +120,26 @@ class Conv(Transform):
 
 class MixedConv(Conv):
 	pass
+
+class FlexibleConv(Conv):
+	def get_output_shape(self, input_shape: LockedShape, output_conformance: ShapeConformance, shape_bounds: ShapeBound, growth_factor: float) -> LockedShape | None:
+		if len(input_shape) < 2:
+			raise ValueError("input shape must have at least 2 dimensions")
+		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
+		if output_conformance.shape.is_locked():
+			output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
+			groups = self._groups.get_groups(input_shape, output_shape)
+			divisor = output_conformance.get_divisor(groups)
+			if output_shape[0] % divisor == 0 and shape_bounds.contains_value(output_shape[0], 0):
+				return upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
+		else:
+			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
+			groups = self._groups.get_groups(input_shape, proposed_output_shape)
+			divisor = output_conformance.get_divisor(groups)
+			if input_shape[0] % groups == 0 and (channels := _closest_divisible(proposed_output_shape[0], divisor, shape_bounds)) is not None:
+				return upper_shape.to_locked(channels)
+	def get_known_divisor(self) -> int:
+		return 1
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)
