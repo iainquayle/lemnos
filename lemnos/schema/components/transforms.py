@@ -136,7 +136,7 @@ class FlexibleConv(Conv):
 			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
 			groups = self._groups.get_groups(input_shape, proposed_output_shape)
 			divisor = output_conformance.get_divisor(groups)
-			if input_shape[0] % groups == 0 and (channels := _closest_divisible(proposed_output_shape[0], divisor, shape_bounds)) is not None:
+			if (channels := _closest_divisible(proposed_output_shape[0], divisor, shape_bounds)) is not None:
 				return upper_shape.to_locked(channels)
 	def get_known_divisor(self) -> int:
 		return 1

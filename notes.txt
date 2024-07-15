@@ -7,6 +7,9 @@ changes:
 				transitions to edges perhaps
 				linear growth to perhaps scaling
 			adapters, split up and fix any naming
+				make more standard naming
+				perhaps use a mapping instead of the if else chain
+				switch fully to a portable contained formatter
 			fix jank in sample collection
 			add vertical spacing to code, looks fine in nvim but vsc is disgusting
 		impl max pool
