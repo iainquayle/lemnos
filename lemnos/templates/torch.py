@@ -36,6 +36,22 @@ def conv_mix_definition_(dimensions: int) -> list[str]:
 		assign_(self_("indices"), "self.torch.Tensor([i + j * s for j in range(groups) for i in range(s)]).int()")],
 		["x"], 
 		[return_("self.c(x)[:, self.indices]")])
+def flex_conv_definition_(dimensions: int) -> list[str]:
+	#if it splits perfectly, either sub it with a normal conv (though that wont be mixed) or just split them down the middle
+	#group_size_1 = int(channel/divisor) 
+	#group_size_2 = group_size_1 + 1
+	#diff = channels - group_size * divisor
+	#conv2_size = group_size_2 * diff
+	#conv1_size = channels - conv2_size
+	return module_(f"FlexConv{dimensions}d", [], 
+		["channels_in", "channels_out", "kernel", "stride", "padding", "dilation", "groups"], 
+		["diff = channels_out % groups",
+   		"conv_2_size = int(diff / groups * channels_out)" #fix this
+		f"self.c_1 = self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups,)",
+		assign_("s", "channels_out // groups"),
+		assign_(self_("indices"), "self.torch.Tensor([i + j * s for j in range(groups) for i in range(s)]).int()")],
+		["x"], 
+		[return_("self.c(x)[:, self.indices]")])
 
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int, mixed: bool) -> str:
 	base = (f"{'Conv' if not mixed else 'ConvMix'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
