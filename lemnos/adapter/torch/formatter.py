@@ -89,13 +89,13 @@ class TorchComponentFormatter(Abstract):
 class DefaultComponentFormatter(TorchComponentFormatter):
 	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
 		if isinstance(component, Conv):
-			if isinstance(component, FlexibleConv):
-				return flex_conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
-					component.get_stride(input_shape), component.get_padding(input_shape),
-					component.get_dilation(input_shape), component.get_groups(input_shape, output_shape))
 			return conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
 				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape), isinstance(component, MixedConv))
+				component.get_dilation(input_shape), component.get_groups())
+		if isinstance(component, FlexibleConv):
+			return flex_conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
+				component.get_stride(input_shape), component.get_padding(input_shape),
+				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape))
 		elif isinstance(component, Full):
 			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):
@@ -128,13 +128,9 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 			return self_(cat_(input_exprs))
 		return call_(component_name, *input_exprs)
 	def get_shape_requirment(self, component: Component) -> ShapeView:
-		if isinstance(component, Conv):
+		if isinstance(component, Conv) or isinstance(component, FlexibleConv):
 			return ShapeView.REAL
-		elif isinstance(component, BatchNorm):
-			return ShapeView.REAL
-		elif isinstance(component, LayerNorm):
-			return ShapeView.REAL
-		elif isinstance(component, ChannelDropout):
+		elif isinstance(component, BatchNorm) or isinstance(component, LayerNorm) or isinstance(component, ChannelDropout):
 			return ShapeView.REAL
 		elif isinstance(component, Full):
 			return ShapeView.FLAT
@@ -149,9 +145,7 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 				definitions.append(new_definition)
 		return definitions
 	def get_class_definition(self, ir_node: IRNode) -> list[str]:
-		if isinstance(ir_node.schema_node.get_transform(), MixedConv):
-			return conv_mix_definition_(ir_node.input_shape.dimensionality() - 1)
-		elif isinstance(ir_node.schema_node.get_transform(), FlexibleConv):
+		if isinstance(ir_node.schema_node.get_transform(), FlexibleConv):
 			return flex_conv_definition_(ir_node.input_shape.dimensionality() - 1)
 		return [""]
 

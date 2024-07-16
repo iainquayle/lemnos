@@ -52,21 +52,21 @@ def flex_conv_definition_(dimensions: int) -> list[str]:
    		"groups_1 = groups - groups_2",
    		"self.channels_in_2 = group_size_2 * groups_2",
    		"self.channels_in_1 = channels_in - self.channels_in_2",
+   		"print(groups_1, groups_2, group_size_1, group_size_2, self.channels_in_1, self.channels_in_2)",
    		"channels_per_group = channels_out // groups",
    		"self.channels_out_2 = groups_2 * channels_per_group",
    		"self.channels_out_1 = groups_1 * channels_per_group",
    		f"self.c_1 = self.torch.nn.Conv{dimensions}d(self.channels_in_1, self.channels_out_1, kernel, stride, padding, dilation, groups_1,)",
    		f"self.c_2 = self.torch.nn.Conv{dimensions}d(self.channels_in_2, self.channels_out_2, kernel, stride, padding, dilation, groups_2,)",
-   assign_(self_("indices"), "self.torch.Tensor([i + j * channels_per_group for j in range(groups) for i in range(channels_per_group)]).int()")],
+		assign_(self_("indices"), "self.torch.Tensor([i + j * channels_per_group for j in range(groups) for i in range(channels_per_group)]).int()")],
 		["x"], 
 		["x_1, x_2 = self.torch.split(x, [self.channels_in_1, self.channels_in_2], dim=1)",
    		"x_1 = self.c_1(x_1)",
    		"x_2 = self.c_2(x_2)",
 		return_("self.torch.cat([x_1, x_2], dim=1)[:, self.indices]")])
 
-def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int, mixed: bool) -> str:
-	base = (f"{'Conv' if not mixed else 'ConvMix'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
-	return nn_(base) if not mixed else base
+def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
+	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
 def flex_conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
 	return (f"{'FlexConv'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
 def maxpool_init_(kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...]) -> str:

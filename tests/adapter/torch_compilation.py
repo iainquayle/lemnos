@@ -1,7 +1,7 @@
 import unittest
 
 from lemnos.schema import SchemaNode, Schema, BreedIndices, New, Existing 
-from lemnos.schema.components import Sum, Conv, ReLU, BatchNorm, Full, MixedConv, FlexibleConv
+from lemnos.schema.components import Sum, Conv, ReLU, BatchNorm, Full, FlexibleConv
 from lemnos.shared import LockedShape, ShapeBound, ID
 from lemnos.adapter.torch import create_module, generate_source 
 import torch
@@ -55,7 +55,7 @@ class TestTorchModule(unittest.TestCase):
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
-			MixedConv(kernel=2, stride=2),
+			Conv(kernel=2, stride=2),
 			ReLU(), 
 			BatchNorm(), "split_2")
 		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
