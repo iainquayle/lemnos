@@ -28,28 +28,21 @@ def module_(name: str, class_definitions: list[str], init_args: list[str], init_
 		[import_torch_()] + class_definitions +
 		function_("__init__", ["self"] + init_args,["super().__init__()"] + init_statements) +
 		function_("forward", ["self"] + forward_args, forward_statments)))
-def conv_mix_definition_(dimensions: int) -> list[str]:
-	return module_(f"ConvMix{dimensions}d", [], 
-		["channels_in", "channels_out", "kernel", "stride", "padding", "dilation", "groups"], 
-		[f"self.c = self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups,)",
-		assign_("s", "channels_out // groups"),
-		assign_(self_("indices"), "self.torch.Tensor([i + j * s for j in range(groups) for i in range(s)]).int()")],
-		["x"], 
-		[return_("self.c(x)[:, self.indices]")])
-def flex_conv_definition(dimensions: int) -> list[str]:
+def flex_conv_definition_(dimensions: int) -> list[str]:
 	return module_(f"FlexConv{dimensions}d", [], 
 		["conv_splits", "mix_indices", "kernel", "stride", "padding", "dilation"], 
-		[f"self.modules_list = self.torch.nn.ModuleList([self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups) for channels_in, channels_out, groups in sub_conv_splits])",
-   			"self.input_splits = self.torch.Tensor([channels_in for channels_in, _, _ in sub_conv_splits]).int()",
+		[f"self.modules_list = self.torch.nn.ModuleList([self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups) for channels_in, channels_out, groups in conv_splits])",
+   			#"self.input_splits = self.torch.Tensor([channels_in for channels_in, _, _ in conv_splits]).int()",
+   			"self.input_splits = [channels_in for channels_in, _, _ in conv_splits]",
    			"self.mix_indices = self.torch.Tensor(mix_indices).int()" ],
 		["x"], 
-		["xs = self.torch.split(x, [self.channels_in_1, self.channels_in_2], dim=1)",
+		["xs = self.torch.split(x, self.input_splits, dim=1)",
    			"return self.torch.cat([module(x) for module, x in zip(self.modules_list, xs)], dim=1)" ])
 
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
 	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
-def flex_conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
-	return (f"{'FlexConv'}{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
+def flex_conv_init_(input_shape: LockedShape, conv_splits: list[tuple[int, int, int]], mix_indices: list[int], kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...]) -> str:
+	return (f"{'FlexConv'}{len(input_shape) - 1}d({conv_splits}, {mix_indices}, {kernel}, {stride}, {padding}, {dilation})")
 def maxpool_init_(kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...]) -> str:
 	return nn_(f"MaxPool{len(kernel)}d({kernel}, {stride}, {padding}, {dilation})")
 def full_init_(input_shape: LockedShape, output_shape: LockedShape) -> str:
