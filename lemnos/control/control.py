@@ -31,7 +31,7 @@ class AvgEpochLossSelector(Selector):
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
 		raise NotImplementedError
 
-class AvgLossSampleSelector(Selector):
+class AvgLossWindowSelector(Selector):
 	def __init__(self, sample_size: int) -> None:
 		self._sample_size = sample_size
 	def select(self, models: ModelPool, model_pool_size: int) -> ModelPool:
