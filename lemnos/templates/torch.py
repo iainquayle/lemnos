@@ -37,12 +37,6 @@ def conv_mix_definition_(dimensions: int) -> list[str]:
 		["x"], 
 		[return_("self.c(x)[:, self.indices]")])
 def flex_conv_definition_(dimensions: int) -> list[str]:
-	#if it splits perfectly, either sub it with a normal conv (though that wont be mixed) or just split them down the middle
-	#group_size_1 = int(channel/divisor) 
-	#group_size_2 = group_size_1 + 1
-	#diff = channels - group_size * divisor
-	#conv2_size = group_size_2 * diff
-	#conv1_size = channels - conv2_size
 	return module_(f"FlexConv{dimensions}d", [], 
 		["channels_in", "channels_out", "kernel", "stride", "padding", "dilation", "groups"], 
 		["balance_groups = bool(channels_in % groups == 0)",
@@ -64,6 +58,44 @@ def flex_conv_definition_(dimensions: int) -> list[str]:
    		"x_1 = self.c_1(x_1)",
    		"x_2 = self.c_2(x_2)",
 		return_("self.torch.cat([x_1, x_2], dim=1)[:, self.indices]")])
+def new_flex_conv_definition_(dimensions: int) -> list[str]:
+	return module_(f"FlexConv{dimensions}d", [], 
+		["channels_in", "channels_out", "kernel", "stride", "padding", "dilation", "groups"], 
+		["self.modules_list = self.torch.nn.ModuleList()",
+			"base_group_in_size = channels_in // groups",
+			"extra_channels_in = channels_in % base_group_in_size",
+			"module_splits_in = [(groups - extra_channels_in, base_group_in_size * (groups - extra_channels_in)), (extra_channels_in, extra_channels_in * (base_group_in_size + 1))]"
+   			"base_group_out_size = channels_out // groups",
+   			"extra_channels_out = channels_out % base_group_out_size",
+			"module_splits_out = [(groups - extra_channels_out, base_group_out_size * (groups - extra_channels_out)), (extra_channels_out, extra_channels_out * (base_group_out_size + 1))]"
+			] +
+			if_("channels_in % groups == 0",
+				["module_splits = [(groups, channels_in)]"],
+				["base_group_size = channels_in // groups",
+	 			"extra_channels = channels_in % base_group_size",
+				"module_splits = [(groups - extra_channels, base_group_size * (groups - extra_channels)), (extra_channels, extra_channels * (base_group_size + 1))]"]) +
+			if_("channels_out % groups == 0",
+	   			[""],
+	   			[]) +
+			["balance_groups = bool(channels_in % groups == 0)",
+			"group_size_1 = channels_in // groups",
+			"group_size_2 = (group_size_1 + 1) if not balance_groups else group_size_1",
+			"groups_2 = channels_in - (groups * group_size_1) if not balance_groups else (groups // 2)",
+			"groups_1 = groups - groups_2",
+			"self.channels_in_2 = group_size_2 * groups_2",
+			"self.channels_in_1 = channels_in - self.channels_in_2",
+			"print(groups_1, groups_2, group_size_1, group_size_2, self.channels_in_1, self.channels_in_2)",
+			"channels_per_group = channels_out // groups",
+			"self.channels_out_2 = groups_2 * channels_per_group",
+			"self.channels_out_1 = groups_1 * channels_per_group",
+			f"self.c_1 = self.torch.nn.Conv{dimensions}d(self.channels_in_1, self.channels_out_1, kernel, stride, padding, dilation, groups_1,)",
+			f"self.c_2 = self.torch.nn.Conv{dimensions}d(self.channels_in_2, self.channels_out_2, kernel, stride, padding, dilation, groups_2,)",
+			assign_(self_("indices"), "self.torch.Tensor([i + j * channels_per_group for j in range(groups) for i in range(channels_per_group)]).int()")],
+		["x"], 
+		["x_1, x_2 = self.torch.split(x, [self.channels_in_1, self.channels_in_2], dim=1)",
+			"x_1 = self.c_1(x_1)",
+			"x_2 = self.c_2(x_2)",
+			return_("self.torch.cat([x_1, x_2], dim=1)[:, self.indices]")])
 
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
 	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
