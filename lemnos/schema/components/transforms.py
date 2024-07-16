@@ -107,22 +107,22 @@ class Conv(KernelBase):
 
 class Grouping(Abstract):
 	@abstractmethod
-	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
 		pass
 class ConstantGrouping(Grouping):
 	def __init__(self, groups: int) -> None:
 		if groups < 1:
 			raise ValueError("groups must be greater than 0")
 		self._groups: int = groups
-	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
 		return self._groups
 class DepthwiseGrouping(Grouping):
-	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
 		return input_shape[0]
 class InputSqrtGrouping(Grouping):
 	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
 		self._sqrt_input_scale: float = sqrt_input_scale
-	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
 		return int(math.sqrt(input_shape[0] * self._sqrt_input_scale)) 
 
 class FlexibleConv(KernelBase):
@@ -145,7 +145,7 @@ class FlexibleConv(KernelBase):
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.shape.is_locked():
 			output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
-			groups = self.get_groups(input_shape, output_shape)
+			groups = self._groups.get_proposed_groups(input_shape, output_shape)
 			if groups <= 1:
 				raise ValueError("groups must end up being greater than 1")
 			divisor = output_conformance.get_divisor(groups)
@@ -153,7 +153,7 @@ class FlexibleConv(KernelBase):
 				return upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
 		else:
 			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
-			groups = self._groups.get_proposed_groups(input_shape)
+			groups = self._groups.get_proposed_groups(input_shape, proposed_output_shape)
 			if groups <= 1:
 				raise ValueError("groups must end up being greater than 1")
 			divisor = output_conformance.get_divisor(groups)
@@ -161,12 +161,19 @@ class FlexibleConv(KernelBase):
 				return upper_shape.to_locked(channels)
 	def get_known_divisor(self) -> int:
 		return 1
-	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
-		proposed_groups = self._groups.get_proposed_groups(input_shape)	
-		for groups in range(proposed_groups, 0, -1):
-			if proposed_output_shape[0] % groups == 0:
-				return groups
-		return 1
+	def get_internal_splits(self, input_shape: LockedShape, output_shape: LockedShape) -> list[tuple[int, int, int]]:
+		groups = self._groups.get_proposed_groups(input_shape, output_shape)
+		base_group_size_in = input_shape[0] // groups
+		extra_channels_in = input_shape[0] % base_group_size_in
+		group_infos_in = [(groups - extra_channels_in, base_group_size_in), (extra_channels_in, base_group_size_in + 1)]
+		base_group_size_out = output_shape[0] // groups
+		extra_channels_out = output_shape[0] % base_group_size_out
+		group_infos_out = [(groups - extra_channels_out, base_group_size_out), (extra_channels_out, base_group_size_out + 1)]
+		in_groups_greater = group_infos_in[0][0] > group_infos_out[0][0]
+		groups_infos = [(min(group_infos_in[0][0], group_infos_out[0][0]), group_infos_in[0][1], group_infos_out[0][1]),
+			(abs(group_infos_in[0][0] - group_infos_out[0][0]), group_infos_in[0 if in_groups_greater else 1][1], group_infos_out[1 if in_groups_greater else 0][1]),
+			(min(group_infos_in[1][0], group_infos_out[1][0]), group_infos_in[1][1], group_infos_out[1][1])]
+		return [(group_size_in * groups, group_size_out * groups, groups) for groups, group_size_in, group_size_out in groups_infos]
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)
