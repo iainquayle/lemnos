@@ -34,35 +34,6 @@ class Full(Transform):
 				return upper_shape.to_locked(channel_raw)
 			return None
 
-class Grouping(Abstract):
-	@abstractmethod
-	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
-		pass
-	def get_known_divisor(self) -> int:
-		return 1	
-class ConstantGrouping(Grouping):
-	def __init__(self, groups: int) -> None:
-		if groups < 1:
-			raise ValueError("groups must be greater than 0")
-		self._groups: int = groups
-	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
-		return self._groups
-	def get_known_divisor(self) -> int:
-		return self._groups
-class DepthwiseGrouping(Grouping):
-	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
-		return input_shape[0]
-class SqrtPotGcdGrouping(Grouping):
-	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
-		self._sqrt_input_scale: float = sqrt_input_scale
-	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape) -> int:
-		channels = min(input_shape[0], output_shape[0])
-		start = int(math.log2(math.sqrt(channels * self._sqrt_input_scale)))
-		for i in range(start, 0, -1):
-			groups = 2**i
-			if input_shape[0] % groups == 0 and output_shape[0] % groups == 0:
-				return groups
-		return 1
 
 class KernelBase(Transform, Abstract):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding"]
@@ -134,6 +105,25 @@ class Conv(KernelBase):
 	def get_groups(self) -> int:
 		return self._groups
 
+class Grouping(Abstract):
+	@abstractmethod
+	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+		pass
+class ConstantGrouping(Grouping):
+	def __init__(self, groups: int) -> None:
+		if groups < 1:
+			raise ValueError("groups must be greater than 0")
+		self._groups: int = groups
+	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+		return self._groups
+class DepthwiseGrouping(Grouping):
+	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+		return input_shape[0]
+class InputSqrtGrouping(Grouping):
+	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
+		self._sqrt_input_scale: float = sqrt_input_scale
+	def get_proposed_groups(self, input_shape: LockedShape ) -> int:
+		return int(math.sqrt(input_shape[0] * self._sqrt_input_scale)) 
 
 class FlexibleConv(KernelBase):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups"]
@@ -155,7 +145,7 @@ class FlexibleConv(KernelBase):
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.shape.is_locked():
 			output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
-			groups = self._groups.get_groups(input_shape, output_shape)
+			groups = self.get_groups(input_shape, output_shape)
 			if groups <= 1:
 				raise ValueError("groups must end up being greater than 1")
 			divisor = output_conformance.get_divisor(groups)
@@ -163,7 +153,7 @@ class FlexibleConv(KernelBase):
 				return upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
 		else:
 			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
-			groups = self._groups.get_groups(input_shape, proposed_output_shape)
+			groups = self._groups.get_proposed_groups(input_shape)
 			if groups <= 1:
 				raise ValueError("groups must end up being greater than 1")
 			divisor = output_conformance.get_divisor(groups)
@@ -172,7 +162,11 @@ class FlexibleConv(KernelBase):
 	def get_known_divisor(self) -> int:
 		return 1
 	def get_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape) -> int:
-		return self._groups.get_groups(input_shape, proposed_output_shape)
+		proposed_groups = self._groups.get_proposed_groups(input_shape)	
+		for groups in range(proposed_groups, 0, -1):
+			if proposed_output_shape[0] % groups == 0:
+				return groups
+		return 1
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
 	lower, upper = _closest_divisibles(value, divisor)
