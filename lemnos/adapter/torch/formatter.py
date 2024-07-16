@@ -93,9 +93,10 @@ class DefaultComponentFormatter(TorchComponentFormatter):
 				component.get_stride(input_shape), component.get_padding(input_shape),
 				component.get_dilation(input_shape), component.get_groups())
 		if isinstance(component, FlexibleConv):
-			return flex_conv_init_(input_shape, output_shape, component.get_kernel(input_shape),
+			conv_splits, mix_indices = component.get_conv_splits_and_mix_indices(input_shape, output_shape)
+			return flex_conv_init_(input_shape, conv_splits, mix_indices, component.get_kernel(input_shape),
 				component.get_stride(input_shape), component.get_padding(input_shape),
-				component.get_dilation(input_shape), component.get_groups(input_shape, output_shape))
+				component.get_dilation(input_shape))
 		elif isinstance(component, Full):
 			return full_init_(input_shape, output_shape)
 		elif isinstance(component, ReLU):

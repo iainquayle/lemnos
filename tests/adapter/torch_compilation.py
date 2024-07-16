@@ -82,4 +82,4 @@ class TestTorchModule(unittest.TestCase):
 		print(generate_source("Test", ir))
 		module = create_module("test", ir)
 		input = torch.ones(2, 8, 8)
-		self.assertEqual(module(input).shape, torch.Size([2, 36]))
+		self.assertEqual(module(input).shape, torch.Size([2, 32]))
