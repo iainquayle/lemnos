@@ -15,6 +15,7 @@ changes:
 		make tests for breeding
 		impl a screening on the ir, allow for culling on structural heuristics
 	possible:
+		allow none to be entered for shape bounds, then just inherit the dimensionality of the input
 		look into whther each node should be able to create its own class? 
 			or perhaps there is a way to be more flexible on the meta programming side of things
 			ie, allow nodes to create multiple members and decide how they are used in the forward pass

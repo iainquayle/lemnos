@@ -161,13 +161,16 @@ class FlexibleConv(KernelBase):
 				return upper_shape.to_locked(channels)
 	def get_known_divisor(self) -> int:
 		return 1
+	#spits out list of conv(channels in, channels out, groups) and list of mix indices
 	def get_conv_splits_and_mix_indices(self, input_shape: LockedShape, output_shape: LockedShape) -> tuple[list[tuple[int, int, int]], list[int]]:
 		groups = self._groups.get_proposed_groups(input_shape, output_shape)
+		if groups > input_shape[0] or groups > output_shape[0]:
+			raise ValueError("groups must be less than or equal to the number of input or output channels")
 		base_group_size_in = input_shape[0] // groups
-		extra_channels_in = input_shape[0] % base_group_size_in
+		extra_channels_in = input_shape[0] % groups 
 		group_infos_in = [(groups - extra_channels_in, base_group_size_in), (extra_channels_in, base_group_size_in + 1)]
 		base_group_size_out = output_shape[0] // groups
-		extra_channels_out = output_shape[0] % base_group_size_out
+		extra_channels_out = output_shape[0] % groups 
 		group_infos_out = [(groups - extra_channels_out, base_group_size_out), (extra_channels_out, base_group_size_out + 1)]
 		in_groups_greater = group_infos_in[0][0] > group_infos_out[0][0]
 		groups_infos = [(min(group_infos_in[0][0], group_infos_out[0][0]), group_infos_in[0][1], group_infos_out[0][1]),

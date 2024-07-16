@@ -3,7 +3,7 @@ import unittest
 from torch import zeros
 from torch.nn import Conv1d
 
-from lemnos.schema.components import Conv 
+from lemnos.schema.components import Conv, FlexibleConv
 from lemnos.shared import LockedShape, OpenShape, ShapeBound, ShapeConformance
 
 #TODO: splits these tests up
@@ -64,6 +64,13 @@ class TestConv(unittest.TestCase):
 		self.assertIsNone(transform.get_output_shape(shape, ShapeConformance(LockedShape(3, 3), 1), ShapeBound((2, 2), (1, 8)), 1))
 		shape = LockedShape(3, 6)
 		self.assertIsNone(transform.get_output_shape(shape, ShapeConformance(OpenShape(3), 1), ShapeBound((2, 2), (1, 8)), 1))
+	def test_flex_conv_splitting(self) -> None:
+		conv = FlexibleConv(groups=3)
+		conv_splits, mix_indices = conv.get_conv_splits_and_mix_indices(LockedShape(8, 1), LockedShape(8, 1))
+		self.assertEqual(len(conv_splits), 2)
+		self.assertEqual(conv_splits[0][0], 2)
+		self.assertEqual(conv_splits[0][2], 1)
+		self.assertEqual(len(mix_indices), 8)
 
 class TestFull(unittest.TestCase):
 	def test_input_to_output_dim(self) -> None:
