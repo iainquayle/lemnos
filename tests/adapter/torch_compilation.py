@@ -1,7 +1,7 @@
 import unittest
 
 from lemnos.schema import SchemaNode, Schema, BreedIndices, New, Existing 
-from lemnos.schema.components import Sum, Conv, ReLU, BatchNorm, Full
+from lemnos.schema.components import Sum, Conv, ReLU, BatchNorm, Full, FlexibleConv
 from lemnos.shared import LockedShape, ShapeBound, ID
 from lemnos.adapter.torch import create_module, generate_source 
 import torch
@@ -55,7 +55,7 @@ class TestTorchModule(unittest.TestCase):
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
-			Conv(kernel=2, stride=2, mix_groups=True),
+			Conv(kernel=2, stride=2),
 			ReLU(), 
 			BatchNorm(), "split_2")
 		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
@@ -71,3 +71,15 @@ class TestTorchModule(unittest.TestCase):
 		module = create_module("test", ir)
 		input = torch.ones(2, 1, 8)
 		self.assertEqual(module(input).shape, torch.Size([2, 1]))
+	def test_flex_conv(self):
+		#start = SchemaNode( ShapeBound(None, None), None, None, None, None, None, "main")
+		#end = SchemaNode( ShapeBound(None, None), None, Sum(), None, None, None, "end")
+		conv = SchemaNode( ShapeBound((1, 10), (1, 8)), None, None, FlexibleConv(kernel=2, stride=2, groups=3), ReLU(), BatchNorm(), "conv")
+		schema = Schema([conv], [conv])
+		ir = schema.compile_ir([LockedShape(8, 8)], BreedIndices(), ID(1))
+		if ir is None:
+			self.fail()
+		print(generate_source("Test", ir))
+		module = create_module("test", ir)
+		input = torch.ones(2, 8, 8)
+		self.assertEqual(module(input).shape, torch.Size([2, 32]))
