@@ -181,10 +181,10 @@ class FlexibleConv(KernelBase):
 		groups_infos = [(min(group_infos_in[0][0], group_infos_out[0][0]), group_infos_in[0][1], group_infos_out[0][1]),
 			(abs(group_infos_in[0][0] - group_infos_out[0][0]), group_infos_in[0 if in_groups_greater else 1][1], group_infos_out[1 if in_groups_greater else 0][1]),
 			(min(group_infos_in[1][0], group_infos_out[1][0]), group_infos_in[1][1], group_infos_out[1][1])]
-		groups_infos = filter(lambda x: x[0] > 0, groups_infos)
-		mix_indices = [[] for _ in range(group_infos_out[1][1])]
+		groups_infos = list(filter(lambda x: x[0] > 0, groups_infos))
+		mix_indices = [[] for _ in range(groups_infos[-1][2])]
 		out_channel_index = 0
-		for groups_out, groups_size_out in group_infos_out:
+		for groups_out, _, groups_size_out in groups_infos:
 			for _ in range(groups_out):
 				for j in range(groups_size_out):
 					mix_indices[j].append(out_channel_index)

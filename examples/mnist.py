@@ -5,7 +5,6 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch import nn

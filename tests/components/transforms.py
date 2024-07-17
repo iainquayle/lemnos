@@ -71,6 +71,9 @@ class TestConv(unittest.TestCase):
 		self.assertEqual(conv_splits[0][0], 2)
 		self.assertEqual(conv_splits[0][2], 1)
 		self.assertEqual(len(mix_indices), 8)
+		conv = FlexibleConv(groups=1)
+		conv_splits, mix_indices = conv.get_conv_splits_and_mix_indices(LockedShape(8, 1), LockedShape(8, 1))
+		self.assertEqual(len(conv_splits), 1)
 
 class TestFull(unittest.TestCase):
 	def test_input_to_output_dim(self) -> None:
