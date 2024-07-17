@@ -107,23 +107,34 @@ class Conv(KernelBase):
 
 class Grouping(Abstract):
 	@abstractmethod
-	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape ) -> int:
 		pass
 class ConstantGrouping(Grouping):
 	def __init__(self, groups: int) -> None:
 		if groups < 1:
 			raise ValueError("groups must be greater than 0")
 		self._groups: int = groups
-	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape ) -> int:
 		return self._groups
 class DepthwiseGrouping(Grouping):
-	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape ) -> int:
 		return input_shape[0]
 class InputSqrtGrouping(Grouping):
 	def __init__(self, sqrt_input_scale: float = 1.0) -> None:
 		self._sqrt_input_scale: float = sqrt_input_scale
-	def get_proposed_groups(self, input_shape: LockedShape, proposed_output_shape: LockedShape ) -> int:
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape ) -> int:
 		return int(math.sqrt(input_shape[0] * self._sqrt_input_scale)) 
+class OutputSqrtGrouping(Grouping):
+	def __init__(self, sqrt_output_scale: float = 1.0) -> None:
+		self._sqrt_output_scale: float = sqrt_output_scale
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape ) -> int:
+		return int(math.sqrt(output_shape[0] * self._sqrt_output_scale))
+class SqrtGrouping(Grouping):
+	def __init__(self, sqrt_scale: float = 1.0) -> None:
+		self._sqrt_scale: float = sqrt_scale
+	def get_groups(self, input_shape: LockedShape, output_shape: LockedShape ) -> int:
+		channels = min(input_shape[0], output_shape[0])
+		return int(math.sqrt(channels * self._sqrt_scale))
 
 class FlexibleConv(KernelBase):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding", "_groups"]
@@ -145,25 +156,19 @@ class FlexibleConv(KernelBase):
 		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
 		if output_conformance.shape.is_locked():
 			output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
-			groups = self._groups.get_proposed_groups(input_shape, output_shape)
-			if groups <= 1:
-				raise ValueError("groups must end up being greater than 1")
-			divisor = output_conformance.get_divisor(groups)
+			divisor = output_conformance.get_divisor(1)
 			if output_shape[0] % divisor == 0 and shape_bounds.contains_value(output_shape[0], 0):
 				return upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
 		else:
 			proposed_output_shape = upper_shape.to_locked(shape_bounds.clamp_value(int(input_shape[0] * growth_factor), 0))
-			groups = self._groups.get_proposed_groups(input_shape, proposed_output_shape)
-			if groups <= 1:
-				raise ValueError("groups must end up being greater than 1")
-			divisor = output_conformance.get_divisor(groups)
+			divisor = output_conformance.get_divisor(1)
 			if (channels := _closest_divisible(proposed_output_shape[0], divisor, shape_bounds)) is not None:
 				return upper_shape.to_locked(channels)
 	def get_known_divisor(self) -> int:
 		return 1
 	#spits out list of conv(channels in, channels out, groups) and list of mix indices
 	def get_conv_splits_and_mix_indices(self, input_shape: LockedShape, output_shape: LockedShape) -> tuple[list[tuple[int, int, int]], list[int]]:
-		groups = self._groups.get_proposed_groups(input_shape, output_shape)
+		groups = self._groups.get_groups(input_shape, output_shape)
 		if groups > input_shape[0] or groups > output_shape[0]:
 			raise ValueError("groups must be less than or equal to the number of input or output channels")
 		base_group_size_in = input_shape[0] // groups
