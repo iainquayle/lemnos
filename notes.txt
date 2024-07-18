@@ -1,4 +1,5 @@
 problems:
+	it should be possible to input a output conformance to the schema for comp, have found issue with it
 changes:
 	guarenteed:
 		refactorings:
