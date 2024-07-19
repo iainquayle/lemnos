@@ -130,9 +130,13 @@ class Metrics:
 		return self._samples[index]
 	def __len__(self) -> int:
 		return len(self._samples)
-	def get_merged_range(self, start_index: int, end_index: int) -> ResultsSample:
-		if start_index > end_index:
-			raise ValueError("Invalid range")
+	def get_range_by_sample(self, start_sample: int, end_sample: int) -> ResultsSample:
+		start_index = self._get_sample_index(start_sample)
+		end_index = self._get_sample_index(end_sample)
+		return self.get_range(start_index, end_index)
+	def get_range(self, start_index: int, end_index: int) -> ResultsSample:
+		start_index = self._get_index(start_index)
+		end_index = self._get_index(end_index)
 		output = self._samples[start_index] 
 		for i in range(start_index + 1, end_index):
 			output = output.merge(self._samples[i])
@@ -143,10 +147,16 @@ class Metrics:
 		if resolution is None:
 			resolution = len(self._samples)
 		step = len(self._samples) / resolution
-		return "\n".join((f"{self.get_merged_range(int(i * step), int((i + 1) * step) - 1)}" for i in range(resolution)))
+		return "\n".join((f"{self.get_range(int(i * step), int((i + 1) * step) - 1)}" for i in range(resolution)))
 	def __str__(self) -> str:
 		return self.format(20)
 	def __repr__(self) -> str:
 		return self.format(20)
+	def _get_index(self, index: int) -> int:
+		return index if index >= 0 else len(self._samples) + index
+	def _get_sample_index(self, sample_index: int) -> int:
+		sample_index = sample_index if sample_index >= 0 else self._total_samples + sample_index
+		return int(sample_index / self._total_samples * len(self._samples))
+		 
 
 ModelPool = list[tuple[list[IRNode], Metrics, Metrics | None]]
