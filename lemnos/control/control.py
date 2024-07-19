@@ -130,7 +130,7 @@ class Metrics:
 		return self._samples[index]
 	def __len__(self) -> int:
 		return len(self._samples)
-	def get_range_by_sample(self, start_sample: int, end_sample: int) -> ResultsSample:
+	def get_range_by_samples(self, start_sample: int, end_sample: int) -> ResultsSample:
 		start_index = self._get_sample_index(start_sample)
 		end_index = self._get_sample_index(end_sample)
 		return self.get_range(start_index, end_index)
