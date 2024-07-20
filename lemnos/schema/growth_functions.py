@@ -30,15 +30,26 @@ class PowerGrowth:
 
 class LinearGrowth:
 	__slots__ = ["_slope", "_variability"]
+	def __init__(self, slope: int, variability: float) -> None:
+		if variability < 0 or variability > 1:
+			raise ValueError("Variability must be between 0 and 1")
+		self._slope: int = slope
+		self._variability: float = variability
+	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
+		scale = (shape[0] + self._slope) / shape[0]
+		return index.get_shuffled((scale * (1 - self._variability), scale * (1 + self._variability)))
+
+class ScaleGrowth:
+	__slots__ = ["_scale", "_variability"]
 	def __init__(self, slope: float, variability: float) -> None:
 		if slope <= 0:
 			raise ValueError("Slope must be greater than zero")
 		if variability < 0 or variability > 1:
 			raise ValueError("Variability must be between 0 and 1")
-		self._slope: float = slope
+		self._scale: float = slope
 		self._variability: float = variability
 	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
-		return index.get_shuffled((self._slope * (1 - self._variability), self._slope * (1 + self._variability)))
+		return index.get_shuffled((self._scale * (1 - self._variability), self._scale * (1 + self._variability)))
 
 class InvertedParabolicGrowth:
 	__slots__ = ["_target", "_variability"]
