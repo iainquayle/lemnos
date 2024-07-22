@@ -1,9 +1,9 @@
-##problems
+## problems
 
 	it should be possible to input a output conformance to the schema for comp, have found issue with it
 
-##changes:
-###guarenteed
+## changes:
+### guarenteed
 	transitions rename to edges perhaps
 
 	adapters, split up and fix any naming, and perhaps use a mapping instead of the if else chain
@@ -17,7 +17,7 @@
 
 	impl a screening on the ir, allow for culling on structural heuristics
 
-###possible
+### possible
 
 	allow none to be entered for shape bounds, then just inherit the dimensionality of the input.
 	may not be possible with how something like conv initialization works? will need to check
