@@ -89,6 +89,8 @@ class ResultsSample:
 		return new_collection
 	def get_loss(self) -> float:
 		return self.total_loss / self.sample_size
+	def get_accuracy(self) -> float | None:
+		return self.correct / self.sample_size if self.correct is not None else None
 	def __copy__(self) -> ResultsSample:
 		return ResultsSample(self.total_loss, self.max_loss, self.min_loss, self.correct, self.time, self.epoch, self.sample_size,)
 	def __str__(self) -> str:
