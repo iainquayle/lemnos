@@ -12,7 +12,7 @@ from torch import nn
 
 from lemnos.shared import LockedShape, ShapeBound
 from lemnos.schema import Schema, SchemaNode, New, Existing, PowerGrowth, LinearGrowth, BreedIndices, InvertedParabolicGrowth
-from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout, InputSqrtPotGrouping, DepthwiseGrouping, SqrtPotGcdGrouping
+from lemnos.schema.components import Conv, BatchNorm, Softmax, ReLU6, SiLU, Sum, Full, LayerNorm, ChannelDropout, Dropout 
 from lemnos.adapter.torch import TorchEvaluator, generate_source, Adam, SGD, StepLR 
 from lemnos.control import or_search, AvgLossWindowSelector 
 
@@ -38,46 +38,7 @@ def main():
 	else:
 		print("Failed to compile schema")
 
-
-def model_1() -> Schema:
-	head_1 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
-	head_2 = SchemaNode(ShapeBound(96, None, None), None, None, Conv(3, 1, groups=SqrtPotGcdGrouping()), ReLU6(), BatchNorm())
-	head_3 = SchemaNode(ShapeBound(128, None, None), None, None, Conv(3, 1, groups=SqrtPotGcdGrouping()), ReLU6(), BatchNorm())
-	#head_2 = SchemaNode(ShapeBound(64, None, None), None, None, Conv(3, 1, groups=1), ReLU6(), BatchNorm())
-	#head_3 = SchemaNode(ShapeBound(128, None, None), None, None, Conv(3, 1, groups=1), ReLU6(), BatchNorm())
-
-	head_1.add_group(New(head_2, 0))
-	head_2.add_group(New(head_3, 0))
-
-	accume = SchemaNode(ShapeBound(None, (4, None), (4, None)), None, Sum(), None, None, BatchNorm() , debug_name="accume")
-	skip = SchemaNode(ShapeBound(None, None, None), None, None, None, None, ChannelDropout(.1), debug_name="skip")
-	downsample = SchemaNode(ShapeBound(None, (2, None), (2, None)), InvertedParabolicGrowth(256, .0), Sum(), Conv(2, 0, 2, 1, InputSqrtPotGrouping(1.2), mix_groups=True), SiLU(), BatchNorm(), debug_name="downsample")
-	dw_3_point = SchemaNode(ShapeBound(None, None, None), LinearGrowth(2, .0), None, Conv(groups=InputSqrtPotGrouping(1.2), mix_groups=True), ReLU6(), BatchNorm(), debug_name="dw_3_point")
-	depthwise_3 = SchemaNode(ShapeBound(None, None, None), None, None, Conv(3, 1, 1, 1, DepthwiseGrouping()), ReLU6(), BatchNorm(), debug_name="depthwise_3")
-	dw_collect = SchemaNode(ShapeBound(None, None, None), None, None, Conv(groups=SqrtPotGcdGrouping(1.2), mix_groups=True), None, BatchNorm(), debug_name="dw_collect")
-
-	tail_1 = SchemaNode(ShapeBound(256, 1), None, None, Conv(2, 0), ReLU6(), BatchNorm(), debug_name="tail_1")
-	tail_2 = SchemaNode(ShapeBound(10, 1), None, None, Full(), Softmax(), None)
-
-	head_3.add_group(New(skip, 1), New(dw_3_point, 0))
-
-	dw_3_point.add_group(New(depthwise_3, 0))
-	depthwise_3.add_group(New(dw_collect, 2))
-	dw_collect.add_group(Existing(accume, 0))
-	dw_collect.add_group(Existing(downsample, 0))
-	skip.add_group(New(downsample, 3))
-	skip.add_group(New(accume, 3))
-
-	downsample.add_group(New(skip, 1), New(dw_3_point, 0))
-	accume.add_group(New(skip, 1), New(dw_3_point, 0))
-
-	downsample.add_group(New(tail_1, 1))
-
-	tail_1.add_group(New(tail_2, 1))
-
-	return Schema([head_1], [tail_2])
-
-def model_2() -> Schema:
+def model() -> Schema:
 	conv_1_1 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
 	conv_1_2 = SchemaNode(ShapeBound(32, None, None), None, None, Conv(3, 1), ReLU6(), BatchNorm())
 

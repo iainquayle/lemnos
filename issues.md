@@ -20,6 +20,8 @@ impl a screening on the ir, allow for culling on structural heuristics
 
 work on making more controlable growth functions, ie, ones that would truely follow a given curve
 
+fix layer norm
+
 ### possible
 
 allow none to be entered for shape bounds, then just inherit the dimensionality of the input.
