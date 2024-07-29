@@ -135,6 +135,8 @@ class Metrics:
 	def get_range_by_samples(self, start_sample: int, end_sample: int) -> ResultsSample:
 		start_index = self._get_sample_index(start_sample)
 		end_index = self._get_sample_index(end_sample)
+		if start_index == end_index:
+			return self._samples[start_index]
 		return self.get_range(start_index, end_index)
 	def get_range(self, start_index: int, end_index: int) -> ResultsSample:
 		start_index = self._get_index(start_index)
