@@ -29,14 +29,14 @@ class PowerGrowth:
 		return next_position / normalized_position
 
 class LinearGrowth:
-	__slots__ = ["_slope", "_variability"]
-	def __init__(self, slope: int, variability: float) -> None:
+	__slots__ = ["_step", "_variability"]
+	def __init__(self, step: int, variability: float) -> None:
 		if variability < 0 or variability > 1:
 			raise ValueError("Variability must be between 0 and 1")
-		self._slope: int = slope
+		self._step: int = step 
 		self._variability: float = variability
 	def __call__(self, shape: LockedShape, index: CompilationIndex) -> float:
-		scale = (shape[0] + self._slope) / shape[0]
+		scale = (shape[0] + self._step) / shape[0]
 		return index.get_shuffled((scale * (1 - self._variability), scale * (1 + self._variability)))
 
 class ScaleGrowth:
