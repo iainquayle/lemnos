@@ -5,7 +5,7 @@ it should be possible to input a output conformance to the schema for comp, have
 ## changes
 ### guarenteed
 
-transitions rename to edges perhaps
+make biases optional
 
 adapters, split up and fix any naming, and perhaps use a mapping instead of the if else chain
 allow for the creation and use of multiple sub members of a node, then the need of custom module will be much reduced 
@@ -23,6 +23,8 @@ work on making more controlable growth functions, ie, ones that would truely fol
 fix layer norm
 
 ### possible
+
+transitions rename to edges perhaps
 
 allow none to be entered for shape bounds, then just inherit the dimensionality of the input.
 may not be possible with how something like conv initialization works? will need to check

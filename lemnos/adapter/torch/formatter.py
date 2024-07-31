@@ -201,7 +201,7 @@ def generate_source(name: str, ir: list[IRNode], component_formatter: TorchCompo
 				forward_statement = [flatten_view_(expr, node.input_shape) for expr in forward_statement]
 			current_shape = component_formatter.get_shape_requirment(component)
 			forward_statement = [component_formatter.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
-		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
+		forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])) + " # " + node.schema_node.debug_name)
 		#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))) + " # " + node.schema_node.debug_name)
 		#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
 	forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
