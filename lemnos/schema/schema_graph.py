@@ -66,6 +66,7 @@ class SchemaNode:
 		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
 	def _compile(self, node: _CompilationNode, tracker: _CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
+		#print(self.debug_name, id)
 		if id >= max_id:
 			return None
 		input_shape = self.get_input_shape([node.input_shape])
