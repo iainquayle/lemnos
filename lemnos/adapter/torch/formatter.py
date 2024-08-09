@@ -13,6 +13,14 @@ class ShapeView(Enum):
 	REAL = 'real'
 	EITHER = 'either' 
 
+class NewComponentFormatter:
+	def __init__(self, ):
+		self._component_map: dict[Component, tuple[Component, ]] = {} 
+#need to be able to
+#	get multiple inits, all assigned to a name space
+#	allow for multiple forwards, must be able to use those names obviously
+
+
 class TorchComponentFormatter(Abstract):
 	@abstractmethod
 	def get_init(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> str:
