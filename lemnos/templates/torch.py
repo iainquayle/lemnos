@@ -28,16 +28,6 @@ def module_(name: str, class_definitions: list[str], init_args: list[str], init_
 		[import_torch_()] + class_definitions +
 		function_("__init__", ["self"] + init_args,["super().__init__()"] + init_statements) +
 		function_("forward", ["self"] + forward_args, forward_statments)))
-def flex_conv_definition_(dimensions: int) -> list[str]:
-	return module_(f"FlexConv{dimensions}d", [], 
-		["conv_splits", "mix_indices", "kernel", "stride", "padding", "dilation"], 
-		[f"self.modules_list = self.torch.nn.ModuleList([self.torch.nn.Conv{dimensions}d(channels_in, channels_out, kernel, stride, padding, dilation, groups) for channels_in, channels_out, groups in conv_splits])",
-   			#"self.input_splits = self.torch.Tensor([channels_in for channels_in, _, _ in conv_splits]).int()",
-   			"self.input_splits = [channels_in for channels_in, _, _ in conv_splits]",
-   			"self.mix_indices = self.torch.Tensor(mix_indices).int()" ],
-		["x"], 
-		["xs = self.torch.split(x, self.input_splits, dim=1)",
-   			"return self.torch.cat([module(x) for module, x in zip(self.modules_list, xs)], dim=1)" ])
 
 def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
 	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
