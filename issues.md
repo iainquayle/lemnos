@@ -1,9 +1,13 @@
 ## problems
 
-it should be possible to input a output conformance to the schema for comp, have found issue with it
-
 ## changes
 ### guarenteed
+
+making a new formatter, two options: make a map of functions and switch on the type, or,
+make subclasses that inherit from both the parent component and a new backend specific formatter interface.
+the first, while a little more janky is definitely easier, and really just as safe.
+two sub options in that, when running map to the function calls, or,
+do it ahead of time and have a overwritable function on the component and attach it to all instances.
 
 make biases optional
 
@@ -23,6 +27,8 @@ work on making more controlable growth functions, ie, ones that would truely fol
 fix layer norm
 
 ### possible
+
+allow an output conformance to be defined at compilation time, this may not be really possibe to do easily.
 
 transitions rename to edges perhaps
 
