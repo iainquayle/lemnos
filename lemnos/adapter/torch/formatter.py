@@ -35,6 +35,10 @@ class NewComponentFormatter:
 	def get_forward_statements(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, component_name: str, input_exprs: list[str]) -> list[str]:
 		return self._format_map[component].forward(component, input_shape, output_shape, component_name, input_exprs)
 
+#updates:
+#	while a component may have multiple inits, it will only have one forward, if this becomes and issue allow for definitions
+#	hypothetically i guess multiple is fine, but the order of ops still needs to be maintained and this will bring up line counts
+
 #need to be able to
 #	get multiple inits, all assigned to a name space
 #	allow for multiple forwards, must be able to use those names obviously
