@@ -10,6 +10,8 @@ from enum import Enum
 
 from typing import Callable
 
+from copy import copy
+
 class ShapeView(Enum):
 	FLAT = 'flat' 
 	REAL = 'real'
@@ -23,8 +25,10 @@ class Formats:
 	
 class NewComponentFormatter:
 	def __init__(self, format_map: dict[Component, Formats] = {}):
-		self._format_map: dict[Component, Formats] = {} 
+		self._format_map: dict[Component, Formats] = copy(format_map)
 	def add_format(self, component: Component, formats: Formats):
+		if component in self._format_map:
+			raise ValueError("Component already has a format")
 		self._format_map[component] = formats
 	def get_init_statements(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
 		return self._format_map[component].init(component, input_shape, output_shape)
@@ -34,6 +38,14 @@ class NewComponentFormatter:
 #need to be able to
 #	get multiple inits, all assigned to a name space
 #	allow for multiple forwards, must be able to use those names obviously
+#	name spaces would hypothetically be assigned by the formatter, and not the user defined function
+#	this makes sense for the inits, as they will need components that stick around for every forward
+#		but what about the forwards, they will need temp items that wouldnt necessarily get cleaned up if they were in their own namespace
+#		suppose for those that it doesnt need to be namespaced apart from just a temp space, they just get overwritten then
+#		hypothetically these temps should only ever be tensors, which is good
+#	the one good thing about unrolling the components is that many will likely have reusable internal states
+#		so have some way of hashing the internal components and reusing them when its possinble
+#		ie, if its not a callable that will have a graph created for it, then it can be reused
 
 
 class TorchComponentFormatter(Abstract):
