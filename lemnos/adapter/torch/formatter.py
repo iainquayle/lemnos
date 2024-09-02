@@ -1,6 +1,6 @@
 from ...shared import LockedShape, ID
 from ...schema import IRNode 
-from ...schema.components import *
+from ...schema.components import Component
 from ...templates.torch import * 
 from ...templates.python import *
 from torch.nn import Module
@@ -20,7 +20,7 @@ class ShapeView(Enum):
 class Formats:
 	def __init__(self):
 		self.init: Callable 
-		self.forward: Callable | None
+		self.forward: Callable 
 		#self.shape #if the whole thing is rolled out, and depends more on the user, then is this going to be needed
 	
 class NewComponentFormatter:

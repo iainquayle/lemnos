@@ -5,6 +5,7 @@ from .python import *
 
 def view_(expr: str, shape: LockedShape) -> str:
 	return f"{expr}.view(-1, {arg_list_(*to_str_list(iter(shape)))})"
+
 def flatten_view_(expr: str, size: int | LockedShape) -> str:
 	return f"{expr}.view(-1, {size if isinstance(size, int) else size.get_product()})"
 def sum_(exprs: list[str]) -> str:

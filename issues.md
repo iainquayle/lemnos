@@ -38,7 +38,7 @@ allow an output conformance to be defined at compilation time, this may not be r
 transitions rename to edges perhaps
 
 allow none to be entered for shape bounds, then just inherit the dimensionality of the input.
-may not be possible with how something like conv initialization works? will need to check
+(this may not work well as the systen allows for multiple different shapes to be passed in, so a user may expect 2d and get a 3d)
 
 review whther more work can be done together with the conformance gathering and tracker mutation passes.
 ie, caching the conformance gathering information and use it for tracker mutation if valid

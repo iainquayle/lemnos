@@ -36,7 +36,7 @@ class IRNode:
 #	- Creating new nodes for next schema nodes that are designated to be new, and set the priority to the priority of the taken transition.
 #	- Attempting to join existing nodes, this involves:
 #		- Get first available matching node, that has not been parented by the current node type before.
-#		- Get the input shape (ShapeConformance) of the child node (ie all of the other parent nodes, after their shapes have been mergered according to the merge method of the schema node).
+#		- Get the input shape (ShapeConformance) of the child node (ie all of the other parent nodes, after their shapes have been mergered according to the merge method of the child node).
 #		- Attempt to merge the output shape of the current node with the conformance shape:
 #			- If successful, update the child node in the tracker with the new parent, priority given by the transition and conformance shape, and create new IR node and return it in a list.
 #			- If unsuccessful, but transition set to auto, create new node, else fail whole transition group.
@@ -44,7 +44,7 @@ class IRNode:
 # Repeat this until compilation tracker is empty, if a IR list is returned it is successful, else no solution was found.
 #
 # Note, this current implementation cannot solve all valid graphs, as it only has a single look ahead, and all previous compilation efforts in the stack are immutable.
-#	However if the graph takes into account the single look ahead, it can solve all.
+#	However if the graph creator takes into account the single look ahead, it will always find a solution.
 
 
 class SchemaNode:
