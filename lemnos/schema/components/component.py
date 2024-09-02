@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from .transforms import Transform
-from .activations import Activation 
-from .regularizations import Regularization
-from .merge_method import MergeMethod
+from abc import ABC as Abstract 
 
-from abc import ABC as Abstract
-
-Component = Transform | Activation | Regularization | MergeMethod
-
-class _Component(Abstract):
-	pass
+class Component(Abstract):
+	def get_forward_statements(self) -> list[str]:
+		raise NotImplementedError(f"get_forwards not implemented for {self.__class__.__name__}")
+	def get_backward_statements(self) -> list[str]: 
+		raise NotImplementedError(f"get_backwards not implemented for {self.__class__.__name__}")

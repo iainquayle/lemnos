@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from ...shared import LockedShape, ShapeBound, ShapeConformance
+from .component import Component
 
 from abc import ABC as Abstract 
 
-class Activation(Abstract):
+class Activation(Component, Abstract):
 	def scale_conformance(self, conformance: ShapeConformance) -> ShapeConformance:
 		return conformance
 	def get_output_shape(self, input_shape: LockedShape) -> LockedShape:

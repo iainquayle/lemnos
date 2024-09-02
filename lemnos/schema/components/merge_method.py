@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from ...shared import LockedShape, OpenShape, Shape
+from .component import Component
 
 from typing import Iterable
 from abc import ABC as Abstract, abstractmethod
 from functools import reduce
 
-class MergeMethod(Abstract):
+class MergeMethod(Component, Abstract):
 	@abstractmethod
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
 		pass

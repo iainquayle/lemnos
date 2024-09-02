@@ -3,11 +3,16 @@
 ## changes
 ### guarenteed
 
-making a new formatter, two options: make a map of functions and switch on the type, or,
-make subclasses that inherit from both the parent component and a new backend specific formatter interface.
-the first, while a little more janky is definitely easier, and really just as safe.
-two sub options in that, when running map to the function calls, or,
-do it ahead of time and have a overwritable function on the component and attach it to all instances.
+#### formatter
+
+two options, have a map that takes in the type and runs/returns the function, or,
+overide a interface function that is blank to begin with to the class (not instance).
+
+unroll any sub module, and just run everythin in line. this allows for member reuse, 
+ie in the instance that a module has two static tensors that are the exact same, then use them in both.
+this can only be done for non callable members, use issubclass for this.
+
+#### misc
 
 make biases optional
 

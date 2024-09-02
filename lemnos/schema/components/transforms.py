@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from ...shared import LockedShape, OpenShape, ShapeBound, ShapeConformance
+from .component import Component
 
 from abc import ABC as Abstract, abstractmethod 
 
-class Transform(Abstract):
+class Transform(Component, Abstract):
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
