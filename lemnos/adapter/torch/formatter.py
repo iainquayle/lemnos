@@ -8,35 +8,23 @@ from torch.nn import Module
 from abc import ABC as Abstract, abstractmethod
 from enum import Enum
 
-from typing import Callable
-
-from copy import copy
+from dataclasses import dataclass
 
 class ShapeView(Enum):
 	FLAT = 'flat' 
 	REAL = 'real'
 	EITHER = 'either' 
 
-class Formats:
-	def __init__(self):
-		self.init: Callable 
-		self.forward: Callable 
-		#self.shape #if the whole thing is rolled out, and depends more on the user, then is this going to be needed
-	
-class NewComponentFormatter:
-	def __init__(self, format_map: dict[Component, Formats] = {}):
-		self._format_map: dict[Component, Formats] = copy(format_map)
-	def add_format(self, component: Component, formats: Formats):
-		if component in self._format_map:
-			raise ValueError("Component already has a format")
-		self._format_map[component] = formats
-	def get_init_statements(self, component: Component, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
-		return self._format_map[component].init(component, input_shape, output_shape)
-	def get_forward_statements(self, component: Component, input_shape: LockedShape, output_shape: LockedShape, component_name: str, input_exprs: list[str]) -> list[str]:
-		if (forward := self._format_map[component].forward) is None:
-			raise NotImplementedError 
-		else:
-			return forward(component, input_shape, output_shape, component_name, input_exprs)
+
+
+class InitType(Enum):
+	CALLABLE = 'callable'
+	DATA = 'data'
+@dataclass
+class InitStatement:
+	init_type: InitType
+	member: str
+	statement: str
 
 #need to be able to
 #	get multiple inits, all assigned to a name space

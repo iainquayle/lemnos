@@ -29,32 +29,3 @@ def module_(name: str, class_definitions: list[str], init_args: list[str], init_
 		[import_torch_()] + class_definitions +
 		function_("__init__", ["self"] + init_args,["super().__init__()"] + init_statements) +
 		function_("forward", ["self"] + forward_args, forward_statments)))
-
-def conv_init_(input_shape: LockedShape, output_shape: LockedShape, kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...], groups: int) -> str:
-	return nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {kernel}, {stride}, {padding}, {dilation}, {groups})")
-def flex_conv_init_(input_shape: LockedShape, conv_splits: list[tuple[int, int, int]], mix_indices: list[int], kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...]) -> str:
-	return (f"{'FlexConv'}{len(input_shape) - 1}d({conv_splits}, {mix_indices}, {kernel}, {stride}, {padding}, {dilation})")
-def maxpool_init_(kernel: tuple[int, ...], stride: tuple[int, ...], padding: tuple[int, ...], dilation: tuple[int, ...]) -> str:
-	return nn_(f"MaxPool{len(kernel)}d({kernel}, {stride}, {padding}, {dilation})")
-def full_init_(input_shape: LockedShape, output_shape: LockedShape) -> str:
-	return nn_(f"Linear({input_shape.get_product()}, {output_shape.get_product()}, bias=True)") 
-def relu_init_() -> str:
-	return nn_("ReLU()")
-def relu6_init_() -> str:
-	return nn_("ReLU6()")
-def silu_init_() -> str:
-	return nn_("SiLU()")
-def sigmoid_init_() -> str:
-	return nn_("Sigmoid()")
-def softmax_init_() -> str:
-	return nn_("Softmax(dim=1)")
-def batchnorm_init_(input_shape: LockedShape) -> str:
-	return nn_(f"BatchNorm{len(input_shape) - 1}d({input_shape[0]})")
-def layernorm_init_(input_shape: LockedShape) -> str:
-	return nn_(f"LayerNorm({input_shape[-1]})")
-def dropout_init_(p: float) -> str:
-	return nn_(f"Dropout(p={p})")
-def channeldropout_init_(input_shape: LockedShape, p: float) -> str:
-	return nn_(f"Dropout{len(input_shape) - 1}d(p={p})")
-def glu_init_() -> str:
-	return nn_("GLU(dim=1)")
