@@ -10,6 +10,8 @@ from enum import Enum
 
 from dataclasses import dataclass
 
+from typing import Callable
+
 class ShapeView(Enum):
 	FLAT = 'flat' 
 	REAL = 'real'
@@ -20,11 +22,14 @@ class ShapeView(Enum):
 class InitType(Enum):
 	CALLABLE = 'callable'
 	DATA = 'data'
+
 @dataclass
 class InitStatement:
 	init_type: InitType
-	member: str
+	member_name: str
 	statement: str
+
+type ForwardGen = Callable[[str, list[str], str], list[str]] #input_expr, 
 
 #need to be able to
 #	get multiple inits, all assigned to a name space
