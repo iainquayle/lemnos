@@ -5,6 +5,8 @@ from ...shared import LockedShape
 from abc import ABC as Abstract 
 
 class Component(Abstract):
+	def get_statements(self, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
+		raise NotImplementedError(f"must bind a statements generator for {self.__class__.__name__}")
 	def get_forward_statements(self, input_shape: LockedShape, output_shape: LockedShape) -> list[str]:
 		raise NotImplementedError(f"must bind a forward statments generator for {self.__class__.__name__}")
 	def get_backward_statements(self, input_shape: LockedShape, output_shape: LockedShape) -> list[str]: 

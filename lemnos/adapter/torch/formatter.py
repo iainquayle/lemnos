@@ -17,8 +17,6 @@ class ShapeView(Enum):
 	REAL = 'real'
 	EITHER = 'either' 
 
-
-
 class InitType(Enum):
 	CALLABLE = 'callable'
 	DATA = 'data'

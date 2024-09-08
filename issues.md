@@ -8,9 +8,10 @@
 two options, have a map that takes in the type and runs/returns the function, or,
 overide a interface function that is blank to begin with to the class (not instance).
 
-when going with the interface option, would maybe need to allow the functions to return some any data.
-perhaps look into whether there is some common pattern in creating modules,
-or whether there can be a common output data format. 
+in the case of interface functions, there are two options.
+have a single function that returns all statements, or have two functions, one for init and one for forward.
+while jax flax only really needs the forward, it could be useful to have the init as well for constants.
+however, they are fully jit compiled and likely would figure out the constants themselves.
 
 unroll any sub module, and just run everythin in line. this allows for member reuse, 
 ie in the instance that a module has two static tensors that are the exact same, then use them in both.
