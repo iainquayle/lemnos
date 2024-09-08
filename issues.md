@@ -8,6 +8,10 @@
 two options, have a map that takes in the type and runs/returns the function, or,
 overide a interface function that is blank to begin with to the class (not instance).
 
+when going with the interface option, would maybe need to allow the functions to return some any data.
+perhaps look into whether there is some common pattern in creating modules,
+or whether there can be a common output data format. 
+
 unroll any sub module, and just run everythin in line. this allows for member reuse, 
 ie in the instance that a module has two static tensors that are the exact same, then use them in both.
 this can only be done for non callable members, use issubclass for this.
