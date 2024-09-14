@@ -1,9 +1,10 @@
-## problems
+# problems
 
-## changes
-### guarenteed
+# changes
 
-#### formatter
+## guarenteed
+
+### formatter
 
 two options, have a map that takes in the type and runs/returns the function, or,
 overide a interface function that is blank to begin with to the class (not instance).
@@ -15,9 +16,19 @@ however, they are fully jit compiled and likely would figure out the constants t
 
 unroll any sub module, and just run everythin in line. this allows for member reuse, 
 ie in the instance that a module has two static tensors that are the exact same, then use them in both.
-this can only be done for non callable members, use issubclass for this.
+this can only be done for non callable members, use issubclass for this?
 
-#### misc
+statements funcs will need, a identifier generator, scoped to each module but allow
+these can be used in both the forward and the init statements, it may even be the case that they can be used for intermediate forward statements
+will need to take in the the identifier of the input tensor, and perhaps the identifier of the output tensor
+instead of passing in the output tensor, the output statement can be returned in a specific spot and be automatically assigned 
+kind of seems overly complicated...
+major problem with this idea is that one of the main necessities for pytorch is not at all need in jax flax impl, the identifier generator
+other option is that there are multiple possible functions to choose from, and the assigner will choose which is correct,
+and perhaps have a visible function that is called that will decide which is correct?
+perhaps, as much as rt inrospection sucks, look at the inspect module
+
+### misc
 
 make biases optional
 
@@ -36,7 +47,7 @@ work on making more controlable growth functions, ie, ones that would truely fol
 
 fix layer norm
 
-### possible
+## possible
 
 allow an output conformance to be defined at compilation time, this may not be really possibe to do easily.
 

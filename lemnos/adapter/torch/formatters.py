@@ -6,8 +6,8 @@ from ...schema.components import *
 from .formatter import InitType, InitStatement
 
 
-
 #need to be able to pass out the statement and the variable name
+
 
 def conv_init(self: Conv, input_shape: LockedShape, output_shape: LockedShape) -> list[InitStatement]:
 	return [InitStatement( InitType.CALLABLE, '',
