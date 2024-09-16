@@ -27,6 +27,9 @@ major problem with this idea is that one of the main necessities for pytorch is 
 other option is that there are multiple possible functions to choose from, and the assigner will choose which is correct,
 and perhaps have a visible function that is called that will decide which is correct?
 perhaps, as much as rt inrospection sucks, look at the inspect module
+likely is far easier to just overwrite the functions, the main gain that is being looked for here is lsp friendly hints, but simply assigning functions is much easier than the alternatives
+
+as for what they produce, the best options so far are a dict, or any and allow the user to decide
 
 ### misc
 
