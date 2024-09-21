@@ -4,7 +4,7 @@
 
 ## guarenteed
 
-### formatter
+### generation 
 
 two options, have a map that takes in the type and runs/returns the function, or,
 overide a interface function that is blank to begin with to the class (not instance).
@@ -30,6 +30,9 @@ perhaps, as much as rt inrospection sucks, look at the inspect module
 likely is far easier to just overwrite the functions, the main gain that is being looked for here is lsp friendly hints, but simply assigning functions is much easier than the alternatives
 
 as for what they produce, the best options so far are a dict, or any and allow the user to decide
+
+big problem with the generator binding, is that it would need to be done in the file, and prior to the schema definition as far as I can tell
+this would kind of break the whole idea of keeping the schemas and the backend implementations separate
 
 ### misc
 

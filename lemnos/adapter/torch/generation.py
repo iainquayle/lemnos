@@ -25,10 +25,11 @@ class IdentifierGenerator: #move this somewhere where it makes sense, probably i
 		return f"{self._namespace}_{self._identifiers[name]}"
 
 
-def conv_formatter(self: Conv, input_shape: LockedShape, output_shape: LockedShape, **kwargs) -> Any:
+def conv_generator(self: Conv, input_shape: LockedShape, output_shape: LockedShape, register: str, **kwargs: Any) -> Any:
 	return [InitStatement( InitType.CALLABLE, '',
 		nn_(f"Conv{len(input_shape) - 1}d({input_shape[0]}, {output_shape[0]}, {self._kernel}, {self._stride}, {self._padding}, {self._dilation}, {self._groups})"),
 	)]
+
 def maxpool_formatter(self: MaxPool, input_shape: LockedShape, output_shape: LockedShape) -> list[InitStatement]:
 	return [InitStatement( InitType.CALLABLE, '',
 		nn_(f"MaxPool{len(input_shape) - 1}d({self._kernel}, {self._stride}, {self._padding}, {self._dilation})")
