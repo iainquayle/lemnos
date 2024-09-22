@@ -12,7 +12,7 @@ from enum import Enum
 
 from dataclasses import dataclass
 
-from typing import Type, Protocol
+from typing import Type, Callable, TypeVar 
 
 class ShapeView(Enum):
 	FLAT = 'flat' 
@@ -29,49 +29,35 @@ class IdentifierGenerator:
 		self._namespace = namespace
 		self._identifiers: dict[str, int] = {} 
 		self._is_member = is_member
-	def get_identifier(self, name: str) -> str:
+	def get_identifier(self, name: str = '') -> str:
 		if name not in self._identifiers:
 			self._identifiers[name] = len(self._identifiers)
 		identifier = f"{self._namespace}_{self._identifiers[name]}"
 		return self_(identifier) if self._is_member else identifier
 
 
-#need to be able to
-#	get multiple inits, all assigned to a name space
-#	allow for multiple forwards, must be able to use those names obviously
-#	name spaces would hypothetically be assigned by the formatter, and not the user defined function
-#	this makes sense for the inits, as they will need components that stick around for every forward
-#		but what about the forwards, they will need temp items that wouldnt necessarily get cleaned up if they were in their own namespace
-#		suppose for those that it doesnt need to be namespaced apart from just a temp space, they just get overwritten then
-#		hypothetically these temps should only ever be tensors, which is good
-#	the one good thing about unrolling the components is that many will likely have reusable internal states
-#		so have some way of hashing the internal components and reusing them when its possinble
-#		ie, if its not a callable that will have a graph created for it, then it can be reused
-
-
-class ComponentGenerator(Protocol):
-	def __call__(self, 
-			  component: Component, 
-			  input_shape: LockedShape, 
-			  output_shape: LockedShape, 
-			  member_identifier_generator: IdentifierGenerator, 
-			  intermediate_identifier_generator: IdentifierGenerator, 
-			  input_register: str,
-		) -> ComponentGeneratorData:
-		...
+@dataclass(frozen=True)
+class StatementGeneratorOutput:
+	init_statements: list[str]
+	intermediate_forward_statements: list[str]
+	return_forward_expression: str
 
 @dataclass(frozen=True)
-class ComponentGeneratorData:
-	init_statements: list[str]
-	forward_statements: list[str]
+class StatementGeneratorArgs:
+	input_shape: LockedShape
+	output_shape: LockedShape
+	member_identifier_generator: IdentifierGenerator
+	intermediate_identifier_generator: IdentifierGenerator
+	input_register: str #could techinally make this an expression
+
+ComponentType = TypeVar('ComponentType', bound=Component)
 
 class SourceGenerator(Abstract):
-	def __init__(self, generator_map: dict[Type, ComponentGenerator]):
+	def __init__(self, generator_map: dict[Type, Callable[[ComponentType, StatementGeneratorArgs], StatementGeneratorOutput]]):
 		self._generator_map = generator_map 
-	def set_generator_map(self, generator_map: dict[Type, ComponentGenerator]) -> None:
-		self._generator_map = generator_map 
-	def set_generator(self, component_type: Type, generator: ComponentGenerator) -> None:
-		self._generator_map[component_type] = generator
+	def set_generator(self, component_type: Type, generator: Callable[[ComponentType, StatementGeneratorArgs], StatementGeneratorOutput]) -> None:
+		no_type_generator: Any = generator
+		self._generator_map[component_type] = no_type_generator
 	def generate_source(self, name: str, ir: list[IRNode], add_debug_logs: bool = False) -> str:
 		children_counts: dict[ID, int] = {}
 		for node in ir:
