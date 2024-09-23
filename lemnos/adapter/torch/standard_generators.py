@@ -6,18 +6,25 @@ from ...schema.components import *
 
 from .generation import InitType, StatementGeneratorOutput, StatementGeneratorArgs, SourceGenerator
 
-
 def standard_module(module: str, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
-	identifier = args.member_identifier_generator.get_identifier()
-	init_statement = [assign_(self_(identifier), nn_(module))]
-	return_expression = call_(self_(identifier),  args.input_register)
+	member_identifier = args.member_identifier_generator.get_identifier()
+	init_statement = [assign_(member_identifier, self_(nn_(module)))]
+	return_expression = call_(member_identifier,  args.input_registers[0])
 	return StatementGeneratorOutput(init_statement, [], return_expression)
 
+def sum_generator(self: Sum, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
+	return StatementGeneratorOutput([], [], sum_(args.input_registers))
+
+def concat_generator(self: Concat, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
+	return StatementGeneratorOutput([], [], self_(concat_(args.input_registers)))
+
 def conv_generator(self: Conv, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
-	return standard_module(f"Conv{len(args.input_shape) - 1}d({args.input_shape[0]}, {args.output_shape[0]}, {self._kernel}, {self._stride}, {self._padding}, {self._dilation}, {self._groups})", args)
+	dimensionality = len(args.input_shape) - 1
+	return standard_module(f"Conv{dimensionality}d({args.input_shape[0]}, {args.output_shape[0]}, {self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)}, {self._groups})", args)
 
 def maxpool_generator(self: MaxPool, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
-	return standard_module(f"MaxPool{len(args.input_shape) - 1}d({self._kernel}, {self._stride}, {self._padding}, {self._dilation})", args)
+	dimensionality = len(args.input_shape) - 1
+	return standard_module(f"MaxPool{dimensionality}d({self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)})", args)
 
 def full_generator(self: Full, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
 	return standard_module(f"Linear({args.input_shape.get_product()}, {args.output_shape.get_product()}, bias=True)", args)
@@ -54,6 +61,8 @@ def glu_generator(self: GLU, args: StatementGeneratorArgs) -> StatementGenerator
 	return standard_module("GLU(dim=1)", args)
 
 standard_generator = SourceGenerator({ 
+	Concat: concat_generator,
+	Sum: sum_generator,
 	Conv: conv_generator,
 	Full: full_generator,
 	MaxPool: maxpool_generator,

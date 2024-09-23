@@ -12,30 +12,14 @@ which depending on, and to my best guess, of the cpython implementation would me
 which wouldnt allow a framework agnostic system.
 as well this de couples and part of the schema from the actual backend running and implementation.
 
-two options, have a map that takes in the type and runs/returns the function, or,
-overide a interface function that is blank to begin with to the class (not instance).
+optimizations, most of the will be dealt with by any jit system in the backend.
+remove unecessary view changes, though this shouldnt do much, just make stuff more readable. 
+figure out deduplication of constants, could either rely on user to let system know, or break down the inits to deduce it.
 
-in the case of interface functions, there are two options.
-have a single function that returns all statements, or have two functions, one for init and one for forward.
-while jax flax only really needs the forward, it could be useful to have the init as well for constants.
-however, they are fully jit compiled and likely would figure out the constants themselves.
-
-unroll any sub module, and just run everythin in line. this allows for member reuse, 
-ie in the instance that a module has two static tensors that are the exact same, then use them in both.
-this can only be done for non callable members, use issubclass for this?
-
-statements funcs will need, a identifier generator, scoped to each module but allow
-these can be used in both the forward and the init statements, it may even be the case that they can be used for intermediate forward statements
-will need to take in the the identifier of the input tensor, and perhaps the identifier of the output tensor
-instead of passing in the output tensor, the output statement can be returned in a specific spot and be automatically assigned 
-kind of seems overly complicated...
-major problem with this idea is that one of the main necessities for pytorch is not at all need in jax flax impl, the identifier generator
-other option is that there are multiple possible functions to choose from, and the assigner will choose which is correct,
-and perhaps have a visible function that is called that will decide which is correct?
-perhaps, as much as rt inrospection sucks, look at the inspect module
-likely is far easier to just overwrite the functions, the main gain that is being looked for here is lsp friendly hints, but simply assigning functions is much easier than the alternatives
-
-as for what they produce, the best options so far are a dict, or any and allow the user to decide
+something that may make everything easier is to make a factory pattern type statements system, out own very limit subsection of the ast.
+make control of the users code much easier, and allow for better error messages and debugging.
+shouldnt be too hard, but it seems like there is a better solution...
+one thing is this could be fairly abstract, and be used across multiple backends and perhaps even languages if thats ever done.
 
 ### misc
 
