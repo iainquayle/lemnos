@@ -7,7 +7,7 @@ from typing import Iterable
 from abc import ABC as Abstract, abstractmethod
 from functools import reduce
 
-class MergeMethod(Component, Abstract):
+class Aggregation(Component, Abstract):
 	@abstractmethod
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
 		pass
@@ -24,7 +24,7 @@ class MergeMethod(Component, Abstract):
 		pass
 
 
-class Concat(MergeMethod):
+class Concat(Aggregation):
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:
 			return OpenShape()
@@ -43,7 +43,7 @@ class Concat(MergeMethod):
 		largest_shape = largest_shape.to_open()
 		return largest_shape.to_locked(total_size // largest_shape.get_product())
 
-class Sum(MergeMethod):
+class Sum(Aggregation):
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
 		if len(input_shapes) == 0:
 			return OpenShape()

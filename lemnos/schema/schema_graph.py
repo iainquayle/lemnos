@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from ..shared import LockedShape, OpenShape, ShapeConformance, ShapeBound, ID
-from .components.transforms import Transform
-from .components.activations import Activation
-from .components.regularizations import Regularization
-from .components.merge_method import MergeMethod
+from .components.transformation import Transformation 
+from .components.activation import Activation
+from .components.regularization import Regularization
+from .components.aggregation import Aggregation 
 from .components.component import Component
 
 import random
@@ -48,20 +48,20 @@ class IRNode:
 
 
 class SchemaNode:
-	__slots__ = ["_transform", "_transition_groups", "_growth_function", "_merge_method", "debug_name", "_activation", "_regularization", "_shape_bounds"]
+	__slots__ = ["_transformation", "_transition_groups", "_growth_function", "_aggregation", "debug_name", "_activation", "_regularization", "_shape_bounds"]
 	def __init__(self, 
 			shape_bounds: ShapeBound,
 			growth_function: Callable[[LockedShape, CompilationIndex], float] | None = None,
-			merge_method: MergeMethod | None = None,
-			transform: Transform | None = None,
+			aggregation: Aggregation | None = None,
+			transformation: Transformation | None = None,
 			activation: Activation | None = None,
 			regularization: Regularization | None = None,
 			debug_name: str = "") -> None:
 		self._shape_bounds: ShapeBound = shape_bounds 
 		self._growth_function: Callable[[LockedShape, CompilationIndex], float] | None = growth_function 
 		self._transition_groups: list[TransitionGroup] = []
-		self._merge_method: MergeMethod | None = merge_method 
-		self._transform: Transform | None = transform 
+		self._aggregation: Aggregation | None = aggregation 
+		self._transformation: Transformation | None = transformation 
 		self._activation: Activation | None = activation 
 		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
@@ -84,18 +84,18 @@ class SchemaNode:
 			return [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
 		return None
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
-		if self._merge_method is None:
+		if self._aggregation is None:
 			if len(input_shapes) > 1:
 				raise ValueError("No merge method defined for multiple inputs")
 			return input_shapes[0].squash(self.dimensionality())
 		else:
-			return self._merge_method.get_merged_shape(input_shapes).squash(self.dimensionality())
+			return self._aggregation.get_merged_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, input_shape: LockedShape, conformance: ShapeConformance, index: CompilationIndex) -> LockedShape | None:
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
 		bounds = self._shape_bounds
 		if self._activation is not None:
 			conformance, bounds, growth_factor = self._activation.scale_build_conformances(conformance, bounds, growth_factor)
-		output_shape = self._transform.get_output_shape(input_shape, conformance, bounds, growth_factor) if self._transform is not None else input_shape
+		output_shape = self._transformation.get_output_shape(input_shape, conformance, bounds, growth_factor) if self._transformation is not None else input_shape
 		if output_shape is not None:
 			output_shape = self._activation.scale_output_shape(output_shape) if self._activation is not None else output_shape
 			if output_shape in self._shape_bounds and conformance.is_compatible(output_shape): 
@@ -104,25 +104,25 @@ class SchemaNode:
 			return None
 	def get_conformance(self, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
 		conformance_shape = OpenShape()
-		if (self._merge_method is not None
-					and (conformance_shape := self._merge_method.get_conformance_shape(parent_shapes)) is None):
+		if (self._aggregation is not None
+					and (conformance_shape := self._aggregation.get_conformance_shape(parent_shapes)) is None):
 			return None
-		divisor = self._transform.get_known_divisor() if self._transform is not None else 1
+		divisor = self._transformation.get_known_divisor() if self._transformation is not None else 1
 		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
 		return ShapeConformance(conformance_shape, divisor)
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
 		return self
-	def get_merge_method(self) -> MergeMethod | None:
-		return self._merge_method
-	def get_transform(self) -> Transform | None:
-		return self._transform
+	def get_aggregation(self) -> Aggregation | None:
+		return self._aggregation
+	def get_transformation(self) -> Transformation | None:
+		return self._transformation
 	def get_activation(self) -> Activation | None:
 		return self._activation
 	def get_regularization(self) -> Regularization | None:
 		return self._regularization
 	def get_components(self) -> list[Component]:
-		return [component for component in (self._merge_method, self._transform, self._activation, self._regularization) if component is not None]
+		return [component for component in (self._aggregation, self._transformation, self._activation, self._regularization) if component is not None]
 	def dimensionality(self) -> int:
 		return len(self._shape_bounds)
 	def __getitem__(self, index: int) -> TransitionGroup:
