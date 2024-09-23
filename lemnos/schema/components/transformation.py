@@ -5,7 +5,7 @@ from .component import Component
 
 from abc import ABC as Abstract, abstractmethod 
 
-class Transform(Component, Abstract):
+class Transformation(Component, Abstract):
 	@abstractmethod
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		pass
@@ -15,7 +15,7 @@ class Transform(Component, Abstract):
 	def get_known_divisor(self) -> int:
 		return 1
 
-class Full(Transform):
+class Full(Transformation):
 	def __init__(self) -> None:
 		pass
 	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
@@ -34,7 +34,7 @@ class Full(Transform):
 			return None
 
 
-class KernelBase(Transform, Abstract):
+class KernelBase(Transformation, Abstract):
 	__slots__ = ["_kernel", "_stride", "_dilation", "_padding"]
 	def __init__(self,
 			kernel: tuple | int = 1, 

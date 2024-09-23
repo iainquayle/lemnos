@@ -56,4 +56,15 @@ def glu_generator(self: GLU, args: StatementGeneratorArgs) -> StatementGenerator
 standard_generator = SourceGenerator({ 
 	Conv: conv_generator,
 	Full: full_generator,
+	MaxPool: maxpool_generator,
+	ReLU: relu_generator,
+	ReLU6: relu6_generator,
+	SiLU: silu_generator,
+	Sigmoid: sigmoid_generator,
+	Softmax: softmax_generator,
+	BatchNorm: batchnorm_generator,
+	LayerNorm: layernorm_generator,
+	Dropout: dropout_generator,
+	ChannelDropout: channel_dropout_generator,
+	GLU: glu_generator
 })

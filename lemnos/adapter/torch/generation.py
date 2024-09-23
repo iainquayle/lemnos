@@ -50,41 +50,45 @@ class StatementGeneratorArgs:
 	intermediate_identifier_generator: IdentifierGenerator
 	input_register: str #could techinally make this an expression
 
-ComponentType = TypeVar('ComponentType', bound=Component)
+ComponentType = TypeVar('ComponentType', bound=Component, covariant=True)
 
 class SourceGenerator(Abstract):
-	def __init__(self, generator_map: dict[Type, Callable[[ComponentType, StatementGeneratorArgs], StatementGeneratorOutput]]):
+	def __init__(self, generator_map: dict[Type[Component], Callable[[Any, StatementGeneratorArgs], StatementGeneratorOutput]]):
 		self._generator_map = generator_map 
-	def set_generator(self, component_type: Type, generator: Callable[[ComponentType, StatementGeneratorArgs], StatementGeneratorOutput]) -> None:
+	def set_generator(self, component_type: Type[Component], generator: Callable[[Any, StatementGeneratorArgs], StatementGeneratorOutput]) -> None:
 		no_type_generator: Any = generator
 		self._generator_map[component_type] = no_type_generator
 	def generate_source(self, name: str, ir: list[IRNode], add_debug_logs: bool = False) -> str:
-		children_counts: dict[ID, int] = {}
+		node_reference_count: dict[ID, int] = {}
 		for node in ir:
 			for parent_id in node.parent_ids:
-				children_counts[parent_id] = children_counts.get(parent_id, 0) + 1
+				node_reference_count[parent_id] = node_reference_count.get(parent_id, 0) + 1
+
 		node_register: dict[ID, ID] = {}
 		arg_registers: list[ID] = []
 		return_registers: list[ID] = []
+
 		init_statements: list[str] = []
 		forward_statements: list[str] = []
+
 		available_registers: list[ID] = []
 		greatest_register: ID = ID(0) 
+
 		for node in ir:
 			registers_in: list[ID] = []
 			register_out: ID
 			if len(node.parent_ids) == 0:
-				greatest_register += 1
+				greatest_register += 1 #dont need to create a new register, should be able to do the exact same thing as is done below, would just need to add it to arg_registers
 				node_register[node.id] = greatest_register
 				registers_in = [greatest_register]
 				register_out = greatest_register
-				forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(greatest_register), node.input_shape)))
 				arg_registers.append(greatest_register)
+				#forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(greatest_register), node.input_shape)))
 			else:
 				for id in node.parent_ids:
 					registers_in.append(node_register[id])
-					children_counts[id] -= 1
-					if children_counts[id] == 0:
+					node_reference_count[id] -= 1
+					if node_reference_count[id] == 0:
 						available_registers.append(node_register[id])
 				if len(available_registers) == 0:
 					greatest_register += 1
@@ -92,8 +96,17 @@ class SourceGenerator(Abstract):
 				else:
 					register_out = available_registers.pop()
 			node_register[node.id] = register_out
-			if node.id not in children_counts: #dont need to worry about register being reclaimed
+			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
 				return_registers.append(register_out)
+			
+			#this isnt correct
+			component_statements = []
+			if node.schema_node.get_merge_method is None:
+				component_statements.append(self._generator_map[type(node.schema_node.get_merge_method)](
+					node.schema_node,
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator('m', True), IdentifierGenerator('i', False), _register_name(register_out))
+				))
+
 			forward_statement = [_register_name(register) for register in registers_in] 
 			current_shape = ShapeView.FLAT
 			for i, component in enumerate(node.schema_node.get_components()):
