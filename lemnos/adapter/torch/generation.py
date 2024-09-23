@@ -35,7 +35,6 @@ class IdentifierGenerator:
 		identifier = f"{self._namespace}_{self._identifiers[name]}"
 		return self_(identifier) if self._is_member else identifier
 
-
 @dataclass(frozen=True)
 class StatementGeneratorOutput:
 	init_statements: list[str]
@@ -48,9 +47,7 @@ class StatementGeneratorArgs:
 	output_shape: LockedShape
 	member_identifier_generator: IdentifierGenerator
 	intermediate_identifier_generator: IdentifierGenerator
-	input_register: str #could techinally make this an expression
-
-ComponentType = TypeVar('ComponentType', bound=Component, covariant=True)
+	input_registers: list[str] #may move this to expressions but that would take more optimization work to make useful
 
 class SourceGenerator(Abstract):
 	def __init__(self, generator_map: dict[Type[Component], Callable[[Any, StatementGeneratorArgs], StatementGeneratorOutput]]):
@@ -99,36 +96,39 @@ class SourceGenerator(Abstract):
 			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
 				return_registers.append(register_out)
 			
-			#this isnt correct
 			component_statements = []
-			if node.schema_node.get_merge_method is None:
-				component_statements.append(self._generator_map[type(node.schema_node.get_merge_method)](
-					node.schema_node,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator('m', True), IdentifierGenerator('i', False), _register_name(register_out))
+			if (aggregation := node.schema_node.get_aggregation()) is not None:
+				component_statements.append(self._generator_map[type(aggregation)](
+					aggregation,
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'agg_{node.id}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
 				))
+			component_statements.append(StatementGeneratorOutput([], [], view_(_register_name(register_out), node.input_shape)))
+			if (transformation := node.schema_node.get_transformation()) is not None:
+				component_statements.append(self._generator_map[type(transformation)](
+					transformation,
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'trans_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
+				))
+			if (activation := node.schema_node.get_activation()) is not None:
+				component_statements.append(self._generator_map[type(activation)](
+					activation,
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'act_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
+				))
+			if (regularization := node.schema_node.get_regularization()) is not None:
+				component_statements.append(self._generator_map[type(regularization)](
+					regularization,
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'reg_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
+				))
+			component_statements.append(StatementGeneratorOutput([], [], flatten_view_(_register_name(register_out), node.output_shape)))
+			
+			for statements in component_statements:
+				init_statements.extend(statements.init_statements)
 
-			forward_statement = [_register_name(register) for register in registers_in] 
-			current_shape = ShapeView.FLAT
-			for i, component in enumerate(node.schema_node.get_components()):
-				if (init := self.get_init(component, node.input_shape, node.output_shape)) != "":
-					init_statements.append(assign_(self_(_component_name(node.id, i)), self_(init)) + " # " + str(node.schema_node.debug_name))
-				if self.get_shape_requirment(component) == ShapeView.REAL and current_shape == ShapeView.FLAT:
-					forward_statement = [view_(expr, node.input_shape) for expr in forward_statement]
-				elif self.get_shape_requirment(component) == ShapeView.FLAT and current_shape == ShapeView.REAL:
-					forward_statement = [flatten_view_(expr, node.input_shape) for expr in forward_statement]
-				current_shape = self.get_shape_requirment(component)
-				forward_statement = [self.get_forward(component, node.input_shape, node.output_shape, self_(_component_name(node.id, i)), forward_statement)]
-			forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape) if current_shape == ShapeView.REAL else forward_statement[0])))
-			#forward_statements.append(assign_(_register_name(register_out), (flatten_view_(forward_statement[0], node.output_shape))) + " # " + node.schema_node.debug_name)
-			#forward_statements.append(print_(arg_list_(f"'{node.schema_node.debug_name}'", _register_name(register_out) + ".shape")))
+				forward_statements.extend(statements.intermediate_forward_statements)
+				forward_statements.append(assign_(_register_name(register_out), statements.return_forward_expression) + f"					# ID: {node.id} : {node.schema_node.debug_name}")
 		forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
-		return concat_lines_(import_torch_(), *module_(name, [line for module_src in self.get_class_definitions(ir) for line in module_src], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+		return concat_lines_(import_torch_(), *module_(name, [], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
 	def create_module(self, name: str, ir: list[IRNode]) -> Module:
 		source = self.generate_source(name, ir)
-		exec(source)
-		return locals()[name]()
-	def create_module(self, name: str, ir: list[IRNode]) -> Module:
-		source = generate_source(name, ir, component_formatter)
 		exec(source)
 		return locals()[name]()
 
