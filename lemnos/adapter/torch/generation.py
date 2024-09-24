@@ -12,7 +12,7 @@ from enum import Enum
 
 from dataclasses import dataclass
 
-from typing import Type, Callable, TypeVar 
+from typing import Type, Callable 
 
 class ShapeView(Enum):
 	FLAT = 'flat' 
@@ -21,7 +21,7 @@ class ShapeView(Enum):
 
 class InitType(Enum):
 	CALLABLE = 'callable'
-	DATA = 'data'
+	CONST = 'const'
 
 
 class IdentifierGenerator: 
@@ -40,6 +40,7 @@ class StatementGeneratorOutput:
 	init_statements: list[str]
 	intermediate_forward_statements: list[str]
 	return_forward_expression: str
+	shape_view: ShapeView
 
 @dataclass(frozen=True)
 class StatementGeneratorArgs:
@@ -96,35 +97,61 @@ class SourceGenerator(Abstract):
 			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
 				return_registers.append(register_out)
 			
-			component_statements = []
+			#guess more logic needed here. can add in shape tracking
+			#track what register is being used for input, output doesnt need it
+			#decide whether to eager or lazy flatten the shapes
+			#	if on average, one to many, then eager 
+			#	if on average, one to one, then lazy
+			#	take u net, the cross connections induce a one to many, but really the rest are one to one
+			#		as well, one of those connections doesnt require a aggregation, so doesnt need the flattened 
+			#annoying thing with lazy, have to track the shape of the register...
+			#not like it is going to add much overhead...
+
+			#can just turn this into a loop? do have the get components function...
+
+
+			shape_view = ShapeView.FLAT
+			components = node.schema_node.get_components()
+			component_statements: list[StatementGeneratorOutput] = []
+			for component in components:
+				component_statements.append(self._generator_map[type(component)](
+					component,
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'agg_{node.id}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
+				))
+				#if not correct view, switch
+				#	this needs to be figured out though, need some kind of look ahead essentially, so, instead, probably map these as such, then in the next pass deal with view
+				registers_in = [register_out]
+
 			if (aggregation := node.schema_node.get_aggregation()) is not None:
 				component_statements.append(self._generator_map[type(aggregation)](
 					aggregation,
 					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'agg_{node.id}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
 				))
-			component_statements.append(StatementGeneratorOutput([], [], view_(_register_name(register_out), node.input_shape)))
+				registers_in = [register_out]
 			if (transformation := node.schema_node.get_transformation()) is not None:
 				component_statements.append(self._generator_map[type(transformation)](
 					transformation,
 					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'trans_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
 				))
+				registers_in = [register_out]
 			if (activation := node.schema_node.get_activation()) is not None:
 				component_statements.append(self._generator_map[type(activation)](
 					activation,
 					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'act_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
 				))
+				registers_in = [register_out]
 			if (regularization := node.schema_node.get_regularization()) is not None:
 				component_statements.append(self._generator_map[type(regularization)](
 					regularization,
 					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'reg_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
 				))
-			component_statements.append(StatementGeneratorOutput([], [], flatten_view_(_register_name(register_out), node.output_shape)))
 			
+
 			for statements in component_statements:
 				init_statements.extend(statements.init_statements)
 
 				forward_statements.extend(statements.intermediate_forward_statements)
-				forward_statements.append(assign_(_register_name(register_out), statements.return_forward_expression) + f"					# ID: {node.id} : {node.schema_node.debug_name}")
+				forward_statements.append(assign_(_register_name(register_out), statements.return_forward_expression) + f"{'	' * 2}# ID: {node.id} : {node.schema_node.debug_name}")
 		forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 		return concat_lines_(import_torch_(), *module_(name, [], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
 	def create_module(self, name: str, ir: list[IRNode]) -> Module:
@@ -136,8 +163,6 @@ class SourceGenerator(Abstract):
 
 def _register_name(register: ID) -> str:
 	return f"r{register:04x}"
-def _component_name(node_id: ID, component_index: int) -> str:
-	return f"c{node_id:04x}_{component_index}"
 
 
 
