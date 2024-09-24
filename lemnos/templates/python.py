@@ -5,7 +5,10 @@ from typing import Iterable, Any
 def to_str_list(iterable: Iterable[Any]) -> list[str]:
 	return [str(i) for i in iterable]
 def concat_lines_(*lines: str) -> str:
-	return "\n".join(lines)
+	output = "" 
+	for i, line in enumerate(lines):
+		output += f"{line}{'	' * 2}# ln: {i + 1}\n"
+	return output 
 
 def arg_list_(*exprs: str) -> str:
 	return f"{', '.join(exprs)}"
