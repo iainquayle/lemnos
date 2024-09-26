@@ -48,16 +48,19 @@ class IRNode:
 
 
 class SchemaNode:
-	__slots__ = ["_transformation", "_transition_groups", "_growth_function", "_aggregation", "debug_name", "_activation", "_regularization", "_shape_bounds"]
+	__slots__ = ["_transformation", "_transition_groups", "_growth_function", "_aggregation", "debug_name", "_activation", "_regularization", "_shape_bound"]
 	def __init__(self, 
-			shape_bounds: ShapeBound,
+			shape_bound: ShapeBound | tuple[tuple[int | None, int | None], int | None],
 			growth_function: Callable[[LockedShape, CompilationIndex], float] | None = None,
 			aggregation: Aggregation | None = None,
 			transformation: Transformation | None = None,
 			activation: Activation | None = None,
 			regularization: Regularization | None = None,
 			debug_name: str = "") -> None:
-		self._shape_bounds: ShapeBound = shape_bounds 
+		#this may not be smart as currently it may be needed as a shape guard
+		#if aggregation is None and transformation is None and activation is None and regularization is None:
+		#	raise ValueError("At least one component must be defined")
+		self._shape_bound: ShapeBound = shape_bound if isinstance(shape_bound, ShapeBound) else ShapeBound(*shape_bound)
 		self._growth_function: Callable[[LockedShape, CompilationIndex], float] | None = growth_function 
 		self._transition_groups: list[TransitionGroup] = []
 		self._aggregation: Aggregation | None = aggregation 
@@ -66,7 +69,6 @@ class SchemaNode:
 		self._regularization: Regularization | None = regularization 
 		self.debug_name: str = debug_name 
 	def _compile(self, node: _CompilationNode, tracker: _CompilationTracker, indices: CompilationIndices, id: ID, max_id: ID) -> list[IRNode] | None:
-		#print(self.debug_name, id)
 		if id >= max_id:
 			return None
 		input_shape = self.get_input_shape([node.input_shape])
@@ -79,8 +81,7 @@ class SchemaNode:
 				next_schema, next_node = next_tracker.pop_min()
 				if (ir := next_schema._compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
 					return ir + [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
-		if (len(self) == 0
-				and (output_shape := self.get_output_shape(input_shape, ShapeConformance(OpenShape(), 1), index)) is not None):
+		if (len(self) == 0 and (output_shape := self.get_output_shape(input_shape, ShapeConformance(OpenShape(), 1), index)) is not None):
 			return [IRNode(self, tuple(node.parent_ids), id, input_shape, output_shape, index)]
 		return None
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
@@ -92,13 +93,13 @@ class SchemaNode:
 			return self._aggregation.get_merged_shape(input_shapes).squash(self.dimensionality())
 	def get_output_shape(self, input_shape: LockedShape, conformance: ShapeConformance, index: CompilationIndex) -> LockedShape | None:
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
-		bounds = self._shape_bounds
+		bounds = self._shape_bound
 		if self._activation is not None:
 			conformance, bounds, growth_factor = self._activation.scale_build_conformances(conformance, bounds, growth_factor)
 		output_shape = self._transformation.get_output_shape(input_shape, conformance, bounds, growth_factor) if self._transformation is not None else input_shape
 		if output_shape is not None:
 			output_shape = self._activation.scale_output_shape(output_shape) if self._activation is not None else output_shape
-			if output_shape in self._shape_bounds and conformance.is_compatible(output_shape): 
+			if output_shape in self._shape_bound and conformance.is_compatible(output_shape): 
 				return output_shape 
 		else:
 			return None
@@ -124,7 +125,7 @@ class SchemaNode:
 	def get_components(self) -> list[Component]:
 		return [component for component in (self._aggregation, self._transformation, self._activation, self._regularization) if component is not None]
 	def dimensionality(self) -> int:
-		return len(self._shape_bounds)
+		return len(self._shape_bound)
 	def __getitem__(self, index: int) -> TransitionGroup:
 		return self._transition_groups[index]
 	def __iter__(self) -> Iterator[TransitionGroup]:

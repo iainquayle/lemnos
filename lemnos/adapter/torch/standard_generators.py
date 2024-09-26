@@ -58,6 +58,7 @@ def channel_dropout_generator(self: ChannelDropout, args: StatementGeneratorArgs
 	return standard_module(f"ChannelDropout(p={self._probability})", args, ShapeView.REAL)
 
 def glu_generator(self: GLU, args: StatementGeneratorArgs) -> StatementGeneratorOutput:
+	raise NotImplementedError
 	return standard_module("GLU(dim=1)", args, ShapeView.REAL)
 
 standard_generator = SourceGenerator({ 
