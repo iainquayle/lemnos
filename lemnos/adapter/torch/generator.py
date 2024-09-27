@@ -97,55 +97,29 @@ class SourceGenerator(Abstract):
 			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
 				return_registers.append(register_out)
 			
-			#guess more logic needed here. can add in shape tracking
-			#track what register is being used for input, output doesnt need it
-			#decide whether to eager or lazy flatten the shapes
-			#	if on average, one to many, then eager 
-			#	if on average, one to one, then lazy
-			#	take u net, the cross connections induce a one to many, but really the rest are one to one
-			#		as well, one of those connections doesnt require a aggregation, so doesnt need the flattened 
-			#annoying thing with lazy, have to track the shape of the register...
-			#not like it is going to add much overhead...
+			#clean this up, yuck
 
-			#can just turn this into a loop? do have the get components function...
-
+			#still not correct, shape views use the output shape, but thats obviously shouldnt be the case
 
 			shape_view = ShapeView.FLAT
 			components = node.schema_node.get_components()
 			component_statements: list[StatementGeneratorOutput] = []
-			for component in components:
-				component_statements.append(self._generator_map[type(component)](
+			for i, component in enumerate(components):
+				component_statement = self._generator_map[type(component)](
 					component,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'agg_{node.id}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
-				))
-				#if not correct view, switch
-				#	this needs to be figured out though, need some kind of look ahead essentially, so, instead, probably map these as such, then in the next pass deal with view
+					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'c_{node.id}_{i}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
+				)
+				if not component_statement.shape_view == shape_view:
+					if component_statement.shape_view == ShapeView.REAL:
+						shape_view = ShapeView.REAL
+						component_statements.append(StatementGeneratorOutput([], [], view_(_register_name(registers_in[0]), node.output_shape), ShapeView.REAL))
+					if component_statement.shape_view == ShapeView.FLAT:
+						shape_view = ShapeView.FLAT
+						component_statements.append(StatementGeneratorOutput([], [], flatten_view_(_register_name(registers_in[0]), node.output_shape), ShapeView.FLAT))
 				registers_in = [register_out]
-
-			if (aggregation := node.schema_node.get_aggregation()) is not None:
-				component_statements.append(self._generator_map[type(aggregation)](
-					aggregation,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'agg_{node.id}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
-				))
-				registers_in = [register_out]
-			if (transformation := node.schema_node.get_transformation()) is not None:
-				component_statements.append(self._generator_map[type(transformation)](
-					transformation,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'trans_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
-				))
-				registers_in = [register_out]
-			if (activation := node.schema_node.get_activation()) is not None:
-				component_statements.append(self._generator_map[type(activation)](
-					activation,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'act_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
-				))
-				registers_in = [register_out]
-			if (regularization := node.schema_node.get_regularization()) is not None:
-				component_statements.append(self._generator_map[type(regularization)](
-					regularization,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'reg_{node.id}', True), IdentifierGenerator('i', False), [_register_name(register_out)])
-				))
-			
+				component_statements.append(component_statement)
+			if shape_view == ShapeView.REAL:
+				component_statements.append(StatementGeneratorOutput([], [], flatten_view_(_register_name(registers_in[0]), node.output_shape), ShapeView.FLAT))
 
 			for statements in component_statements:
 				init_statements.extend(statements.init_statements)

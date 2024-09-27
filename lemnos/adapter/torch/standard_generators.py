@@ -4,7 +4,7 @@ from ...templates.torch import *
 from ...templates.python import *
 from ...schema.components import *
 
-from .generation import InitType, StatementGeneratorOutput, StatementGeneratorArgs, SourceGenerator, ShapeView
+from .generator import InitType, StatementGeneratorOutput, StatementGeneratorArgs, SourceGenerator, ShapeView
 
 def standard_module(module: str, args: StatementGeneratorArgs, view: ShapeView) -> StatementGeneratorOutput:
 	member_identifier = args.member_identifier_generator.get_identifier()

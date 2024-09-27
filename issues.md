@@ -6,6 +6,11 @@
 
 ### generation 
 
+for dealing with the intercomponent shapes, and the current view, need to track the actual shape.
+this could even be extended to pull in the prior shapes to enable lazy view changes.
+to start though, it definitely appears that just tracking the current shape is necessary, 
+ex, a flatten could happen prior to, or after the transformation, it isnt known until its actually evaluated.
+
 UPDATE: in the end since python does not allow something like type classes, the best option is the map solution
 to the best of my knowledge, with the binding solution, the class objects would need to prior to the schema creation have the functions bound,
 which depending on, and to my best guess, of the cpython implementation would mean that they would need to be bound in the same file as the schema creation,
