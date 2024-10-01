@@ -47,9 +47,9 @@ fix layer norm
 
 ## possible
 
-allow an output conformance to be defined at compilation time, this may not be really possibe to do easily.
+rename anything to do with the schema compilation to solving, compilation is somewhat more of an adapter item, the schema is solved and the solution recorded  
 
-transitions rename to edges perhaps
+allow an output conformance to be defined at compilation time, this may not be really possibe to do easily.
 
 allow none to be entered for shape bounds, then just inherit the dimensionality of the input.
 (this may not work well as the systen allows for multiple different shapes to be passed in, so a user may expect 2d and get a 3d)
