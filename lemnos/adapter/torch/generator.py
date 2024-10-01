@@ -23,24 +23,16 @@ class InitType(Enum):
 	CALLABLE = 'callable'
 	CONST = 'const'
 
-
-class IdentifierGenerator: 
-	def __init__(self, namespace: str, is_member: bool):
-		self._namespace = namespace
-		self._identifiers: dict[str, int] = {} 
-		self._is_member = is_member
-	def get_identifier(self, name: str = '') -> str:
-		if name not in self._identifiers:
-			self._identifiers[name] = len(self._identifiers)
-		identifier = f"{self._namespace}_{self._identifiers[name]}"
-		return self_(identifier) if self._is_member else identifier
-
 @dataclass(frozen=True)
-class StatementGeneratorOutput:
+class ComponentStatements:
 	init_statements: list[str]
 	intermediate_forward_statements: list[str]
 	return_forward_expression: str
-	shape_view: ShapeView
+
+@dataclass(frozen=True)
+class StatementGenerator:
+	generator: Callable[[Any, StatementGeneratorArgs], ComponentStatements]
+	required_view: ShapeView
 
 @dataclass(frozen=True)
 class StatementGeneratorArgs:
@@ -50,10 +42,16 @@ class StatementGeneratorArgs:
 	intermediate_identifier_generator: IdentifierGenerator
 	input_registers: list[str] #may move this to expressions but that would take more optimization work to make useful
 
+@dataclass(frozen=True)
+class _Register:
+	id: ID
+	shape: LockedShape
+	view: ShapeView
+
 class SourceGenerator(Abstract):
-	def __init__(self, generator_map: dict[Type[Component], Callable[[Any, StatementGeneratorArgs], StatementGeneratorOutput]]):
+	def __init__(self, generator_map: dict[Type[Component], StatementGenerator] = {}):
 		self._generator_map = generator_map 
-	def set_generator(self, component_type: Type[Component], generator: Callable[[Any, StatementGeneratorArgs], StatementGeneratorOutput]) -> None:
+	def set_generator(self, component_type: Type[Component], generator: StatementGenerator) -> None:
 		no_type_generator: Any = generator
 		self._generator_map[component_type] = no_type_generator
 	def generate_source(self, name: str, ir: list[IRNode], add_debug_logs: bool = False) -> str:
@@ -62,7 +60,7 @@ class SourceGenerator(Abstract):
 			for parent_id in node.parent_ids:
 				node_reference_count[parent_id] = node_reference_count.get(parent_id, 0) + 1
 
-		node_register: dict[ID, ID] = {}
+		node_output_registers: dict[ID, _Register] = {}
 		arg_registers: list[ID] = []
 		return_registers: list[ID] = []
 
@@ -73,59 +71,56 @@ class SourceGenerator(Abstract):
 		greatest_register: ID = ID(0) 
 
 		for node in ir:
-			registers_in: list[ID] = []
-			register_out: ID
+			registers_in: list[_Register] = []
+			register_out_id: ID = ID(0) 
 			if len(node.parent_ids) == 0:
-				greatest_register += 1 #dont need to create a new register, should be able to do the exact same thing as is done below, would just need to add it to arg_registers
-				node_register[node.id] = greatest_register
-				registers_in = [greatest_register]
-				register_out = greatest_register
+				greatest_register += 1 #not necessary to create a new register, should be able to do the exact same thing as is done below, would just need to add it to arg_registers
+				register = _Register(greatest_register, node.input_shape, ShapeView.REAL)
+				node_output_registers[node.id] = register 
+				registers_in = [register] 
+				register_out = register
 				arg_registers.append(greatest_register)
-				#forward_statements.append(assign_(_register_name(register_out), flatten_view_(_register_name(greatest_register), node.input_shape)))
 			else:
 				for id in node.parent_ids:
-					registers_in.append(node_register[id])
+					registers_in.append(node_output_registers[id])
 					node_reference_count[id] -= 1
 					if node_reference_count[id] == 0:
-						available_registers.append(node_register[id])
+						available_registers.append(node_output_registers[id].id)
 				if len(available_registers) == 0:
 					greatest_register += 1
-					register_out = greatest_register
+					register_out_id = greatest_register
 				else:
-					register_out = available_registers.pop()
-			node_register[node.id] = register_out
-			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
-				return_registers.append(register_out)
+					register_out_id = available_registers.pop()
 			
-			#clean this up, yuck
+			#the register viewing needs to be injected into the components, it cant have a side effect on the register itself
+			#still need make the correct shape flow, whether that is recording all shapes in the schema solution or recreating them here
 
-			#still not correct, shape views use the output shape, but thats obviously shouldnt be the case
 
-			shape_view = ShapeView.FLAT
-			components = node.schema_node.get_components()
-			component_statements: list[StatementGeneratorOutput] = []
-			for i, component in enumerate(components):
-				component_statement = self._generator_map[type(component)](
-					component,
-					StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'c_{node.id}_{i}', True), IdentifierGenerator('i', False), list(map(_register_name, registers_in)))
-				)
-				if not component_statement.shape_view == shape_view:
-					if component_statement.shape_view == ShapeView.REAL:
-						shape_view = ShapeView.REAL
-						component_statements.append(StatementGeneratorOutput([], [], view_(_register_name(registers_in[0]), node.output_shape), ShapeView.REAL))
-					if component_statement.shape_view == ShapeView.FLAT:
-						shape_view = ShapeView.FLAT
-						component_statements.append(StatementGeneratorOutput([], [], flatten_view_(_register_name(registers_in[0]), node.output_shape), ShapeView.FLAT))
-				registers_in = [register_out]
-				component_statements.append(component_statement)
-			if shape_view == ShapeView.REAL:
-				component_statements.append(StatementGeneratorOutput([], [], flatten_view_(_register_name(registers_in[0]), node.output_shape), ShapeView.FLAT))
+			for i, component in enumerate(node.schema_node.get_components()):
 
-			for statements in component_statements:
-				init_statements.extend(statements.init_statements)
+				statement_generator = self._generator_map[type(component)]
+				input_expressions: list[str] = [] 
+				for register in registers_in:
+					base_expression = _register_name(register.id)
+					if register.view == ShapeView.FLAT and statement_generator.required_view == ShapeView.REAL:
+						input_expressions.append(flatten_view_(base_expression, register.shape))
+					elif register.view == ShapeView.REAL and statement_generator.required_view == ShapeView.FLAT:
+						input_expressions.append(view_(base_expression, register.shape))
+					else:
+						input_expressions.append(base_expression)
+					 
+				component_statements = statement_generator.generator(component, StatementGeneratorArgs(node.input_shape, node.output_shape, IdentifierGenerator(f'c_{node.id}_{i}', True), IdentifierGenerator('i', False), input_expressions))
+				#registers_in = [register_out]
+				#component_statements.append(component_statement)
+				raise NotImplementedError('fix this still')
 
-				forward_statements.extend(statements.intermediate_forward_statements)
-				forward_statements.append(assign_(_register_name(register_out), statements.return_forward_expression) + f"{'	' * 2}# ID: {node.id} : {node.schema_node.debug_name}")
+				init_statements.extend(component_statements.init_statements)
+				forward_statements.extend(component_statements.intermediate_forward_statements)
+				forward_statements.append(assign_(_register_name(register_out_id), component_statements.return_forward_expression) + f"{'	' * 2}# ID: {node.id} : {node.schema_node.debug_name}")
+
+			node_output_registers[node.id] = registers_in[0] #if this ever breaks something is wrong in the schema compilation 
+			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
+				return_registers.append(register_out_id)
 		forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
 		return concat_lines_(import_torch_(), *module_(name, [], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
 	def create_module(self, name: str, ir: list[IRNode]) -> Module:
@@ -140,3 +135,13 @@ def _register_name(register: ID) -> str:
 
 
 
+class IdentifierGenerator: 
+	def __init__(self, namespace: str, is_member: bool):
+		self._namespace = namespace
+		self._identifiers: dict[str, int] = {} 
+		self._is_member = is_member
+	def get_identifier(self, name: str = '') -> str:
+		if name not in self._identifiers:
+			self._identifiers[name] = len(self._identifiers)
+		identifier = f"{self._namespace}_{self._identifiers[name]}"
+		return self_(identifier) if self._is_member else identifier
