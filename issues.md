@@ -17,21 +17,16 @@ which depending on, and to my best guess, of the cpython implementation would me
 which wouldnt allow a framework agnostic system.
 as well this de couples and part of the schema from the actual backend running and implementation.
 
-optimizations, most of the will be dealt with by any jit system in the backend.
-remove unecessary view changes, though this shouldnt do much, just make stuff more readable. 
-figure out deduplication of constants, could either rely on user to let system know, or break down the inits to deduce it.
-
-something that may make everything easier is to make a factory pattern type statements system, out own very limit subsection of the ast.
+something that may make everything easier is to make a factory pattern type statements system, our own very limit subsection of the ast.
 make control of the users code much easier, and allow for better error messages and debugging.
 shouldnt be too hard, but it seems like there is a better solution...
 one thing is this could be fairly abstract, and be used across multiple backends and perhaps even languages if thats ever done.
 
 ### misc
 
-make biases optional
+fix layer norm, include rmsnorm
 
-adapters, split up and fix any naming, and perhaps use a mapping instead of the if else chain
-allow for the creation and use of multiple sub members of a node, then the need of custom module will be much reduced 
+make biases optional
 
 fix jank in sample collection
 
@@ -43,7 +38,6 @@ impl a screening on the ir, allow for culling on structural heuristics
 
 work on making more controlable growth functions, ie, ones that would truely follow a given curve
 
-fix layer norm
 
 ## possible
 
