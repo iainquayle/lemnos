@@ -4,7 +4,7 @@ from ...templates.torch import *
 from ...templates.python import *
 from ...schema.components import *
 
-from .generator import InitType, ComponentStatements, StatementGeneratorArgs, SourceGenerator,  StatementGenerator, ShapeView
+from .generator import ComponentStatements, StatementGeneratorArgs, SourceGenerator,  StatementGenerator, ShapeView
 
 
 def standard_module(module: str, args: StatementGeneratorArgs) -> ComponentStatements:
@@ -61,11 +61,12 @@ def batchnorm_generator(self: BatchNorm, args: StatementGeneratorArgs) -> Compon
 
 
 def layernorm_generator(self: LayerNorm, args: StatementGeneratorArgs) -> ComponentStatements:
-	raise NotImplementedError
-	return [InitStatement( InitType.CALLABLE, '', nn_(f"LayerNorm({input_shape})"))]
+	return standard_module(f"LayerNorm({args.input_shape.get_tuple()})", args, )
+
 
 def rmsnorm_generator(self: RMSNorm, args: StatementGeneratorArgs) -> ComponentStatements:
-	return standard_module(f"RMSNorm({args.input_shape[0]})", args, )
+	return standard_module(f"RMSNorm({args.input_shape.get_tuple()})", args, )
+
 
 def dropout_generator(self: Dropout, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module(f"Dropout(p={self._probability})", args, )
@@ -77,6 +78,7 @@ def channel_dropout_generator(self: ChannelDropout, args: StatementGeneratorArgs
 
 def glu_generator(self: GLU, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module("GLU(dim=1)", args, )
+
 
 standard_generator = SourceGenerator({ 
 	Concat: StatementGenerator(concat_generator, ShapeView.FLAT),
@@ -91,6 +93,7 @@ standard_generator = SourceGenerator({
 	Softmax: StatementGenerator(softmax_generator, ShapeView.EITHER),
 	BatchNorm: StatementGenerator(batchnorm_generator, ShapeView.REAL),
 	LayerNorm: StatementGenerator(layernorm_generator, ShapeView.REAL),
+	RMSNorm: StatementGenerator(rmsnorm_generator, ShapeView.REAL),
 	Dropout: StatementGenerator(dropout_generator, ShapeView.EITHER),
 	ChannelDropout: StatementGenerator(channel_dropout_generator, ShapeView.REAL),
 	GLU: StatementGenerator(glu_generator, ShapeView.REAL),
