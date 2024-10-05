@@ -11,16 +11,16 @@ class Aggregation(Component, Abstract):
 	@abstractmethod
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
 		pass
-	def get_merged_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
+	def get_aggregated_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		if next(iter(input_shapes)) is None:
-			raise Exception("cannot get merged shape from empty input shapes")
+			raise Exception("cannot get aggregated shape from empty input shapes")
 		else:
-			return self._get_merged_shape(input_shapes)
+			return self._get_aggregated_shape(input_shapes)
 	@abstractmethod
-	def _get_merged_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
+	def _get_aggregated_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		pass
 	@abstractmethod
-	def get_total_merged_size(self, input_shapes: list[LockedShape]) -> int:
+	def get_total_aggregated_size(self, input_shapes: list[LockedShape]) -> int:
 		pass
 
 
@@ -30,9 +30,9 @@ class Concat(Aggregation):
 			return OpenShape()
 		else:
 			return input_shapes[0].to_open()
-	def get_total_merged_size(self, input_shapes: list[LockedShape]) -> int:
+	def get_total_aggregated_size(self, input_shapes: list[LockedShape]) -> int:
 		return sum([shape.get_product() for shape in input_shapes])
-	def _get_merged_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
+	def _get_aggregated_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		inputs_iter = iter(input_shapes)
 		largest_shape = next(inputs_iter) 
 		total_size = largest_shape.get_product()
@@ -49,7 +49,7 @@ class Sum(Aggregation):
 			return OpenShape()
 		else:
 			return input_shapes[0]
-	def get_total_merged_size(self, input_shapes: list[LockedShape]) -> int:
+	def get_total_aggregated_size(self, input_shapes: list[LockedShape]) -> int:
 		return input_shapes[0].get_product()
-	def _get_merged_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
+	def _get_aggregated_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		return reduce(lambda x, y: x if len(x) > len(y) else y, input_shapes)
