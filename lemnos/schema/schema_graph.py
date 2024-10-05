@@ -18,17 +18,29 @@ from abc import ABC as Abstract, abstractmethod
 
 
 @dataclass(frozen=True)
+class ShapeTrace:
+	aggregation_shape: LockedShape
+	transform_shape: LockedShape
+	activation_shape: LockedShape
+	regularization_shape: LockedShape
+
+	def get_input_shape(self) -> LockedShape:
+		return self.aggregation_shape
+
+	def get_output_shape(self) -> LockedShape:
+		return self.regularization_shape
+
+
+@dataclass(frozen=True)
 class IRNode:
 	schema_node: SchemaNode
 	parent_ids: tuple[ID, ...]
 	id: ID 
-	input_shape: LockedShape
-	output_shape: LockedShape
-	shape_trace: list[LockedShape]
+	shape_trace: ShapeTrace
 	index: CompilationIndex
 
 	def __str__(self) -> str:
-		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.input_shape}, Output Shape: {self.output_shape}, CompilationIndex: {self.index}"
+		return f"SchemaNode: {self.schema_node.debug_name}, Parent IDs: {self.parent_ids}, ID: {self.id}, Input Shape: {self.shape_trace.get_input_shape()}, Output Shape: {self.shape_trace.get_output_shape}, CompilationIndex: {self.index}"
 
 
 # English version of how compilation works:
@@ -80,22 +92,31 @@ class SchemaNode:
 		offset = int(index.get_shuffled(len(self), 0))
 		for group in (self[(i + offset) % len(self)] for i in range(len(self))):
 			if ((conformance := group.get_conformance(tracker, self)) is not None
-					and (output_shape := self.get_output_shape(input_shape, conformance, index)) is not None):
-				next_tracker = group.join_nodes(tracker, self, output_shape, id)
+					and (shape_trace := self.get_shape_trace_from_aggregation(input_shape, conformance, index)) is not None):
+				next_tracker = group.join_nodes(tracker, self, shape_trace.get_output_shape(), id)
 				next_schema, next_node = next_tracker.pop_min()
 				if (ir := next_schema._compile(next_node, next_tracker, indices, id + 1, max_id)) is not None:
-					return ir + [IRNode(self, tuple(compilation_node.parent_ids), id, input_shape, output_shape, [], index)]
-		if (len(self) == 0 and (output_shape := self.get_output_shape(input_shape, ShapeConformance(OpenShape(), 1), index)) is not None):
-			return [IRNode(self, tuple(compilation_node.parent_ids), id, input_shape, output_shape, [], index)]
+					return ir + [IRNode(self, tuple(compilation_node.parent_ids), id, shape_trace, index)]
+		if (len(self) == 0 and (shape_trace := self.get_shape_trace_from_aggregation(input_shape, ShapeConformance(OpenShape(), 1), index)) is not None):
+			return [IRNode(self, tuple(compilation_node.parent_ids), id, shape_trace, index)]
 		return None
 
 	def get_input_shape(self, input_shapes: list[LockedShape]) -> LockedShape:
 		if self._aggregation is None:
 			if len(input_shapes) > 1:
-				raise ValueError("No merge method defined for multiple inputs")
+				raise ValueError("No aggregation defined for multiple inputs")
 			return input_shapes[0].squash(self.dimensionality())
 		else:
-			return self._aggregation.get_merged_shape(input_shapes).squash(self.dimensionality())
+			return self._aggregation.get_aggregated_shape(input_shapes).squash(self.dimensionality())
+
+	def get_conformance(self, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
+		conformance_shape = OpenShape()
+		if (self._aggregation is not None
+				and (conformance_shape := self._aggregation.get_conformance_shape(parent_shapes)) is None):
+			return None
+		divisor = self._transformation.get_known_divisor() if self._transformation is not None else 1
+		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
+		return ShapeConformance(conformance_shape, divisor)
 
 	def get_output_shape(self, input_shape: LockedShape, conformance: ShapeConformance, index: CompilationIndex) -> LockedShape | None:
 		growth_factor = self._growth_function(input_shape, index) if self._growth_function is not None else 1
@@ -109,14 +130,30 @@ class SchemaNode:
 				return output_shape 
 		return None
 
-	def get_conformance(self, parent_shapes: list[LockedShape]) -> ShapeConformance | None:
-		conformance_shape = OpenShape()
-		if (self._aggregation is not None
-					and (conformance_shape := self._aggregation.get_conformance_shape(parent_shapes)) is None):
-			return None
-		divisor = self._transformation.get_known_divisor() if self._transformation is not None else 1
-		divisor = self._activation.scale_divisor(divisor) if self._activation is not None else divisor 
-		return ShapeConformance(conformance_shape, divisor)
+	def get_shape_trace(self, input_shapes: list[LockedShape], conformance: ShapeConformance, index: CompilationIndex) -> ShapeTrace | None:
+		aggregation_shape = (self._aggregation.get_aggregated_shape(input_shapes) if self._aggregation is not None else LockedShape()).squash(self.dimensionality())
+		growth_factor = self._growth_function(aggregation_shape, index) if self._growth_function is not None else 1
+		bounds = self._shape_bound
+		if self._activation is not None:
+			conformance, bounds, growth_factor = self._activation.scale_build_conformances(conformance, bounds, growth_factor)
+		transform_shape = self._transformation.get_output_shape(aggregation_shape, conformance, bounds, growth_factor) if self._transformation is not None else aggregation_shape 
+		if transform_shape is not None:
+			activation_shape = self._activation.scale_output_shape(transform_shape) if self._activation is not None else transform_shape
+			if activation_shape in self._shape_bound and conformance.is_compatible(activation_shape): 
+				return ShapeTrace(aggregation_shape, transform_shape, activation_shape, activation_shape)
+		return None
+
+	def get_shape_trace_from_aggregation(self, aggregation_shape: LockedShape, conformance: ShapeConformance, index: CompilationIndex) -> ShapeTrace | None:
+		growth_factor = self._growth_function(aggregation_shape, index) if self._growth_function is not None else 1
+		bounds = self._shape_bound
+		if self._activation is not None:
+			conformance, bounds, growth_factor = self._activation.scale_build_conformances(conformance, bounds, growth_factor)
+		transform_shape = self._transformation.get_output_shape(aggregation_shape, conformance, bounds, growth_factor) if self._transformation is not None else aggregation_shape 
+		if transform_shape is not None:
+			activation_shape = self._activation.scale_output_shape(transform_shape) if self._activation is not None else transform_shape
+			if activation_shape in self._shape_bound and conformance.is_compatible(activation_shape): 
+				return ShapeTrace(aggregation_shape, transform_shape, activation_shape, activation_shape)
+		return None
 
 	def add_group(self, *transitions: Transition) -> Self:
 		self._transition_groups.append(TransitionGroup(transitions))
