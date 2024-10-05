@@ -195,7 +195,7 @@ class ShapeBound:
 		return value
 	def contains_value(self, value: int, index: int) -> bool:
 		lower, upper = self._bounds[index]
-		if lower is not None and value < lower:
+		if lower is not None and value < lower or value < 1:
 			return False
 		if upper is not None and value > upper:
 			return False
