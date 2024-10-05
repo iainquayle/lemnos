@@ -70,6 +70,8 @@ class TestTorchModule(unittest.TestCase):
 		if ir is None:
 			self.fail()
 		print(standard_generator.generate_source("Test", ir))
+		#for node in ir:
+		#	print(node.schema_node.debug_name, node.shape_trace.get_output_shape())
 		module = standard_generator.create_module("test", ir)
 		input = torch.ones(2, 1, 8)
 		self.assertEqual(module(input).shape, torch.Size([2, 1]))
