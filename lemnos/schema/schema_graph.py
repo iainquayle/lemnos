@@ -65,7 +65,7 @@ class SchemaNode:
 	__slots__ = ["_transformation", "_transition_groups", "_growth_function", "_aggregation", "debug_name", "_activation", "_regularization", "_shape_bound"]
 
 	def __init__(self, 
-			shape_bound: ShapeBound | tuple[tuple[int | None, int | None], int | None],
+			shape_bound: ShapeBound | tuple[tuple[int | None, int | None] | int | None, ...],
 			growth_function: Callable[[LockedShape, CompilationIndex], float] | None = None,
 			aggregation: Aggregation | None = None,
 			transformation: Transformation | None = None,
