@@ -21,11 +21,6 @@ class ShapeView(Enum):
 	EITHER = 'either' 
 
 
-class InitType(Enum):
-	CALLABLE = 'callable'
-	CONST = 'const'
-
-
 @dataclass(frozen=True)
 class ComponentStatements:
 	init_statements: list[str]

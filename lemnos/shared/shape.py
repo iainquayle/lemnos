@@ -82,6 +82,8 @@ class Shape(Abstract):
 		return self._product_cache
 	def __repr__(self) -> str:
 		return str(self)
+	def get_tuple(self) -> tuple[int, ...]:
+		return self._shape
 
 
 class LockedShape(Shape):
