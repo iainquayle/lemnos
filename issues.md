@@ -24,6 +24,8 @@ one thing is this could be fairly abstract, and be used across multiple backends
 
 ### misc
 
+shorten lines to 80 characters for everthing but templates perhaps
+
 look into how the changes to ir will change the way in which breeding is done
 
 fix layer norm, include rmsnorm
