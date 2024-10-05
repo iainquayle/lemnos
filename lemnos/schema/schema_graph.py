@@ -20,7 +20,7 @@ from abc import ABC as Abstract, abstractmethod
 @dataclass(frozen=True)
 class ShapeTrace:
 	aggregation_shape: LockedShape
-	transform_shape: LockedShape
+	transformion_shape: LockedShape
 	activation_shape: LockedShape
 	regularization_shape: LockedShape
 
@@ -152,6 +152,8 @@ class SchemaNode:
 		if transform_shape is not None:
 			activation_shape = self._activation.scale_output_shape(transform_shape) if self._activation is not None else transform_shape
 			if activation_shape in self._shape_bound and conformance.is_compatible(activation_shape): 
+				#shape_trace = ShapeTrace(aggregation_shape, transform_shape, activation_shape, activation_shape)
+				#print(self.debug_name, activation_shape)
 				return ShapeTrace(aggregation_shape, transform_shape, activation_shape, activation_shape)
 		return None
 

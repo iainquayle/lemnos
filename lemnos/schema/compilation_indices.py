@@ -50,7 +50,7 @@ class BreedIndices(CompilationIndices):
 				return random.choice(matching_nodes).index, previous_id 
 			for ir_node in self._sequences[sequence_index]:
 				if (ir_node.schema_node == schema_node 
-						and (diff := ir_node.input_shape.upper_difference(shape_in)) < min_diff 
+						and (diff := ir_node.shape_trace.get_input_shape().upper_difference(shape_in)) < min_diff 
 						and ir_node.id > previous_id):
 					min_diff = diff 
 					result = ir_node 
