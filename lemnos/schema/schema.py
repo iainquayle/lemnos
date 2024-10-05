@@ -4,6 +4,7 @@ from ..shared import LockedShape, ID
 from .schema_graph import SchemaNode, IRNode, CompilationIndices, _CompilationTracker, _CompilationNode, _CompilationNodeStack
 
 class Schema:
+
 	def __init__(self, starts: list[SchemaNode], ends: list[SchemaNode]) -> None:
 		if len(starts) == 0 or len(ends) == 0:
 			raise ValueError("No start or end patterns")
@@ -12,6 +13,7 @@ class Schema:
 				raise ValueError("End patterns cannot not have transitions out")
 		self._starts: list[SchemaNode] = starts 
 		self._ends: list[SchemaNode] = ends 
+
 	def compile_ir(self, input_shapes: list[LockedShape], build_indices: CompilationIndices, max_id: ID | int) -> list[IRNode] | None:
 		max_id = ID(max_id)
 		tracker = _CompilationTracker(
@@ -23,5 +25,6 @@ class Schema:
 			ir.reverse()
 			return ir 
 		return None
+
 	def search(self, ) -> None:
 		raise NotImplementedError()

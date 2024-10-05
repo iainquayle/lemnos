@@ -4,29 +4,17 @@
 
 ## guarenteed
 
-### generation 
+bring the runner functions up to date with new ir
 
-for dealing with the intercomponent shapes, and the current view, need to track the actual shape.
-this could even be extended to pull in the prior shapes to enable lazy view changes.
-to start though, it definitely appears that just tracking the current shape is necessary, 
-ex, a flatten could happen prior to, or after the transformation, it isnt known until its actually evaluated.
-
-UPDATE: in the end since python does not allow something like type classes, the best option is the map solution
-to the best of my knowledge, with the binding solution, the class objects would need to prior to the schema creation have the functions bound,
-which depending on, and to my best guess, of the cpython implementation would mean that they would need to be bound in the same file as the schema creation,
-which wouldnt allow a framework agnostic system.
-as well this de couples and part of the schema from the actual backend running and implementation.
-
-something that may make everything easier is to make a factory pattern type statements system, our own very limit subsection of the ast.
-make control of the users code much easier, and allow for better error messages and debugging.
-shouldnt be too hard, but it seems like there is a better solution...
-one thing is this could be fairly abstract, and be used across multiple backends and perhaps even languages if thats ever done.
-
-### misc
+### style
 
 shorten lines to 80 characters for everthing but templates perhaps
 
-look into how the changes to ir will change the way in which breeding is done
+single space between functions, double space between classes and top level definitions
+
+### misc
+
+look at breeding again and if it can be less jank
 
 fix layer norm, include rmsnorm
 
@@ -34,14 +22,11 @@ make biases optional
 
 fix jank in sample collection
 
-add vertical spacing to code, looks fine in nvim but vsc is disgusting
-
 make tests for breeding
 
 impl a screening on the ir, allow for culling on structural heuristics
 
 work on making more controlable growth functions, ie, ones that would truely follow a given curve
-
 
 ## possible
 
