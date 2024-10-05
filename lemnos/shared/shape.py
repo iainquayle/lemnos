@@ -18,6 +18,7 @@ import math
 #	if remaining open dims
 #		dims to the right must be the same
 
+
 class Shape(Abstract):
 	__slots__ = ("_shape", "_product_cache")
 	def __init__(self, *shape: int) -> None:
@@ -82,6 +83,7 @@ class Shape(Abstract):
 	def __repr__(self) -> str:
 		return str(self)
 
+
 class LockedShape(Shape):
 	def __init__(self, *shape: int) -> None:
 		if len(shape) == 0:
@@ -124,6 +126,7 @@ class LockedShape(Shape):
 	def __str__(self) -> str:
 		return f"LS({self._shape})"
 		
+
 class OpenShape(Shape):
 	def upper_length(self) -> int:
 		return len(self)
@@ -156,6 +159,7 @@ class OpenShape(Shape):
 		return f"OS({self._shape})"
 	def get_upper_diff(self, other: Shape) -> int:
 		return 0
+
 
 _LOWER_INDEX = 0
 _UPPER_INDEX = 1
