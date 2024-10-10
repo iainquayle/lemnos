@@ -14,9 +14,11 @@ single space between functions, double space between classes and top level defin
 
 ### misc
 
-look at breeding again and if it can be less jank
+the adapters should be split off into seperate packages. dont want to force the loading of torch if using jax.
+in the same vein, examples should be in their own package too, as they will obviously require an adapter to work.
+as well, somehow allow the installs to specify which version of torch to use? setup.py can take in arguments supposedly...
 
-fix layer norm, include rmsnorm
+look at breeding again and if it can be less jank
 
 make biases optional
 
