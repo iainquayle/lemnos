@@ -3,7 +3,9 @@ from __future__ import annotations
 from ...shared import LockedShape
 from ...schema import IRNode
 from ...control import Evaluator, Metrics, ResultsSample
-#from .formatter import DefaultComponentFormatter, TorchComponentFormatter, create_module 
+
+from .generator import SourceGenerator
+from .standard_generators import standard_generator
 
 import torch
 from torch import Tensor
@@ -48,7 +50,7 @@ class Scheduler(Abstract):
 		pass
 class StepLR(Scheduler):
 	def __init__(self, step_size: int, gamma: float) -> None:
-		self._step_size = step_size
+		self._step_size = step_size 
 		self._gamma = gamma
 	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
 		return torch.optim.lr_scheduler.StepLR(optimizer, step_size=self._step_size, gamma=self._gamma)
@@ -74,7 +76,7 @@ class TorchEvaluator(Evaluator):
 			require_cuda: bool,
 			input_shapes: list[LockedShape] | None = None,
 			metrics_resolution: int = 2048,
-			#formatter: TorchComponentFormatter = DefaultComponentFormatter(),
+			source_generator: SourceGenerator = standard_generator,
 			torch_compiler: CompileBackend | None = None,
 			logging_callback: Callable[[Tensor, Tensor, Tensor, Metrics], None] | None = None
 		) -> None:
@@ -90,22 +92,21 @@ class TorchEvaluator(Evaluator):
 		self._scheduler = scheduler
 		self._input_shapes = input_shapes
 		self._metrics_resolution = metrics_resolution
-		#self._formatter = formatter
+		self._source_generator = source_generator
 		self._torch_compiler = torch_compiler
 		self._logging_callback: Callable[[Tensor, Tensor, Tensor, Metrics], None] | None = logging_callback 
 	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		device = torch.cuda.current_device() if self._device_type == CUDA else torch.device(CPU)
 		training_metrics = Metrics(self._metrics_resolution)
 		validation_metrics = Metrics(self._metrics_resolution)
-		#model: Any = create_module("Model", ir, self._formatter)
-		model: Any = None
+		model: Any = self._source_generator.generate_source("Model", ir)
 		if self._torch_compiler is not None:
 			model = torch.compile(model, backend=str(self._torch_compiler))
 		model.to(device)
 		optimizer = self._optimizer.get(model)
 		scheduler = self._scheduler.get(optimizer) if self._scheduler is not None else None
 		model.train()
-		scaler = torch.cuda.amp.GradScaler()
+		scaler = torch.cuda.amp.GradScaler() #torch.amp not showing up yet...
 		for epoch in range(self._epochs):
 			for (input, truth) in self._train_loader:
 				input, truth = input.to(device), truth.to(device)
