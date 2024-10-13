@@ -63,7 +63,7 @@ class SourceGenerator(Abstract):
 				node_reference_count[parent_id] = node_reference_count.get(parent_id, 0) + 1
 		node_output_registers: dict[ID, _Register] = {}
 		arg_registers: list[ID] = []
-		return_registers: list[ID] = []
+		return_registers: list[_Register] = []
 		init_statements: list[str] = []
 		forward_statements: list[str] = []
 		available_registers: list[ID] = []
@@ -104,7 +104,6 @@ class SourceGenerator(Abstract):
 			if (transformation := node.schema_node.get_transformation()) is not None:
 				statement_generator = self._generator_map[type(transformation)]
 				input_expressions = list(map(lambda register: _view_register(register, statement_generator.required_view), registers_in))
-				#print(registers_in[0])
 				component_statements = statement_generator.generator(transformation, StatementGeneratorArgs(
 					node.shape_trace.aggregation_shape, 
 					node.shape_trace.transformion_shape, 
@@ -117,7 +116,6 @@ class SourceGenerator(Abstract):
 				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
 			if (activation := node.schema_node.get_activation()) is not None:
 				statement_generator = self._generator_map[type(activation)]
-				#print(registers_in[0])
 				input_expressions = list(map(lambda register: _view_register(register, statement_generator.required_view), registers_in))
 				component_statements = statement_generator.generator(activation, StatementGeneratorArgs(
 					node.shape_trace.transformion_shape, 
@@ -131,7 +129,6 @@ class SourceGenerator(Abstract):
 				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
 			if (regularization := node.schema_node.get_regularization()) is not None:
 				statement_generator = self._generator_map[type(regularization)]
-				#print(registers_in[0])
 				input_expressions = list(map(lambda register: _view_register(register, statement_generator.required_view), registers_in))
 				component_statements = statement_generator.generator(regularization, StatementGeneratorArgs(
 					node.shape_trace.activation_shape, 
@@ -143,11 +140,10 @@ class SourceGenerator(Abstract):
 				init_statements.extend(component_statements.init_statements)
 				forward_statements.extend(component_statements.intermediate_forward_statements)
 				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
-			#print(node.schema_node.debug_name, registers_in[0].shape, node.shape_trace.get_output_shape())
 			node_output_registers[node.id] = registers_in[0] #if this ever breaks something is wrong in the schema compilation 
 			if node.id not in node_reference_count: #dont need to worry about register being reclaimed
-				return_registers.append(register_out_id)
-		forward_statements.append(return_(*[_register_name(register) for register in return_registers]))
+				return_registers.append(registers_in[0])
+		forward_statements.append(return_(*[_register_name(register.id) if register.view == ShapeView.REAL else view_(_register_name(register.id), register.shape) for register in return_registers]))
 		return concat_lines_(import_torch_(), *module_(name, [], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
 
 	def create_module(self, name: str, ir: list[IRNode]) -> Module:

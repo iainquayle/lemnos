@@ -74,4 +74,4 @@ class TestTorchModule(unittest.TestCase):
 		#	print(node.schema_node.debug_name, node.shape_trace.get_output_shape())
 		module = standard_generator.create_module("test", ir)
 		input = torch.ones(2, 1, 8)
-		self.assertEqual(module(input).shape, torch.Size([2, 1]))
+		self.assertEqual(module(input).shape, torch.Size([2, 1, 1]))
