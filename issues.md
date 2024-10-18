@@ -6,6 +6,10 @@
 
 bring the runner functions up to date with new ir
 
+### source gen
+
+impl some kind of de dup for static members that are the same
+
 ### style
 
 shorten lines to 80 characters for everthing but templates perhaps

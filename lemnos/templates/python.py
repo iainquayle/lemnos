@@ -48,3 +48,7 @@ def print_(expr: str) -> str:
 
 def if_(condition: str, true: list[str], false: list[str] | None = None) -> list[str]:
 	return [f"if {condition}:" ] + [f"\t{statement}" for statement in true] + ([f"else:"] + [f"\t{statement}" for statement in false] if false is not None else [])
+
+
+def index_(expr: str, *index_exprs: str) -> str:
+	return f"{expr}[{arg_list_(*index_exprs)}]"
