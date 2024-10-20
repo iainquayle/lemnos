@@ -145,6 +145,8 @@ class SourceGenerator(Abstract):
 				return_registers.append(registers_in[0])
 		forward_statements.append(return_(*[_register_name(register.id) if register.view == ShapeView.REAL else view_(_register_name(register.id), register.shape) for register in return_registers]))
 		return concat_lines_(import_torch_(), *module_(name, [], [], init_statements, list(map(_register_name, arg_registers)), forward_statements))
+	def __copy__(self) -> SourceGenerator:
+		return SourceGenerator(self._generator_map.copy())
 
 	def create_module(self, name: str, ir: list[IRNode]) -> Module:
 		source = self.generate_source(name, ir)

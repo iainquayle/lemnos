@@ -18,25 +18,31 @@ def sum_(exprs: list[str]) -> str:
 	return f"({' + '.join(exprs)})"
 
 
-def concat_(exprs: list[str]) -> str:
+def concat_(exprs: list[str], module_scoped_torch: bool = False) -> str:
 	if len(exprs) == 1:
 		return exprs[0]
-	return torch_(f"cat(({arg_list_(*exprs)}), dim=1)")
+	return torch_(f"cat(({arg_list_(*exprs)}), dim=1)", module_scoped_torch)
 
 
 def import_torch_() -> str:
 	return "import torch"
 
 
-def torch_(expr: str) -> str:
+def torch_(expr: str, module_scoped_torch: bool = False) -> str:
+	if module_scoped_torch:
+		return self_(f"torch.{expr}")
 	return f"torch.{expr}"
 
 
-def nn_(expr: str) -> str:
+def nn_(expr: str, module_scoped_torch: bool = False) -> str:
+	if module_scoped_torch:
+		return self_(f"torch.nn.{expr}")
 	return f"torch.nn.{expr}"
 
 
-def functional_(expr: str) -> str:
+def functional_(expr: str, module_scope_torch: bool = False) -> str:
+	if module_scope_torch:
+		return self_(f"torch.nn.functional.{expr}")
 	return f"torch.nn.functional.{expr}"
 
 
