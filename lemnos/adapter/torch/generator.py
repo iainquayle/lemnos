@@ -182,7 +182,8 @@ class IdentifierGenerator:
 		self._namespace = namespace
 		self._identifiers: dict[str, int] = {} 
 		self._is_member = is_member
-	def get_identifier(self, name: str = '') -> str:
+	def get_identifier(self, name: str | int = '') -> str:
+		name = str(name)
 		if name not in self._identifiers:
 			self._identifiers[name] = len(self._identifiers)
 		identifier = f"{self._namespace}_{self._identifiers[name]}"

@@ -73,7 +73,7 @@ def dropout_generator(self: Dropout, args: StatementGeneratorArgs) -> ComponentS
 
 
 def channel_dropout_generator(self: ChannelDropout, args: StatementGeneratorArgs) -> ComponentStatements:
-	return standard_module(f"ChannelDropout(p={self._probability})", args, )
+	return standard_module(f"Dropout{args.input_shape.dimensionality()}d(p={self._probability})", args, )
 
 
 def glu_generator(self: GLU, args: StatementGeneratorArgs) -> ComponentStatements:
