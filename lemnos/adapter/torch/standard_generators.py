@@ -19,7 +19,7 @@ def sum_generator(self: Sum, args: StatementGeneratorArgs) -> ComponentStatement
 
 
 def concat_generator(self: Concat, args: StatementGeneratorArgs) -> ComponentStatements:
-	return ComponentStatements([], [], self_(concat_(args.input_registers)), )
+	return ComponentStatements([], [], concat_(args.input_registers, True), )
 
 
 def conv_generator(self: Conv, args: StatementGeneratorArgs) -> ComponentStatements:
