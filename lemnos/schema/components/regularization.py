@@ -35,5 +35,5 @@ class LayerNorm(Regularization):
 	pass
 
 
-class RMSNorm(Regularization):
+class RmsNorm(Regularization):
 	pass

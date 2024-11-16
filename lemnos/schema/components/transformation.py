@@ -20,7 +20,7 @@ class Transformation(Component, Abstract):
 		return 1
 
 
-class Full(Transformation):
+class Dense(Transformation):
 
 	def __init__(self) -> None:
 		pass

@@ -30,7 +30,7 @@ class Activation(Component, Abstract):
 		return self.scale_conformance(conformance_shape), self.scale_bounds(bounds), self.scale_growth_factor(growth_factor)
 
 
-class GLU(Activation):
+class Glu(Activation):
 
 	def scale_conformance(self, conformance: ShapeConformance) -> ShapeConformance:
 		if conformance.shape.is_locked():
@@ -55,11 +55,11 @@ class GLU(Activation):
 		return divisor * 2
 
 
-class ReLU(Activation):
+class Relu(Activation):
 	pass
 
 
-class ReLU6(Activation):
+class Relu6(Activation):
 	pass
 
 
@@ -71,5 +71,5 @@ class Sigmoid(Activation):
 	pass
 
 
-class SiLU(Activation):
+class Silu(Activation):
 	pass
