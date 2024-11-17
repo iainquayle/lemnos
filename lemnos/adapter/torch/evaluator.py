@@ -17,54 +17,83 @@ from typing import Callable, Any
 from enum import Enum
 from abc import ABC as Abstract, abstractmethod
 
+from torch.optim.optimizer import Optimizer as TorchOptimizer
+from torch.optim.adam import Adam as TorchAdam
+from torch.optim.sgd import SGD as TorchSGD
+
 import gc
+
 
 class CompileBackend(Enum):
 	INDUCTOR = "inductor"
 	CUDA_GRAPHS = "cudagraphs"
 
+
 CUDA = "cuda"
 CPU = "cpu"
 
+
 class Optimizer(Abstract):
+
 	@abstractmethod
-	def get(self, model: Any) -> torch.optim.Optimizer:
+	def get(self, model: Any) -> TorchOptimizer:
 		pass
+
+
 class Adam(Optimizer):
+
 	def __init__(self, lr: float, decay: float = 0.0) -> None:
 		self._lr = lr
 		self._decay = decay
-	def get(self, model: Any) -> torch.optim.Optimizer:
-		return torch.optim.Adam(model.parameters(), lr=self._lr, weight_decay=self._decay)
-class SGD(Optimizer):
+
+	def get(self, model: Any) -> TorchOptimizer:
+		return TorchAdam(model.parameters(), lr=self._lr, weight_decay=self._decay)
+
+
+class Sgd(Optimizer):
+
 	def __init__(self, lr: float, momentum: float, decay: float = 0.0) -> None:
 		self._lr = lr
 		self._momentum = momentum
 		self._decay = decay
-	def get(self, model: Any) -> torch.optim.Optimizer:
-		return torch.optim.SGD(model.parameters(), lr=self._lr, momentum=self._momentum, weight_decay=self._decay)
+
+	def get(self, model: Any) -> TorchOptimizer:
+		return TorchSGD(model.parameters(), lr=self._lr, momentum=self._momentum, weight_decay=self._decay)
+
 
 class Scheduler(Abstract):
+
 	@abstractmethod
-	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
+	def get(self, optimizer: TorchOptimizer) -> torch.optim.lr_scheduler.LRScheduler:
 		pass
-class StepLR(Scheduler):
+
+
+class StepLr(Scheduler):
+
 	def __init__(self, step_size: int, gamma: float) -> None:
 		self._step_size = step_size 
 		self._gamma = gamma
-	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
+
+	def get(self, optimizer: TorchOptimizer) -> torch.optim.lr_scheduler.LRScheduler:
 		return torch.optim.lr_scheduler.StepLR(optimizer, step_size=self._step_size, gamma=self._gamma)
-class OneCycleLR(Scheduler):
+
+
+class OneCycleLr(Scheduler):
+
 	def __init__(self, max_lr: float, total_steps: int) -> None:
 		self._max_lr = max_lr
 		self._total_steps = total_steps
-	def get(self, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
+
+	def get(self, optimizer: TorchOptimizer) -> torch.optim.lr_scheduler.LRScheduler:
 		return torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self._max_lr, total_steps=self._total_steps)
+
 
 #accuracy should return the number of correct predictions, not the mean
 AccuracyFunction = Callable[[Tensor, Tensor], float]
 
+
 class TorchEvaluator(Evaluator):
+
 	def __init__(self, 
 			train_loader: DataLoader,
 			validation_loader: DataLoader | None,
@@ -95,6 +124,7 @@ class TorchEvaluator(Evaluator):
 		self._source_generator = source_generator
 		self._torch_compiler = torch_compiler
 		self._logging_callback: Callable[[Tensor, Tensor, Tensor, Metrics], None] | None = logging_callback 
+
 	def evaluate(self, ir: list[IRNode]) -> tuple[Metrics, Metrics | None]:
 		device = torch.cuda.current_device() if self._device_type == CUDA else torch.device(CPU)
 		training_metrics = Metrics(self._metrics_resolution)
@@ -106,7 +136,7 @@ class TorchEvaluator(Evaluator):
 		optimizer = self._optimizer.get(model)
 		scheduler = self._scheduler.get(optimizer) if self._scheduler is not None else None
 		model.train()
-		scaler = torch.cuda.amp.GradScaler() #torch.amp not showing up yet...
+		scaler = torch.GradScaler()
 		for epoch in range(self._epochs):
 			for (input, truth) in self._train_loader:
 				input, truth = input.to(device), truth.to(device)
@@ -138,6 +168,7 @@ class TorchEvaluator(Evaluator):
 				print("Validation Metrics")
 				print(validation_metrics)
 		return training_metrics, validation_metrics if self._validation_loader is not None else None
+
 	def get_input_shapes(self) -> list[LockedShape]:
 		if self._input_shapes is not None:
 			return self._input_shapes
@@ -145,6 +176,7 @@ class TorchEvaluator(Evaluator):
 			first = list(next(iter(self._train_loader))[0].shape[1:])
 			return [LockedShape(*first)]
 		
-def set_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
+
+def set_learning_rate(optimizer: TorchOptimizer, learning_rate: float) -> None:
 	for param_group in optimizer.param_groups:
 		param_group["lr"] = learning_rate
