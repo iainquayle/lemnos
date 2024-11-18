@@ -20,6 +20,7 @@ from abc import ABC as Abstract, abstractmethod
 from torch.optim.optimizer import Optimizer as TorchOptimizer
 from torch.optim.adam import Adam as TorchAdam
 from torch.optim.sgd import SGD as TorchSGD
+from torch.optim.adamw import AdamW as TorchAdamW
 
 import gc
 
@@ -48,6 +49,16 @@ class Adam(Optimizer):
 
 	def get(self, model: Any) -> TorchOptimizer:
 		return TorchAdam(model.parameters(), lr=self._lr, weight_decay=self._decay)
+
+
+class AdamW(Optimizer):
+
+	def __init__(self, lr: float, decay: float = 0.0) -> None:
+		self._lr = lr
+		self._decay = decay
+
+	def get(self, model: Any) -> TorchOptimizer:
+		return TorchAdamW(model.parameters(), lr=self._lr, weight_decay=self._decay)
 
 
 class Sgd(Optimizer):
