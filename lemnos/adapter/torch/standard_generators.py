@@ -32,19 +32,19 @@ def maxpool_generator(self: MaxPool, args: StatementGeneratorArgs) -> ComponentS
 	return standard_module(f"MaxPool{dimensionality}d({self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)})", args, )
 
 
-def full_generator(self: Full, args: StatementGeneratorArgs) -> ComponentStatements:
+def full_generator(self: Dense, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module(f"Linear({args.input_shape.get_product()}, {args.output_shape.get_product()}, bias=True)", args, )
 
 
-def relu_generator(self: ReLU, args: StatementGeneratorArgs) -> ComponentStatements:
+def relu_generator(self: Relu, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module("ReLU()", args, )
 
 
-def relu6_generator(self: ReLU6, args: StatementGeneratorArgs) -> ComponentStatements:
+def relu6_generator(self: Relu6, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module("ReLU6()", args, )
 
 
-def silu_generator(self: SiLU, args: StatementGeneratorArgs) -> ComponentStatements:
+def silu_generator(self: Silu, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module("SiLU()", args, )
 
 
@@ -64,7 +64,7 @@ def layernorm_generator(self: LayerNorm, args: StatementGeneratorArgs) -> Compon
 	return standard_module(f"LayerNorm({args.input_shape.get_tuple()})", args, )
 
 
-def rmsnorm_generator(self: RMSNorm, args: StatementGeneratorArgs) -> ComponentStatements:
+def rmsnorm_generator(self: RmsNorm, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module(f"RMSNorm({args.input_shape.get_tuple()})", args, )
 
 
@@ -76,7 +76,7 @@ def channel_dropout_generator(self: ChannelDropout, args: StatementGeneratorArgs
 	return standard_module(f"Dropout{args.input_shape.dimensionality() - 1}d(p={self._probability})", args, )
 
 
-def glu_generator(self: GLU, args: StatementGeneratorArgs) -> ComponentStatements:
+def glu_generator(self: Glu, args: StatementGeneratorArgs) -> ComponentStatements:
 	return standard_module("GLU(dim=1)", args, )
 
 
@@ -84,17 +84,17 @@ standard_generator = SourceGenerator({
 	Concat: StatementGenerator(concat_generator, ShapeView.FLAT),
 	Sum: StatementGenerator(sum_generator, ShapeView.FLAT),
 	Conv: StatementGenerator(conv_generator, ShapeView.REAL),
-	Full: StatementGenerator(full_generator, ShapeView.FLAT),
+	Dense: StatementGenerator(full_generator, ShapeView.FLAT),
 	MaxPool: StatementGenerator(maxpool_generator, ShapeView.REAL),
-	ReLU: StatementGenerator(relu_generator, ShapeView.EITHER),
-	ReLU6: StatementGenerator(relu6_generator, ShapeView.EITHER),
-	SiLU: StatementGenerator(silu_generator, ShapeView.EITHER),
+	Relu: StatementGenerator(relu_generator, ShapeView.EITHER),
+	Relu6: StatementGenerator(relu6_generator, ShapeView.EITHER),
+	Silu: StatementGenerator(silu_generator, ShapeView.EITHER),
 	Sigmoid: StatementGenerator(sigmoid_generator, ShapeView.EITHER),
 	Softmax: StatementGenerator(softmax_generator, ShapeView.EITHER),
 	BatchNorm: StatementGenerator(batchnorm_generator, ShapeView.REAL),
 	LayerNorm: StatementGenerator(layernorm_generator, ShapeView.REAL),
-	RMSNorm: StatementGenerator(rmsnorm_generator, ShapeView.REAL),
+	RmsNorm: StatementGenerator(rmsnorm_generator, ShapeView.REAL),
 	Dropout: StatementGenerator(dropout_generator, ShapeView.EITHER),
 	ChannelDropout: StatementGenerator(channel_dropout_generator, ShapeView.REAL),
-	GLU: StatementGenerator(glu_generator, ShapeView.REAL),
+	Glu: StatementGenerator(glu_generator, ShapeView.REAL),
 })
