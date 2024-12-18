@@ -18,6 +18,8 @@ single space between functions, double space between classes and top level defin
 
 ### misc
 
+clean samples naming, make members private
+
 impl a screening on the ir, allow for culling on structural heuristics
 
 the adapters should be split off into seperate packages. dont want to force the loading of torch if using jax.

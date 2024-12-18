@@ -132,16 +132,16 @@ class Metrics:
 	def record(self, sample: ResultsSample) -> None:
 		if len(self._samples) == 0:
 			self._samples.append(sample)
-			self._last_sample_size = sample.sample_size 
 			self._total_samples += sample.sample_size
 			self._target_sample_size = sample.sample_size
 		else:
-			if self._samples[-1].sample_size < self._target_sample_size:
-				self._samples[-1] = self._samples[-1].merge(sample)
-				self._last_sample_size += self._samples[-1].sample_size
+			last_sample = self._samples[-1]
+			last_sample_size = last_sample.sample_size
+			if (abs(self._target_sample_size - (last_sample_size + sample.sample_size)) < abs(self._target_sample_size - last_sample_size)
+					and ((last_sample.epoch == sample.epoch) or (last_sample.sample_size >= self._target_sample_size / 2))):
+				self._samples[-1] = last_sample.merge(sample)
 			else:
 				self._samples.append(sample)
-				self._last_sample_size = self._samples[-1].sample_size
 			if len(self._samples) > self._max_resolution:
 				self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
 				self._target_sample_size *= 2
