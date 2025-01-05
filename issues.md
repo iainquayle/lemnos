@@ -4,7 +4,7 @@
 
 ## guarenteed
 
-bring the runner functions up to date with new ir
+move compilation and graph backend to c modules
 
 ### source gen
 
@@ -13,8 +13,6 @@ impl some kind of de dup for static members that are the same
 ### style
 
 shorten lines to 80 characters for everthing but templates perhaps
-
-single space between functions, double space between classes and top level definitions
 
 ### misc
 

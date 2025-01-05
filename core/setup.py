@@ -7,7 +7,7 @@ setup (
 	packages=find_packages(),
 	install_requires=[
 		'typing_extensions',
-	], #move requirements to here...
+	],
 	author='Iain Quayle',
 	#author_email='',
 	#description='',

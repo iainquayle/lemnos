@@ -1,5 +1,7 @@
 from setuptools import setup, find_packages
 
+lemnos_address = 'https://github/iainquayle/lemnos.git'
+lemnos_name = 'lemnos'
 
 setup(
 	name='lemnos-torch',
@@ -9,7 +11,11 @@ setup(
 		'torch',
 		'torchvision',
 		'typing_extensions',
-	], #move requirements to here...
+		f'{lemnos_name} @ {lemnos_address}#egg={lemnos_name}&subdirectory=core',
+	], 
+	dependency_links=[
+		lemnos_address
+	],
 	author='Iain Quayle',
 	#author_email='',
 	#description='',
