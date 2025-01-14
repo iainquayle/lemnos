@@ -114,19 +114,6 @@ class SourceGenerator(Abstract):
 				init_statements.extend(component_statements.init_statements)
 				forward_statements.extend(component_statements.intermediate_forward_statements)
 				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
-			if (activation := node.schema_node.get_activation()) is not None:
-				statement_generator = self._generator_map[type(activation)]
-				input_expressions = list(map(lambda register: _view_register(register, statement_generator.required_view), registers_in))
-				component_statements = statement_generator.generator(activation, StatementGeneratorArgs(
-					node.shape_trace.transformion_shape, 
-					node.shape_trace.activation_shape, 
-					IdentifierGenerator(f'c_{node.id}_ac', True), 
-					IdentifierGenerator('i', False), 
-					input_expressions))
-				registers_in = [_Register(register_out_id, node.shape_trace.activation_shape, _get_register_view(registers_in, statement_generator))]
-				init_statements.extend(component_statements.init_statements)
-				forward_statements.extend(component_statements.intermediate_forward_statements)
-				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
 			if (regularization := node.schema_node.get_regularization()) is not None:
 				statement_generator = self._generator_map[type(regularization)]
 				input_expressions = list(map(lambda register: _view_register(register, statement_generator.required_view), registers_in))
@@ -137,6 +124,19 @@ class SourceGenerator(Abstract):
 					IdentifierGenerator('i', False), 
 					input_expressions))
 				registers_in = [_Register(register_out_id, node.shape_trace.regularization_shape, _get_register_view(registers_in, statement_generator))]
+				init_statements.extend(component_statements.init_statements)
+				forward_statements.extend(component_statements.intermediate_forward_statements)
+				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
+			if (activation := node.schema_node.get_activation()) is not None:
+				statement_generator = self._generator_map[type(activation)]
+				input_expressions = list(map(lambda register: _view_register(register, statement_generator.required_view), registers_in))
+				component_statements = statement_generator.generator(activation, StatementGeneratorArgs(
+					node.shape_trace.transformion_shape, 
+					node.shape_trace.activation_shape, 
+					IdentifierGenerator(f'c_{node.id}_ac', True), 
+					IdentifierGenerator('i', False), 
+					input_expressions))
+				registers_in = [_Register(register_out_id, node.shape_trace.activation_shape, _get_register_view(registers_in, statement_generator))]
 				init_statements.extend(component_statements.init_statements)
 				forward_statements.extend(component_statements.intermediate_forward_statements)
 				forward_statements.append(_format_return_forward_statement(register_out_id, component_statements, node))
