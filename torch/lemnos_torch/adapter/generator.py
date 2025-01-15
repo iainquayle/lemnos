@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from ...shared import LockedShape, ID
-from ...schema import IRNode 
-from ...schema.components import Component
-from ...templates.torch import * 
-from ...templates.python import *
+from lemnos.shared import LockedShape, ID
+from lemnos.schema import IRNode 
+from lemnos.schema.components import Component
+from ..templates.torch import * 
+from ..templates.python import *
 from torch.nn import Module
 
 from abc import ABC as Abstract 

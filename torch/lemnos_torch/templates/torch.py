@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..shared import LockedShape
+from lemnos.shared import LockedShape
 from .python import *
 
 

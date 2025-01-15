@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ...shared import LockedShape
-from ...schema import IRNode
-from ...control import Evaluator, Metrics, ResultsSample
+from lemnos.shared import LockedShape
+from lemnos.schema import IRNode
+from lemnos.control import Evaluator, Metrics, ResultsSample
 
 from .generator import SourceGenerator
 from .standard_generators import standard_generator

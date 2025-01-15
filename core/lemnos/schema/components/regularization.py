@@ -28,7 +28,19 @@ class ChannelDropout(Regularization):
 
 
 class BatchNorm(Regularization):
-	pass
+
+	def __init__(self, momentum: float | None = 0.1) -> None:
+		self._momentum: float | None = momentum
+
+	def get_momentum(self) -> float | None:
+		return self._momentum
+
+
+class GroupNorm(Regularization):
+
+	def __init__(self, groups: int) -> None:
+		raise NotImplementedError
+		self._groups: int = groups
 
 
 class LayerNorm(Regularization):

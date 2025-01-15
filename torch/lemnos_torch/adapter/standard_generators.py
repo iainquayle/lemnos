@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ...templates.torch import *
-from ...templates.python import *
-from ...schema.components import *
+from lemnos.schema.components import *
+from ..templates.torch import *
+from ..templates.python import *
 
 from .generator import ComponentStatements, StatementGeneratorArgs, SourceGenerator,  StatementGenerator, ShapeView
 
@@ -57,7 +57,7 @@ def softmax_generator(self: Softmax, args: StatementGeneratorArgs) -> ComponentS
 
 
 def batchnorm_generator(self: BatchNorm, args: StatementGeneratorArgs) -> ComponentStatements:
-	return standard_module(f"BatchNorm{len(args.input_shape) - 1}d({args.input_shape[0]})", args, )
+	return standard_module(f"BatchNorm{len(args.input_shape) - 1}d({args.input_shape[0]}, momentum={self._momentum})", args, )
 
 
 def layernorm_generator(self: LayerNorm, args: StatementGeneratorArgs) -> ComponentStatements:
@@ -80,6 +80,12 @@ def glu_generator(self: Glu, args: StatementGeneratorArgs) -> ComponentStatement
 	return standard_module("GLU(dim=1)", args, )
 
 
+#need to figure out how to deal with grouping, apperently channels need to be divisible by num_groups
+#may beed to impl some custom norm layers 
+def groupnorm_generator(self: GroupNorm, args: StatementGeneratorArgs) -> ComponentStatements:
+	return standard_module(f"GroupNorm({self._num_groups}, {args.input_shape[0]})", args, )	
+
+
 standard_generator = SourceGenerator({ 
 	Concat: StatementGenerator(concat_generator, ShapeView.FLAT),
 	Sum: StatementGenerator(sum_generator, ShapeView.FLAT),
@@ -91,10 +97,10 @@ standard_generator = SourceGenerator({
 	Silu: StatementGenerator(silu_generator, ShapeView.EITHER),
 	Sigmoid: StatementGenerator(sigmoid_generator, ShapeView.EITHER),
 	Softmax: StatementGenerator(softmax_generator, ShapeView.EITHER),
+	Glu: StatementGenerator(glu_generator, ShapeView.REAL),
 	BatchNorm: StatementGenerator(batchnorm_generator, ShapeView.REAL),
 	LayerNorm: StatementGenerator(layernorm_generator, ShapeView.REAL),
 	RmsNorm: StatementGenerator(rmsnorm_generator, ShapeView.REAL),
 	Dropout: StatementGenerator(dropout_generator, ShapeView.EITHER),
 	ChannelDropout: StatementGenerator(channel_dropout_generator, ShapeView.REAL),
-	Glu: StatementGenerator(glu_generator, ShapeView.REAL),
 })
