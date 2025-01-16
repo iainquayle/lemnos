@@ -9,8 +9,8 @@ from functools import reduce
 
 
 class Aggregation(Component, Abstract):
-	@abstractmethod
 
+	@abstractmethod
 	def get_conformance_shape(self, input_shapes: list[LockedShape]) -> Shape:
 		pass
 
@@ -19,12 +19,12 @@ class Aggregation(Component, Abstract):
 			raise Exception("cannot get aggregated shape from empty input shapes")
 		else:
 			return self._get_aggregated_shape(input_shapes)
-	@abstractmethod
 
+	@abstractmethod
 	def _get_aggregated_shape(self, input_shapes: Iterable[LockedShape]) -> LockedShape:
 		pass
-	@abstractmethod
 
+	@abstractmethod
 	def get_total_aggregated_size(self, input_shapes: list[LockedShape]) -> int:
 		pass
 

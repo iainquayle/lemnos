@@ -7,7 +7,14 @@ from abc import ABC as Abstract, abstractmethod
 
 
 
-def or_search(schema: Schema, evaluator: Evaluator, selector: Selector, max_id: ID | int, model_pool_size: int = 1, breed_iterations: int = 1) -> ModelPool:
+def or_search(
+		schema: Schema, 
+		evaluator: Evaluator, 
+		selector: Selector, 
+		max_id: ID | int, 
+		model_pool_size: int = 1, 
+		breed_iterations: int = 1
+	) -> ModelPool:
 	indices = BreedIndices()
 	model_pool: ModelPool = [] 
 	i = 0
@@ -80,7 +87,15 @@ class Evaluator(Abstract):
 class ResultsSample:
 	__slots__ = ["sample_size", "total_loss", "max_loss", "min_loss", "correct", "time", "epoch"]
 
-	def __init__(self, loss: float, max_loss: float, min_loss: float, total_correct: float | None, time: float | None, epoch: int | None, sample_size: int = 1) -> None:
+	def __init__(self, 
+			loss: float, 
+			max_loss: float, 
+			min_loss: float, 
+			total_correct: float | None, 
+			time: float | None, 
+			epoch: int | None, 
+			sample_size: int = 1
+		) -> None:
 		self.sample_size: int = sample_size 
 		self.total_loss: float = loss * sample_size 
 		self.max_loss: float = max_loss
@@ -137,13 +152,17 @@ class Metrics:
 		else:
 			last_sample = self._samples[-1]
 			last_sample_size = last_sample.sample_size
-			if (abs(self._target_sample_size - (last_sample_size + sample.sample_size)) < abs(self._target_sample_size - last_sample_size)
-					and ((last_sample.epoch == sample.epoch) or (last_sample.sample_size >= self._target_sample_size / 2))):
+			if (abs(self._target_sample_size - (last_sample_size + sample.sample_size)) 
+					< abs(self._target_sample_size - last_sample_size)
+					and ((last_sample.epoch == sample.epoch) 
+					or (last_sample.sample_size >= self._target_sample_size / 2))):
 				self._samples[-1] = last_sample.merge(sample)
 			else:
 				self._samples.append(sample)
 			if len(self._samples) > self._max_resolution:
-				self._samples = [(self._samples[i].merge(self._samples[i + 1]) if i + 1 < len(self._samples) else self._samples[i]) for i in range(0, len(self._samples), 2)]
+				self._samples = [(self._samples[i].merge(self._samples[i + 1]) 
+					if i + 1 < len(self._samples) else self._samples[i]) 
+					for i in range(0, len(self._samples), 2)]
 				self._target_sample_size *= 2
 			self._total_samples += sample.sample_size 
 

@@ -35,7 +35,12 @@ class SequenceIndices(CompilationIndices):
 class BreedIndices(CompilationIndices):
 	__slots__ = ["_sequences", "_sequence_change_prob", "_ignore_shape_prob", "_mutate_prob", "_sequence_index", "_previous_id"]
 
-	def __init__(self, ir_sequences: list[list[IRNode]] = [], sequence_change_prob: float = 0, ignore_shape_prob: float = 0, mutate_prob: float = 0) -> None:
+	def __init__(self, 
+			ir_sequences: list[list[IRNode]] = [], 
+			sequence_change_prob: float = 0, 
+			ignore_shape_prob: float = 0, 
+			mutate_prob: float = 0
+		) -> None:
 		if sequence_change_prob < 0 or sequence_change_prob > 1 or mutate_prob < 0 or mutate_prob > 1:
 			raise ValueError("Invalid probabilities")
 		self._sequences: list[list[IRNode]] = [copy(sequence) for sequence in ir_sequences if len(sequence) != 0]
@@ -71,7 +76,8 @@ class BreedIndices(CompilationIndices):
 					index, self._previous_id = result
 					return index 
 			if len(self._sequences) > 1:
-				sequence_indices: list[int] = list(range(self._sequence_index)) + list(range(self._sequence_index + 1, len(self._sequences)))
+				sequence_indices: list[int] = (list(range(self._sequence_index)) 
+					+ list(range(self._sequence_index + 1, len(self._sequences))))
 				random.shuffle(sequence_indices)
 				for sequence in sequence_indices:
 					if (result := search_sequence(sequence, ID(0))) is not None:

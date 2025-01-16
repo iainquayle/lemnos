@@ -4,6 +4,8 @@
 
 ## guarenteed
 
+probably rename again, something specific to evolution and maybe neurals sciences
+
 ### graph solver
 
 move compilation and graph backend to c modules, maybe rust instead, just easier

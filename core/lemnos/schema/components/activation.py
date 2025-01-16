@@ -26,7 +26,11 @@ class Activation(Component, Abstract):
 	def scale_divisor(self, divisor: int) -> int:
 		return divisor
 
-	def scale_build_conformances(self, conformance_shape: ShapeConformance, bounds: ShapeBound, growth_factor: float) -> tuple[ShapeConformance, ShapeBound, float]:
+	def scale_build_conformances(self, 
+			conformance_shape: ShapeConformance, 
+			bounds: ShapeBound, 
+			growth_factor: float
+		) -> tuple[ShapeConformance, ShapeBound, float]:
 		return self.scale_conformance(conformance_shape), self.scale_bounds(bounds), self.scale_growth_factor(growth_factor)
 
 
