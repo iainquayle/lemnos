@@ -4,11 +4,13 @@
 
 ## guarenteed
 
-probably rename again, something specific to evolution and maybe neurals sciences
+probably rename again, something specific to evolution and maybe neurals sciences. lemnos while dealing with automatons, still has many other connotations 
 
 ### graph solver
 
 move compilation and graph backend to c modules, maybe rust instead, just easier
+
+see if common operations done on shapes can be extracted to the shapes, ie, the shape mashing that takes place in convs.
 
 ### source gen
 

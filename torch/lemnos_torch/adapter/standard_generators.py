@@ -27,6 +27,11 @@ def conv_generator(self: Conv, args: StatementGeneratorArgs) -> ComponentStateme
 	return standard_module(f"Conv{dimensionality}d({args.input_shape[0]}, {args.output_shape[0]}, {self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)}, {self._groups})", args, )
 
 
+def conv_transpose_generator(self: ConvTranspose, args: StatementGeneratorArgs) -> ComponentStatements:
+	dimensionality = len(args.input_shape) - 1
+	return standard_module(f"ConvTranspose{dimensionality}d({args.input_shape[0]}, {args.output_shape[0]}, {self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)}, {self._groups})", args, )
+
+
 def maxpool_generator(self: MaxPool, args: StatementGeneratorArgs) -> ComponentStatements:
 	dimensionality = len(args.input_shape) - 1
 	return standard_module(f"MaxPool{dimensionality}d({self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)})", args, )
@@ -103,4 +108,5 @@ standard_generator = SourceGenerator({
 	RmsNorm: StatementGenerator(rmsnorm_generator, ShapeView.REAL),
 	Dropout: StatementGenerator(dropout_generator, ShapeView.EITHER),
 	ChannelDropout: StatementGenerator(channel_dropout_generator, ShapeView.REAL),
+	ConvTranspose: StatementGenerator(conv_transpose_generator, ShapeView.REAL),
 })

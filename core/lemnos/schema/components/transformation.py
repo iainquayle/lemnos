@@ -66,23 +66,34 @@ class KernelBase(Transformation, Abstract):
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
 
-	def output_dim_to_input_dim(self, output_shape: LockedShape, index: int) -> int:
-		index -= 1 #remove the channel dimension
-		return ((output_shape[index + 1] - 1) * self._stride[index] 
+	def dimension_forward(self, shape: LockedShape, index: int) -> int:
+		if index == 0:
+			raise ValueError("index must be greater than 0")
+		index -= 1 
+		return ((shape[index + 1] - 1) * self._stride[index] 
 			+ (self._kernel[index] * self._dilation[index] - (self._dilation[index] - 1)) 
 			- self._padding[index] * 2)
 
-	def input_dim_to_output_dim(self, input_shape: LockedShape, index: int) -> int:
+	def dimension_backward(self, shape: LockedShape, index: int) -> int:
+		if index == 0:
+			raise ValueError("index must be greater than 0")
 		index -= 1
-		return (((input_shape[index + 1] + self._padding[index] * 2) 
+		return (((shape[index + 1] + self._padding[index] * 2) 
 			- (self._kernel[index] * self._dilation[index] 
 			- (self._dilation[index] - 1))) // self._stride[index] + 1)
 
-	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+	def validate_shape_forward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 		i = 1
-		while i < len(shape_out) and self.output_dim_to_input_dim(shape_out, i) == shape_in[i]:
+		while i < len(shape_out) and self.dimension_forward(shape_in, i) == shape_out[i]:
 			i += 1
 		return i == len(shape_out) and (shape_out[0] == shape_in[0])
+
+	#not needed? cant remember if thats the case and too lazy to check...
+	def validate_shape_backward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+		i = 1
+		while i < len(shape_in) and self.dimension_backward(shape_in, i) == shape_out[i]:
+			i += 1
+		return i == len(shape_in) and (shape_out[0] == shape_in[0])
 
 	def get_known_divisor(self) -> int:
 		return 1
@@ -98,10 +109,6 @@ class KernelBase(Transformation, Abstract):
 
 	def get_padding(self, input_shape: LockedShape) -> tuple[int, ...]:
 		return self._padding.expand(input_shape.dimensionality() - 1)
-
-
-class MaxPool(KernelBase):
-	pass
 
 
 class Conv(KernelBase):
@@ -128,7 +135,7 @@ class Conv(KernelBase):
 		) -> LockedShape | None:
 		if len(input_shape) < 2:
 			raise ValueError("input shape must have at least 2 dimensions")
-		upper_shape = OpenShape(*(self.input_dim_to_output_dim(input_shape, i) for i in range(1, len(input_shape))))
+		upper_shape = self._get_upper_shape(input_shape) 
 		if output_conformance.shape.is_locked():
 			output_shape = upper_shape.to_locked(output_conformance.shape.get_product() // upper_shape.get_product())
 			divisor = output_conformance.get_divisor(self._groups)
@@ -141,12 +148,26 @@ class Conv(KernelBase):
 			if (input_shape[0] % self._groups == 0 
 					and (channels := _closest_divisible(proposed_output_shape[0], divisor, shape_bounds)) is not None):
 				return upper_shape.to_locked(channels)
+		return None
+
+	def _get_upper_shape(self, input_shape: LockedShape) -> OpenShape:
+		return OpenShape(*(self.dimension_forward(input_shape, i) for i in range(1, len(input_shape))))
 
 	def get_known_divisor(self) -> int:
 		return self._groups
 
 	def get_groups(self) -> int:
 		return self._groups
+
+
+class ConvTranspose(Conv):
+
+	def _get_upper_shape(self, input_shape: LockedShape) -> OpenShape:
+		return OpenShape(*(self.dimension_backward(input_shape, i) for i in range(1, len(input_shape))))
+
+
+class MaxPool(KernelBase):
+	pass
 
 
 def _closest_divisible(value: int, divisor: int, shape_bound: ShapeBound) -> int | None:
