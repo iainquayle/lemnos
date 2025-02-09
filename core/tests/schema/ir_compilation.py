@@ -3,7 +3,7 @@ import unittest
 from lemnos.schema.schema_graph import _CompilationNode, _CompilationNodeStack, _CompilationTracker 
 from lemnos.schema.schema_graph import *
 from lemnos.schema.growth_functions import PowerGrowth
-from lemnos.schema.components import Concat, Sum, Conv, ReLU, BatchNorm, Full  
+from lemnos.schema.components import Concat, Sum, Conv, Relu, BatchNorm, Dense  
 from lemnos.schema.compilation_indices import BreedIndices
 from lemnos.shared import *
 
@@ -37,15 +37,15 @@ class Test_Compilation(unittest.TestCase):
 			None,
 			None, 
 			Conv(kernel=2, stride=2),
-			ReLU(), 
+			Relu(), 
 			BatchNorm(), "split_1")
 		split_2 = SchemaNode( ShapeBound((1, 10), (1, 8)), 
 			None,
 			None, 
 			Conv(kernel=2, stride=2),
-			ReLU(), 
+			Relu(), 
 			BatchNorm(), "split_2")
-		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Full(), None, None, "end")
+		end_node = SchemaNode( ShapeBound((1, 1), (1, 1)), None, None, Dense(), None, None, "end")
 		main.add_group( New(split_1, 0), New(split_2, 1))
 		split_1.add_group( New(main, 2))
 		split_2.add_group( Existing(main, 2))

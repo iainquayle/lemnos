@@ -8,9 +8,9 @@ from abc import ABC as Abstract, abstractmethod
 
 class Transformation(Component, Abstract):
 
-	@abstractmethod
-	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
-		pass
+	#@abstractmethod
+	#def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+	#	pass
 
 	@abstractmethod
 	def get_output_shape(self, 
@@ -30,8 +30,8 @@ class Dense(Transformation):
 	def __init__(self) -> None:
 		pass
 
-	def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
-		return shape_in.dimensionality() == shape_out.dimensionality()
+	#def validate_output_shape_transform(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+	#	return shape_in.dimensionality() == shape_out.dimensionality()
 
 	def get_output_shape(self, 
 			input_shape: LockedShape, 
@@ -66,15 +66,7 @@ class KernelBase(Transformation, Abstract):
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
 
-	def dimension_forward(self, shape: LockedShape, index: int) -> int:
-		if index == 0:
-			raise ValueError("index must be greater than 0")
-		index -= 1 
-		return ((shape[index + 1] - 1) * self._stride[index] 
-			+ (self._kernel[index] * self._dilation[index] - (self._dilation[index] - 1)) 
-			- self._padding[index] * 2)
-
-	def dimension_backward(self, shape: LockedShape, index: int) -> int:
+	def dimension_shrink(self, shape: LockedShape, index: int) -> int:
 		if index == 0:
 			raise ValueError("index must be greater than 0")
 		index -= 1
@@ -82,18 +74,26 @@ class KernelBase(Transformation, Abstract):
 			- (self._kernel[index] * self._dilation[index] 
 			- (self._dilation[index] - 1))) // self._stride[index] + 1)
 
-	def validate_shape_forward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
-		i = 1
-		while i < len(shape_out) and self.dimension_forward(shape_in, i) == shape_out[i]:
-			i += 1
-		return i == len(shape_out) and (shape_out[0] == shape_in[0])
+	def dimension_expand(self, shape: LockedShape, index: int) -> int: 
+		if index == 0:
+			raise ValueError("index must be greater than 0")
+		index -= 1 
+		return ((shape[index + 1] - 1) * self._stride[index] 
+			+ (self._kernel[index] * self._dilation[index] - (self._dilation[index] - 1)) 
+			- self._padding[index] * 2)
+
+	#def validate_shape_forward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+	#	i = 1
+	#	while i < len(shape_out) and self.dimension_forward(shape_in, i) == shape_out[i]:
+	#		i += 1
+	#	return i == len(shape_out) and (shape_out[0] == shape_in[0]) # last statment isnt correct?
 
 	#not needed? cant remember if thats the case and too lazy to check...
-	def validate_shape_backward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
-		i = 1
-		while i < len(shape_in) and self.dimension_backward(shape_in, i) == shape_out[i]:
-			i += 1
-		return i == len(shape_in) and (shape_out[0] == shape_in[0])
+	#def validate_shape_backward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
+	#	i = 1
+	#	while i < len(shape_in) and self.dimension_backward(shape_in, i) == shape_out[i]:
+	#		i += 1
+	#	return i == len(shape_in) and (shape_out[0] == shape_in[0])
 
 	def get_known_divisor(self) -> int:
 		return 1
@@ -151,7 +151,7 @@ class Conv(KernelBase):
 		return None
 
 	def _get_upper_shape(self, input_shape: LockedShape) -> OpenShape:
-		return OpenShape(*(self.dimension_forward(input_shape, i) for i in range(1, len(input_shape))))
+		return OpenShape(*(self.dimension_shrink(input_shape, i) for i in range(1, len(input_shape))))
 
 	def get_known_divisor(self) -> int:
 		return self._groups
@@ -163,7 +163,7 @@ class Conv(KernelBase):
 class ConvTranspose(Conv):
 
 	def _get_upper_shape(self, input_shape: LockedShape) -> OpenShape:
-		return OpenShape(*(self.dimension_backward(input_shape, i) for i in range(1, len(input_shape))))
+		return OpenShape(*(self.dimension_expand(input_shape, i) for i in range(1, len(input_shape))))
 
 
 class MaxPool(KernelBase):
