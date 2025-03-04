@@ -29,7 +29,7 @@ def conv_generator(self: Conv, args: StatementGeneratorArgs) -> ComponentStateme
 
 def conv_transpose_generator(self: ConvTranspose, args: StatementGeneratorArgs) -> ComponentStatements:
 	dimensionality = len(args.input_shape) - 1
-	return standard_module(f"ConvTranspose{dimensionality}d({args.input_shape[0]}, {args.output_shape[0]}, {self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, {self._dilation.expand(dimensionality)}, {self._groups})", args, )
+	return standard_module(f"ConvTranspose{dimensionality}d({args.input_shape[0]}, {args.output_shape[0]}, {self._kernel.expand(dimensionality)}, {self._stride.expand(dimensionality)}, {self._padding.expand(dimensionality)}, dilation={self._dilation.expand(dimensionality)}, groups={self._groups})", args, )
 
 
 def maxpool_generator(self: MaxPool, args: StatementGeneratorArgs) -> ComponentStatements:
