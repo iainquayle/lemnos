@@ -66,21 +66,38 @@ class KernelBase(Transformation, Abstract):
 		self._stride: _Clamptuple = _Clamptuple(stride)
 		self._dilation: _Clamptuple = _Clamptuple(dilation)
 
-	def dimension_shrink(self, shape: LockedShape, index: int) -> int:
+	def dimension_forward(self, shape: LockedShape, index: int) -> int:
 		if index == 0:
 			raise ValueError("index must be greater than 0")
 		index -= 1
-		return (((shape[index + 1] + self._padding[index] * 2) 
-			- (self._kernel[index] * self._dilation[index] 
-			- (self._dilation[index] - 1))) // self._stride[index] + 1)
+		return ((shape[index + 1] 
+			+ self._padding[index] * 2 
+			- self._dilation[index] * (self._kernel[index] - 1) - 1) 
+			// self._stride[index]) + 1
 
-	def dimension_expand(self, shape: LockedShape, index: int) -> int: 
+	def dimension_backward(self, shape: LockedShape, index: int) -> int: 
+		if index == 0:
+			raise ValueError("index must be greater than 0")
+		index -= 1 
+		return ((shape[index + 1] - 1) * self._stride[index]
+			- self._padding[index] * 2
+			+ self._dilation[index] * (self._kernel[index] - 1) + 1)
+
+	def dimension_transpose_forward(self, shape: LockedShape, index: int) -> int:
 		if index == 0:
 			raise ValueError("index must be greater than 0")
 		index -= 1 
 		return ((shape[index + 1] - 1) * self._stride[index] 
-			+ (self._kernel[index] * self._dilation[index] - (self._dilation[index] - 1)) 
-			- self._padding[index] * 2)
+			- self._padding[index] * 2
+			+ self._dilation[index] * (self._kernel[index] - 1) + 1)
+
+	def dimension_transpose_backward(self, shape: LockedShape, index: int) -> int:
+		if index == 0:
+			raise ValueError("index must be greater than 0")
+		index -= 1 
+		return (shape[index + 1] 
+			+ self._padding[index] * 2
+			- self._dilation[index] * (self._kernel[index] - 1)	- 1) // self._stride[index] + 1
 
 	#def validate_shape_forward(self, shape_in: LockedShape, shape_out: LockedShape) -> bool:
 	#	i = 1
@@ -151,7 +168,7 @@ class Conv(KernelBase):
 		return None
 
 	def _get_upper_shape(self, input_shape: LockedShape) -> OpenShape:
-		return OpenShape(*(self.dimension_shrink(input_shape, i) for i in range(1, len(input_shape))))
+		return OpenShape(*(self.dimension_forward(input_shape, i) for i in range(1, len(input_shape))))
 
 	def get_known_divisor(self) -> int:
 		return self._groups
@@ -163,7 +180,7 @@ class Conv(KernelBase):
 class ConvTranspose(Conv):
 
 	def _get_upper_shape(self, input_shape: LockedShape) -> OpenShape:
-		return OpenShape(*(self.dimension_expand(input_shape, i) for i in range(1, len(input_shape))))
+		return OpenShape(*(self.dimension_transpose_forward(input_shape, i) for i in range(1, len(input_shape))))
 
 
 class MaxPool(KernelBase):

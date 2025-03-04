@@ -1,37 +1,16 @@
 import unittest
 
-from torch import zeros
-from torch.nn import Conv1d
-
-from lemnos.schema.components import Conv 
+from lemnos.schema.components import Conv, ConvTranspose 
 from lemnos.shared import LockedShape, OpenShape, ShapeBound, ShapeConformance
 
 #TODO: splits these tests up
 class TestConv(unittest.TestCase):
-	def test_input_to_output_dim(self) -> None:
-		input = zeros(1, 1, 9)
-		shape = LockedShape(*input.size()[1:])
-		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=0, dilation=1, bias=False)
-		transform = Conv(kernel=3, stride=1, padding=0, dilation=1)
-		self.assertEqual(transform.input_dim_to_output_dim(shape, 1), reference(input).shape[2])
-		input = zeros(1, 1, 8)
-		shape = LockedShape(*input.size()[1:])
-		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=2, padding=0, dilation=1, bias=False)
-		transform = Conv(kernel=2, stride=2, padding=0, dilation=1)
-		self.assertEqual(transform.input_dim_to_output_dim(shape, 1), reference(input).shape[2])
-		input = zeros(1, 1, 9)
-		shape = LockedShape(*input.size()[1:])
-		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1, padding=1, dilation=2, bias=False)
-		transform = Conv(kernel=2, stride=1, padding=1, dilation=2)
-		self.assertEqual(transform.input_dim_to_output_dim(shape, 1), reference(input).shape[2])
-		input = zeros(1, 1, 8)
-		shape = LockedShape(*input.size()[1:])
-		reference = Conv1d(in_channels=1, out_channels=1, kernel_size=2, stride=1, padding=2, dilation=4, bias=False)
-		transform = Conv(kernel=2, stride=1, padding=2, dilation=4)
-		self.assertEqual(transform.input_dim_to_output_dim(shape, 1), reference(input).shape[2])
-		#print(reference(input).shape[2])
-	def test_output_to_input_dim(self) -> None:
-		pass
+	def test_dimension_forward(self) -> None:
+		transform = Conv(kernel=4, stride=2, padding=1, dilation=1)
+		self.assertEqual(transform.dimension_forward(LockedShape(1, 8), 1), 4)
+		transform = Conv(kernel=3, stride=2, padding=1, dilation=1)
+		self.assertEqual(transform.dimension_forward(LockedShape(1, 5), 1), 3)
+		#self.assertEqual(transform.output_to_input_dim(3), 6)
 	def test_mould_output_shape_valid_upper(self) -> None:
 		transform = Conv(kernel=2, stride=2, padding=0, dilation=1)
 		shape = LockedShape(2, 6)
@@ -64,6 +43,13 @@ class TestConv(unittest.TestCase):
 		self.assertIsNone(transform.get_output_shape(shape, ShapeConformance(LockedShape(3, 3), 1), ShapeBound((2, 2), (1, 8)), 1))
 		shape = LockedShape(3, 6)
 		self.assertIsNone(transform.get_output_shape(shape, ShapeConformance(OpenShape(3), 1), ShapeBound((2, 2), (1, 8)), 1))
+
+class TestConvTranspose(unittest.TestCase):
+	def test_dimension_forward(self) -> None:
+		transform = ConvTranspose(kernel=3, stride=1, padding=1, dilation=1)
+		self.assertEqual(transform.dimension_transpose_forward(LockedShape(1, 5), 1), 5)
+		transform = ConvTranspose(kernel=3, stride=2, padding=1, dilation=1)
+		self.assertEqual(transform.dimension_transpose_forward(LockedShape(1, 3), 1), 5)
 
 class TestFull(unittest.TestCase):
 	def test_input_to_output_dim(self) -> None:
