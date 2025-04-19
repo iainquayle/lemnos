@@ -6,6 +6,12 @@
 
 probably rename again, something specific to evolution and maybe neurals sciences. lemnos while dealing with automatons, still has many other connotations 
 
+### graph structure
+
+move to something where each node of the graph can have any sequence of internal modules.
+ie, a series of operations, or activation, or normalization, or whatever.
+also, perhaps could make a shape bound just a module, doesnt change the shape but can guard.
+
 ### graph solver
 
 move compilation and graph backend to c modules, maybe rust instead, just easier
